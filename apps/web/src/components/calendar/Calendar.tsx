@@ -1,5 +1,6 @@
 "use client";
 
+import ReservationLayer from "@/components/calendar/ReservationLayer";
 import type { CalendarEngineData } from "@/modules/calendar/calendar.types";
 
 type CalendarProps = {
@@ -7,7 +8,10 @@ type CalendarProps = {
 };
 
 export default function Calendar({ data }: CalendarProps) {
-  const gridTemplateColumns = `260px repeat(${data.month.days.length}, 48px)`;
+  const dayWidth = 48;
+  const rowHeight = 64;
+  const cabinColumnWidth = 260;
+  const gridTemplateColumns = `${cabinColumnWidth}px repeat(${data.month.days.length}, ${dayWidth}px)`;
 
   return (
     <div className="space-y-6">
@@ -27,7 +31,7 @@ export default function Calendar({ data }: CalendarProps) {
               gridTemplateColumns,
             }}
           >
-            <div className="sticky left-0 z-20 border-b border-r bg-zinc-100 p-3 font-semibold">
+            <div className="sticky left-0 z-30 border-b border-r bg-zinc-100 p-3 font-semibold">
               Domek
             </div>
 
@@ -46,7 +50,12 @@ export default function Calendar({ data }: CalendarProps) {
 
             {data.cabins.map((cabin) => (
               <div key={cabin.id} className="contents">
-                <div className="sticky left-0 z-10 border-b border-r bg-white p-3">
+                <div
+                  className="sticky left-0 z-20 border-b border-r bg-white p-3"
+                  style={{
+                    height: rowHeight,
+                  }}
+                >
                   <div className="font-semibold">{cabin.name}</div>
 
                   <div className="mt-1 text-xs text-zinc-500">
@@ -54,12 +63,32 @@ export default function Calendar({ data }: CalendarProps) {
                   </div>
                 </div>
 
-                {data.month.days.map((day) => (
+                <div
+                  className="relative border-b"
+                  style={{
+                    gridColumn: `span ${data.month.days.length}`,
+                    height: rowHeight,
+                  }}
+                >
                   <div
-                    key={`${cabin.id}-${day.date.toISOString()}`}
-                    className="h-16 border-b border-r bg-white"
+                    className="grid h-full"
+                    style={{
+                      gridTemplateColumns: `repeat(${data.month.days.length}, ${dayWidth}px)`,
+                    }}
+                  >
+                    {data.month.days.map((day) => (
+                      <div
+                        key={`${cabin.id}-${day.date.toISOString()}`}
+                        className="border-r bg-white"
+                      />
+                    ))}
+                  </div>
+
+                  <ReservationLayer
+                    reservations={cabin.reservations}
+                    range={data.range}
                   />
-                ))}
+                </div>
               </div>
             ))}
           </div>
