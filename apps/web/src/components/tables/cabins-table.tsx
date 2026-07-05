@@ -1,5 +1,6 @@
-import { DeleteCabinButton } from "@/components/tables/delete-cabin-button";
 import Link from "next/link";
+import { DeleteCabinButton } from "@/components/tables/delete-cabin-button";
+import { ToggleCabinStatus } from "@/components/tables/toggle-cabin-status";
 
 type Cabin = {
   id: string;
@@ -9,6 +10,7 @@ type Cabin = {
   bedrooms: number;
   bathrooms: number;
   pricePerNight: number;
+  sortOrder: number;
   isActive: boolean;
   mainImageUrl: string | null;
   images: {
@@ -29,6 +31,7 @@ export function CabinsTable({ cabins }: { cabins: Cabin[] }) {
             <th className="p-4">Domek</th>
             <th className="p-4">Goście</th>
             <th className="p-4">Układ</th>
+            <th className="p-4">Lp.</th>
             <th className="p-4">Cena</th>
             <th className="p-4">Status</th>
             <th className="p-4">Akcje</th>
@@ -54,7 +57,9 @@ export function CabinsTable({ cabins }: { cabins: Cabin[] }) {
 
               <td className="p-4">
                 <div className="font-semibold">{cabin.name}</div>
-                <div className="text-sm text-zinc-500">{cabin.description}</div>
+                <div className="text-sm text-zinc-500">
+                  {cabin.description}
+                </div>
               </td>
 
               <td className="p-4">{cabin.maxGuests} osób</td>
@@ -63,13 +68,21 @@ export function CabinsTable({ cabins }: { cabins: Cabin[] }) {
                 {cabin.bedrooms} syp. / {cabin.bathrooms} łaz.
               </td>
 
+              <td className="p-4">{cabin.sortOrder}</td>
+
               <td className="p-4 font-semibold">
                 {cabin.pricePerNight} zł
               </td>
 
               <td className="p-4">
-                <div className="flex gap-2">
+                <ToggleCabinStatus
+                  id={cabin.id}
+                  active={cabin.isActive}
+                />
+              </td>
 
+              <td className="p-4">
+                <div className="flex gap-2">
                   <Link
                     href={`/admin/domki/${cabin.id}/edytuj`}
                     className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white"
@@ -85,17 +98,7 @@ export function CabinsTable({ cabins }: { cabins: Cabin[] }) {
                   </Link>
 
                   <DeleteCabinButton id={cabin.id} />
-
                 </div>
-              </td>
-
-              <td className="p-4">
-                <Link
-                  href={`/admin/domki/${cabin.id}/edytuj`}
-                  className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
-                >
-                  Edytuj
-                </Link>
               </td>
             </tr>
           ))}

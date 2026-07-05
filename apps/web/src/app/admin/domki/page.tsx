@@ -4,17 +4,17 @@ import { CabinsTable } from "@/components/tables/cabins-table";
 
 export default async function DomkiPage() {
   const domki = await prisma.cabin.findMany({
-  orderBy: {
-    createdAt: "desc",
-  },
-  include: {
-    images: {
-      orderBy: {
-        sortOrder: "asc",
+    orderBy: {
+      sortOrder: "asc",
+    },
+    include: {
+      images: {
+        orderBy: {
+          sortOrder: "asc",
+        },
       },
     },
-  },
-});
+  });
 
   return (
     <div className="space-y-6">

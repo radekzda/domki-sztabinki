@@ -23,25 +23,39 @@ model Cabin {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now()) @updatedAt
-  
-  images CabinImage[]
 
+  images        CabinImage[]
   reservations  Reservation[]
 }
 
 model Reservation {
   id        String   @id @default(cuid())
+
   cabinId   String
+  guestId   String?
+
   guestName String
   email     String
   phone     String?
+
   startDate DateTime
   endDate   DateTime
+
   guests    Int
+
   status    String   @default("PENDING")
+
+  source    String   @default("WWW")
+
+  totalPrice Decimal? @db.Decimal(10,2)
+
+  notes     String?
+
   createdAt DateTime @default(now())
 
   cabin Cabin @relation(fields: [cabinId], references: [id])
+
+  guest Guest? @relation(fields: [guestId], references: [id])
 }
 
 model User {
@@ -54,16 +68,26 @@ model User {
 model CabinImage {
   id        String   @id @default(cuid())
   cabinId   String
-
   url       String
-
   alt       String?
-
   isMain    Boolean  @default(false)
-
   sortOrder Int      @default(0)
-
   createdAt DateTime @default(now())
 
   cabin Cabin @relation(fields: [cabinId], references: [id], onDelete: Cascade)
+}
+model Guest {
+  id        String   @id @default(cuid())
+
+  firstName String
+  lastName  String
+
+  email     String
+  phone     String?
+
+  country   String?
+
+  createdAt DateTime @default(now())
+
+  reservations Reservation[]
 }
