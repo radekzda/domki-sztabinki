@@ -2,6 +2,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createReservation } from "@/actions/reservations";
 
+type Props = {
+  searchParams?: Promise<{
+    error?: string;
+  }>;
+};
+
 const statuses = [
   { value: "PENDING", label: "Oczekująca" },
   { value: "CONFIRMED", label: "Potwierdzona" },
@@ -9,7 +15,10 @@ const statuses = [
   { value: "COMPLETED", label: "Zakończona" },
 ];
 
-export default async function NowaRezerwacjaPage() {
+export default async function NowaRezerwacjaPage({ searchParams }: Props) {
+  const resolvedSearchParams = await searchParams;
+  const error = resolvedSearchParams?.error;
+
   const cabins = await prisma.cabin.findMany({
     where: {
       isActive: true,
@@ -36,11 +45,24 @@ export default async function NowaRezerwacjaPage() {
         </p>
       </div>
 
-      <form action={createReservation} className="space-y-6 rounded-xl border bg-white p-6 shadow-sm">
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      <form
+        action={createReservation}
+        className="space-y-6 rounded-xl border bg-white p-6 shadow-sm"
+      >
         <div className="space-y-2">
           <label className="text-sm font-medium">Domek</label>
 
-          <select name="cabinId" required className="w-full rounded-lg border p-3">
+          <select
+            name="cabinId"
+            required
+            className="w-full rounded-lg border p-3"
+          >
             <option value="">Wybierz domek</option>
 
             {cabins.map((cabin) => (
@@ -53,7 +75,9 @@ export default async function NowaRezerwacjaPage() {
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Imię i nazwisko gościa</label>
+            <label className="text-sm font-medium">
+              Imię i nazwisko gościa
+            </label>
             <input
               name="guestName"
               required
@@ -120,7 +144,12 @@ export default async function NowaRezerwacjaPage() {
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Status</label>
-            <select name="status" required defaultValue="PENDING" className="w-full rounded-lg border p-3">
+            <select
+              name="status"
+              required
+              defaultValue="PENDING"
+              className="w-full rounded-lg border p-3"
+            >
               {statuses.map((status) => (
                 <option key={status.value} value={status.value}>
                   {status.label}

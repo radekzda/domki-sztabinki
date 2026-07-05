@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { checkCabinAvailability } from "@/lib/reservations";
 
 const allowedStatuses = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
 
@@ -10,7 +11,11 @@ function getRequiredString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`Pole ${key} jest wymagane.`);
+    redirect(
+      `/admin/rezerwacje/nowa?error=${encodeURIComponent(
+        "Uzupełnij wszystkie wymagane pola."
+      )}`
+    );
   }
 
   return value.trim();
@@ -18,6 +23,10 @@ function getRequiredString(formData: FormData, key: string) {
 
 function parseDate(value: string) {
   return new Date(`${value}T12:00:00.000Z`);
+}
+
+function redirectWithError(message: string) {
+  redirect(`/admin/rezerwacje/nowa?error=${encodeURIComponent(message)}`);
 }
 
 export async function createReservation(formData: FormData) {
@@ -31,18 +40,22 @@ export async function createReservation(formData: FormData) {
   const status = getRequiredString(formData, "status");
 
   if (!allowedStatuses.includes(status)) {
-    throw new Error("Nieprawidłowy status rezerwacji.");
+    redirectWithError("Nieprawidłowy status rezerwacji.");
   }
 
   if (!Number.isInteger(guests) || guests < 1) {
-    throw new Error("Liczba gości musi być większa od zera.");
+    redirectWithError("Liczba gości musi być większa od zera.");
   }
 
   const startDate = parseDate(startDateValue);
   const endDate = parseDate(endDateValue);
 
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    redirectWithError("Nieprawidłowa data rezerwacji.");
+  }
+
   if (endDate <= startDate) {
-    throw new Error("Data wyjazdu musi być późniejsza niż data przyjazdu.");
+    redirectWithError("Data wyjazdu musi być późniejsza niż data przyjazdu.");
   }
 
   const cabin = await prisma.cabin.findUnique({
@@ -50,11 +63,25 @@ export async function createReservation(formData: FormData) {
   });
 
   if (!cabin) {
-    throw new Error("Wybrany domek nie istnieje.");
+    redirectWithError("Wybrany domek nie istnieje.");
   }
 
   if (guests > cabin.maxGuests) {
-    throw new Error(`Ten domek mieści maksymalnie ${cabin.maxGuests} osób.`);
+    redirectWithError(`Ten domek mieści maksymalnie ${cabin.maxGuests} osób.`);
+  }
+
+  if (status === "PENDING" || status === "CONFIRMED") {
+    const availability = await checkCabinAvailability({
+      cabinId,
+      startDate,
+      endDate,
+    });
+
+    if (!availability.available) {
+      redirectWithError(
+        "Wybrany domek jest już zarezerwowany w podanym terminie."
+      );
+    }
   }
 
   await prisma.reservation.create({
