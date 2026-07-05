@@ -1,10 +1,66 @@
 "use server";
 
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import path from "path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import path from "path";
+import { prisma } from "@/lib/prisma";
+
+async function normalizeCabinImageOrder(cabinId: string) {
+  const images = await prisma.cabinImage.findMany({
+    where: { cabinId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+  });
+
+  await prisma.$transaction(
+    images.map((image, index) =>
+      prisma.cabinImage.update({
+        where: { id: image.id },
+        data: { sortOrder: index },
+      })
+    )
+  );
+}
+
+async function moveCabinImage(imageId: string, direction: "up" | "down") {
+  const image = await prisma.cabinImage.findUnique({
+    where: { id: imageId },
+  });
+
+  if (!image) return;
+
+  await normalizeCabinImageOrder(image.cabinId);
+
+  const images = await prisma.cabinImage.findMany({
+    where: { cabinId: image.cabinId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+  });
+
+  const currentIndex = images.findIndex((item) => item.id === imageId);
+
+  if (currentIndex === -1) return;
+
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+  if (targetIndex < 0 || targetIndex >= images.length) return;
+
+  const currentImage = images[currentIndex];
+  const targetImage = images[targetIndex];
+
+  await prisma.$transaction([
+    prisma.cabinImage.update({
+      where: { id: currentImage.id },
+      data: { sortOrder: targetImage.sortOrder },
+    }),
+    prisma.cabinImage.update({
+      where: { id: targetImage.id },
+      data: { sortOrder: currentImage.sortOrder },
+    }),
+  ]);
+
+  revalidatePath("/admin/domki");
+  revalidatePath(`/admin/domki/${image.cabinId}/zdjecia`);
+}
 
 export async function createCabin(formData: FormData) {
   await prisma.cabin.create({
@@ -62,10 +118,7 @@ export async function toggleCabinStatus(id: string) {
   revalidatePath("/admin/domki");
 }
 
-export async function uploadCabinImage(
-  cabinId: string,
-  formData: FormData
-) {
+export async function uploadCabinImage(cabinId: string, formData: FormData) {
   const file = formData.get("image") as File | null;
 
   if (!file || file.size === 0) return;
@@ -123,15 +176,23 @@ export async function uploadCabinImage(
 
   const imageUrl = `/uploads/cabins/${cabinId}/${fileName}`;
 
-  const imageCount = await prisma.cabinImage.count({
-    where: { cabinId },
-  });
+  const [imageCount, lastImage] = await Promise.all([
+    prisma.cabinImage.count({
+      where: { cabinId },
+    }),
+    prisma.cabinImage.findFirst({
+      where: { cabinId },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    }),
+  ]);
 
   await prisma.cabinImage.create({
     data: {
       cabinId,
       url: imageUrl,
       isMain: imageCount === 0,
+      sortOrder: (lastImage?.sortOrder ?? -1) + 1,
     },
   });
 
@@ -172,6 +233,22 @@ export async function deleteCabinImage(imageId: string) {
     where: { id: imageId },
   });
 
+  if (image.isMain) {
+    const nextMainImage = await prisma.cabinImage.findFirst({
+      where: { cabinId: image.cabinId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    });
+
+    if (nextMainImage) {
+      await prisma.cabinImage.update({
+        where: { id: nextMainImage.id },
+        data: { isMain: true },
+      });
+    }
+  }
+
+  await normalizeCabinImageOrder(image.cabinId);
+
   if (image.url.startsWith("/uploads/")) {
     const fs = await import("fs/promises");
     const filePath = path.join(process.cwd(), "public", image.url);
@@ -181,4 +258,12 @@ export async function deleteCabinImage(imageId: string) {
 
   revalidatePath("/admin/domki");
   revalidatePath(`/admin/domki/${image.cabinId}/zdjecia`);
+}
+
+export async function moveCabinImageUp(imageId: string) {
+  await moveCabinImage(imageId, "up");
+}
+
+export async function moveCabinImageDown(imageId: string) {
+  await moveCabinImage(imageId, "down");
 }

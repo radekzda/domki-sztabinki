@@ -39,69 +39,71 @@ export function CabinsTable({ cabins }: { cabins: Cabin[] }) {
         </thead>
 
         <tbody>
-          {cabins.map((cabin) => (
-            <tr key={cabin.id} className="border-t hover:bg-zinc-50">
-              <td className="p-4">
-                {cabin.images[0] ? (
-                  <img
-                    src={cabin.images[0].url}
-                    alt={cabin.images[0].alt ?? cabin.name}
-                    className="h-16 w-24 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-16 w-24 items-center justify-center rounded-lg bg-zinc-100 text-xs text-zinc-400">
-                    Brak zdjęcia
+          {cabins.map((cabin) => {
+            const mainImage =
+              cabin.images.find((image) => image.isMain) ?? cabin.images[0];
+
+            return (
+              <tr key={cabin.id} className="border-t hover:bg-zinc-50">
+                <td className="p-4">
+                  {mainImage ? (
+                    <img
+                      src={mainImage.url}
+                      alt={mainImage.alt ?? cabin.name}
+                      className="h-16 w-24 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-24 items-center justify-center rounded-lg bg-zinc-100 text-xs text-zinc-400">
+                      Brak zdjęcia
+                    </div>
+                  )}
+                </td>
+
+                <td className="p-4">
+                  <div className="font-semibold">{cabin.name}</div>
+                  <div className="text-sm text-zinc-500">
+                    {cabin.description}
                   </div>
-                )}
-              </td>
+                </td>
 
-              <td className="p-4">
-                <div className="font-semibold">{cabin.name}</div>
-                <div className="text-sm text-zinc-500">
-                  {cabin.description}
-                </div>
-              </td>
+                <td className="p-4">{cabin.maxGuests} osób</td>
 
-              <td className="p-4">{cabin.maxGuests} osób</td>
+                <td className="p-4">
+                  {cabin.bedrooms} syp. / {cabin.bathrooms} łaz.
+                </td>
 
-              <td className="p-4">
-                {cabin.bedrooms} syp. / {cabin.bathrooms} łaz.
-              </td>
+                <td className="p-4">{cabin.sortOrder}</td>
 
-              <td className="p-4">{cabin.sortOrder}</td>
+                <td className="p-4 font-semibold">
+                  {cabin.pricePerNight} zł
+                </td>
 
-              <td className="p-4 font-semibold">
-                {cabin.pricePerNight} zł
-              </td>
+                <td className="p-4">
+                  <ToggleCabinStatus id={cabin.id} active={cabin.isActive} />
+                </td>
 
-              <td className="p-4">
-                <ToggleCabinStatus
-                  id={cabin.id}
-                  active={cabin.isActive}
-                />
-              </td>
+                <td className="p-4">
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/admin/domki/${cabin.id}/edytuj`}
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white"
+                    >
+                      Edytuj
+                    </Link>
 
-              <td className="p-4">
-                <div className="flex gap-2">
-                  <Link
-                    href={`/admin/domki/${cabin.id}/edytuj`}
-                    className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white"
-                  >
-                    Edytuj
-                  </Link>
+                    <Link
+                      href={`/admin/domki/${cabin.id}/zdjecia`}
+                      className="rounded-lg bg-green-600 px-3 py-2 text-sm text-white"
+                    >
+                      Zdjęcia
+                    </Link>
 
-                  <Link
-                    href={`/admin/domki/${cabin.id}/zdjecia`}
-                    className="rounded-lg bg-green-600 px-3 py-2 text-sm text-white"
-                  >
-                    Zdjęcia
-                  </Link>
-
-                  <DeleteCabinButton id={cabin.id} />
-                </div>
-              </td>
-            </tr>
-          ))}
+                    <DeleteCabinButton id={cabin.id} />
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
