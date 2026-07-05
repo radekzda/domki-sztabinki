@@ -7,15 +7,15 @@ import { checkCabinAvailability } from "@/lib/reservations";
 
 const allowedStatuses = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
 
+function redirectWithError(message: string): never {
+  redirect(`/admin/rezerwacje/nowa?error=${encodeURIComponent(message)}`);
+}
+
 function getRequiredString(formData: FormData, key: string) {
   const value = formData.get(key);
 
   if (typeof value !== "string" || value.trim() === "") {
-    redirect(
-      `/admin/rezerwacje/nowa?error=${encodeURIComponent(
-        "Uzupełnij wszystkie wymagane pola."
-      )}`
-    );
+    redirectWithError("Uzupełnij wszystkie wymagane pola.");
   }
 
   return value.trim();
@@ -23,10 +23,6 @@ function getRequiredString(formData: FormData, key: string) {
 
 function parseDate(value: string) {
   return new Date(`${value}T12:00:00.000Z`);
-}
-
-function redirectWithError(message: string) {
-  redirect(`/admin/rezerwacje/nowa?error=${encodeURIComponent(message)}`);
 }
 
 export async function createReservation(formData: FormData) {
