@@ -104,12 +104,12 @@ export default async function RezerwacjePage({ searchParams }: Props) {
           </p>
         </div>
 
-        <button
-          disabled
-          className="rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-500"
+        <Link
+          href="/admin/rezerwacje/nowa"
+          className="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800"
         >
           + Dodaj rezerwację
-        </button>
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
