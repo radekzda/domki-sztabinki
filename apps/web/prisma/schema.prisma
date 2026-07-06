@@ -8,50 +8,76 @@ datasource db {
 }
 
 model Cabin {
-  id            String   @id @default(cuid())
-  name          String
-  description   String
-  maxGuests     Int
-  bedrooms      Int
-  bathrooms     Int
-  pricePerNight Int
+  id          String @id @default(cuid())
+  name        String
+  description String
 
-  isActive      Boolean  @default(true)
-  mainImageUrl  String?
-  shortName     String?
-  sortOrder     Int      @default(0)
+  maxGuests Int
+  bedrooms  Int
+  bathrooms Int
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now()) @updatedAt
+  pricePerNight        Int @default(450)
+  priceOneNight        Int @default(800)
+  priceTwoNights       Int @default(450)
+  priceThreeNights     Int @default(440)
+  priceFourNights      Int @default(430)
+  priceFiveNights      Int @default(420)
+  priceSixNights       Int @default(410)
+  priceSevenPlusNights Int @default(350)
 
-  images        CabinImage[]
-  reservations  Reservation[]
+  isActive     Boolean @default(true)
+  mainImageUrl String?
+  shortName    String?
+  sortOrder    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  images       CabinImage[]
+  reservations Reservation[]
 }
 
 model Reservation {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  cabinId   String
-  guestId   String?
+  cabinId String
+  guestId String?
 
   guestName String
   email     String
   phone     String?
 
+  firstName String?
+  lastName  String?
+
   startDate DateTime
   endDate   DateTime
 
-  guests    Int
+  checkInAt  DateTime?
+  checkOutAt DateTime?
 
-  status    String   @default("PENDING")
+  nights        Int      @default(1)
+  pricePerNight Decimal? @db.Decimal(10, 2)
 
-  source    String   @default("WWW")
+  guests   Int
+  adults   Int @default(1)
+  children Int @default(0)
 
-  totalPrice Decimal? @db.Decimal(10,2)
+  status String @default("PENDING")
+  source String @default("MANUAL")
 
-  notes     String?
+  totalPrice Decimal? @db.Decimal(10, 2)
+  paidAmount Decimal? @db.Decimal(10, 2)
+
+  street     String?
+  postalCode String?
+  city       String?
+  country    String?
+
+  notes String?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   cabin Cabin @relation(fields: [cabinId], references: [id])
 
@@ -76,18 +102,49 @@ model CabinImage {
 
   cabin Cabin @relation(fields: [cabinId], references: [id], onDelete: Cascade)
 }
+
 model Guest {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
   firstName String
   lastName  String
 
-  email     String
-  phone     String?
-
-  country   String?
+  email   String
+  phone   String?
+  country String?
 
   createdAt DateTime @default(now())
 
   reservations Reservation[]
+}
+
+model SystemSettings {
+  id String @id @default("main")
+
+  propertyName String @default("Domki Sztabinki")
+
+  ownerName  String?
+  ownerEmail String?
+  ownerPhone String?
+
+  contactEmail String?
+  contactPhone String?
+
+  propertyStreet     String?
+  propertyPostalCode String?
+  propertyCity       String?
+  propertyCountry    String  @default("Polska")
+
+  checkInTime  String @default("15:00")
+  checkOutTime String @default("11:00")
+
+  minimumNights Int @default(4)
+
+  seasonStartMonth Int @default(5)
+  seasonEndMonth   Int @default(9)
+
+  websiteUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
