@@ -1,23 +1,57 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { createReservation } from "@/actions/reservations";
+import ReservationForm from "@/components/reservations/ReservationForm";
 
 type Props = {
   searchParams?: Promise<{
     error?: string;
+    cabinId?: string;
+    startDate?: string;
+    endDate?: string;
+    guestId?: string;
   }>;
 };
 
-const statuses = [
-  { value: "PENDING", label: "Oczekująca" },
-  { value: "CONFIRMED", label: "Potwierdzona" },
-  { value: "CANCELLED", label: "Anulowana" },
-  { value: "COMPLETED", label: "Zakończona" },
-];
+function isValidDateInputValue(value: string | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function getNextDateInputValue(dateValue: string) {
+  const date = new Date(`${dateValue}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  date.setDate(date.getDate() + 1);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
 
 export default async function NowaRezerwacjaPage({ searchParams }: Props) {
-  const resolvedSearchParams = await searchParams;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+
   const error = resolvedSearchParams?.error;
+
+  const initialStartDate = isValidDateInputValue(
+    resolvedSearchParams?.startDate
+  )
+    ? resolvedSearchParams?.startDate ?? ""
+    : "";
+
+  const initialEndDate = isValidDateInputValue(resolvedSearchParams?.endDate)
+    ? resolvedSearchParams?.endDate ?? ""
+    : initialStartDate
+      ? getNextDateInputValue(initialStartDate)
+      : "";
 
   const cabins = await prisma.cabin.findMany({
     where: {
@@ -26,10 +60,35 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
     orderBy: {
       sortOrder: "asc",
     },
+    select: {
+      id: true,
+      name: true,
+      maxGuests: true,
+      pricePerNight: true,
+      priceOneNight: true,
+      priceTwoNights: true,
+      priceThreeNights: true,
+      priceFourNights: true,
+      priceFiveNights: true,
+      priceSixNights: true,
+      priceSevenPlusNights: true,
+    },
   });
 
+  const initialCabinExists = cabins.some(
+    (cabin) => cabin.id === resolvedSearchParams?.cabinId
+  );
+
+  const initialGuest = resolvedSearchParams?.guestId
+    ? await prisma.guest.findUnique({
+        where: {
+          id: resolvedSearchParams.guestId,
+        },
+      })
+    : null;
+
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-5xl space-y-8">
       <div>
         <Link
           href="/admin/rezerwacje"
@@ -41,7 +100,7 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         <h1 className="mt-3 text-3xl font-bold">Dodaj rezerwację</h1>
 
         <p className="mt-2 text-zinc-500">
-          Dodaj ręczną rezerwację z telefonu, wiadomości lub własnej strony.
+          Dodaj pełną rezerwację PMS z automatycznie wyliczaną ceną domyślną.
         </p>
       </div>
 
@@ -51,127 +110,32 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         </div>
       ) : null}
 
-      <form
-        action={createReservation}
-        className="space-y-6 rounded-xl border bg-white p-6 shadow-sm"
-      >
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Domek</label>
-
-          <select
-            name="cabinId"
-            required
-            className="w-full rounded-lg border p-3"
-          >
-            <option value="">Wybierz domek</option>
-
-            {cabins.map((cabin) => (
-              <option key={cabin.id} value={cabin.id}>
-                {cabin.name} — maks. {cabin.maxGuests} osób
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Imię i nazwisko gościa
-            </label>
-            <input
-              name="guestName"
-              required
-              className="w-full rounded-lg border p-3"
-              placeholder="np. Jan Kowalski"
-            />
+      {initialGuest ? (
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+          <div className="font-semibold">
+            Tworzysz rezerwację dla istniejącego gościa.
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Email</label>
-            <input
-              type="email"
-              name="email"
-              required
-              className="w-full rounded-lg border p-3"
-              placeholder="np. jan@example.com"
-            />
+          <div className="mt-1">
+            {initialGuest.firstName} {initialGuest.lastName} ·{" "}
+            {initialGuest.email}
           </div>
         </div>
+      ) : null}
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Telefon</label>
-          <input
-            name="phone"
-            className="w-full rounded-lg border p-3"
-            placeholder="np. 500 000 000"
-          />
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Przyjazd</label>
-            <input
-              type="date"
-              name="startDate"
-              required
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Wyjazd</label>
-            <input
-              type="date"
-              name="endDate"
-              required
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Liczba osób</label>
-            <input
-              type="number"
-              name="guests"
-              required
-              min={1}
-              className="w-full rounded-lg border p-3"
-              placeholder="np. 4"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
-            <select
-              name="status"
-              required
-              defaultValue="PENDING"
-              className="w-full rounded-lg border p-3"
-            >
-              {statuses.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button className="rounded-lg bg-green-700 px-6 py-3 text-white hover:bg-green-800">
-            Zapisz rezerwację
-          </button>
-
-          <Link
-            href="/admin/rezerwacje"
-            className="rounded-lg border px-6 py-3 hover:bg-zinc-50"
-          >
-            Anuluj
-          </Link>
-        </div>
-      </form>
+      <ReservationForm
+        cabins={cabins}
+        initialCabinId={
+          initialCabinExists ? resolvedSearchParams?.cabinId ?? "" : ""
+        }
+        initialStartDate={initialStartDate}
+        initialEndDate={initialEndDate}
+        initialFirstName={initialGuest?.firstName ?? ""}
+        initialLastName={initialGuest?.lastName ?? ""}
+        initialEmail={initialGuest?.email ?? ""}
+        initialPhone={initialGuest?.phone ?? ""}
+        initialCountry={initialGuest?.country ?? "Polska"}
+      />
     </div>
   );
 }

@@ -235,10 +235,10 @@ export default async function GuestDetailsPage({ params }: Props) {
             </Link>
 
             <Link
-              href="/admin/rezerwacje/nowa"
+              href={`/admin/rezerwacje/nowa?guestId=${guest.id}`}
               className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
             >
-              + Dodaj rezerwację
+              + Dodaj rezerwację dla gościa
             </Link>
           </div>
         </div>
