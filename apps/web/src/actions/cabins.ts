@@ -6,122 +6,153 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
-async function normalizeCabinImageOrder(cabinId: string) {
-  const images = await prisma.cabinImage.findMany({
-    where: { cabinId },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-  });
+function getString(formData: FormData, key: string, defaultValue = "") {
+  const value = formData.get(key);
 
-  await prisma.$transaction(
-    images.map((image, index) =>
-      prisma.cabinImage.update({
-        where: { id: image.id },
-        data: { sortOrder: index },
-      })
-    )
-  );
+  if (typeof value !== "string") {
+    return defaultValue;
+  }
+
+  return value.trim();
 }
 
-async function moveCabinImage(imageId: string, direction: "up" | "down") {
-  const image = await prisma.cabinImage.findUnique({
-    where: { id: imageId },
-  });
+function getNumber(formData: FormData, key: string, defaultValue: number) {
+  const value = formData.get(key);
 
-  if (!image) return;
+  if (typeof value !== "string" || value.trim() === "") {
+    return defaultValue;
+  }
 
-  await normalizeCabinImageOrder(image.cabinId);
+  const parsedValue = Number(value);
 
-  const images = await prisma.cabinImage.findMany({
-    where: { cabinId: image.cabinId },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-  });
+  if (!Number.isFinite(parsedValue)) {
+    return defaultValue;
+  }
 
-  const currentIndex = images.findIndex((item) => item.id === imageId);
+  return Math.max(0, Math.floor(parsedValue));
+}
 
-  if (currentIndex === -1) return;
+function getCabinFormData(formData: FormData) {
+  return {
+    name: getString(formData, "name"),
+    description: getString(formData, "description"),
 
-  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    maxGuests: getNumber(formData, "maxGuests", 6),
+    bedrooms: getNumber(formData, "bedrooms", 2),
+    bathrooms: getNumber(formData, "bathrooms", 1),
 
-  if (targetIndex < 0 || targetIndex >= images.length) return;
+    pricePerNight: getNumber(formData, "pricePerNight", 450),
+    priceOneNight: getNumber(formData, "priceOneNight", 800),
+    priceTwoNights: getNumber(formData, "priceTwoNights", 450),
+    priceThreeNights: getNumber(formData, "priceThreeNights", 440),
+    priceFourNights: getNumber(formData, "priceFourNights", 430),
+    priceFiveNights: getNumber(formData, "priceFiveNights", 420),
+    priceSixNights: getNumber(formData, "priceSixNights", 410),
+    priceSevenPlusNights: getNumber(formData, "priceSevenPlusNights", 350),
 
-  const currentImage = images[currentIndex];
-  const targetImage = images[targetIndex];
-
-  await prisma.$transaction([
-    prisma.cabinImage.update({
-      where: { id: currentImage.id },
-      data: { sortOrder: targetImage.sortOrder },
-    }),
-    prisma.cabinImage.update({
-      where: { id: targetImage.id },
-      data: { sortOrder: currentImage.sortOrder },
-    }),
-  ]);
-
-  revalidatePath("/admin/domki");
-  revalidatePath(`/admin/domki/${image.cabinId}/zdjecia`);
+    shortName: getString(formData, "shortName") || null,
+    sortOrder: getNumber(formData, "sortOrder", 0),
+  };
 }
 
 export async function createCabin(formData: FormData) {
   await prisma.cabin.create({
-    data: {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      maxGuests: Number(formData.get("maxGuests")),
-      bedrooms: Number(formData.get("bedrooms")),
-      bathrooms: Number(formData.get("bathrooms")),
-      pricePerNight: Number(formData.get("pricePerNight")),
-    },
+    data: getCabinFormData(formData),
   });
 
   revalidatePath("/admin/domki");
+  revalidatePath("/admin/kalendarz");
+
   redirect("/admin/domki");
 }
 
 export async function updateCabin(id: string, formData: FormData) {
   await prisma.cabin.update({
-    where: { id },
-    data: {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      maxGuests: Number(formData.get("maxGuests")),
-      pricePerNight: Number(formData.get("pricePerNight")),
+    where: {
+      id,
     },
+    data: getCabinFormData(formData),
   });
 
   revalidatePath("/admin/domki");
+  revalidatePath(`/admin/domki/${id}/edytuj`);
+  revalidatePath("/admin/kalendarz");
+
   redirect("/admin/domki");
 }
 
 export async function deleteCabin(id: string) {
   await prisma.cabin.delete({
-    where: { id },
+    where: {
+      id,
+    },
   });
 
   revalidatePath("/admin/domki");
+  revalidatePath("/admin/kalendarz");
 }
 
 export async function toggleCabinStatus(id: string) {
   const cabin = await prisma.cabin.findUnique({
-    where: { id },
+    where: {
+      id,
+    },
   });
 
-  if (!cabin) return;
+  if (!cabin) {
+    return;
+  }
 
   await prisma.cabin.update({
-    where: { id },
+    where: {
+      id,
+    },
     data: {
       isActive: !cabin.isActive,
     },
   });
 
   revalidatePath("/admin/domki");
+  revalidatePath("/admin/kalendarz");
+}
+
+export async function normalizeCabinImageOrder(cabinId: string) {
+  const images = await prisma.cabinImage.findMany({
+    where: {
+      cabinId,
+    },
+    orderBy: [
+      {
+        sortOrder: "asc",
+      },
+      {
+        createdAt: "asc",
+      },
+    ],
+  });
+
+  await Promise.all(
+    images.map((image, index) =>
+      prisma.cabinImage.update({
+        where: {
+          id: image.id,
+        },
+        data: {
+          sortOrder: index,
+        },
+      })
+    )
+  );
+
+  revalidatePath(`/admin/domki/${cabinId}/zdjecia`);
 }
 
 export async function uploadCabinImage(cabinId: string, formData: FormData) {
   const file = formData.get("image") as File | null;
 
-  if (!file || file.size === 0) return;
+  if (!file || file.size === 0) {
+    return;
+  }
 
   const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 
@@ -134,6 +165,8 @@ export async function uploadCabinImage(cabinId: string, formData: FormData) {
   if (file.size > maxSize) {
     throw new Error("Plik jest za duży. Maksymalny rozmiar to 8 MB.");
   }
+
+  await normalizeCabinImageOrder(cabinId);
 
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
 
@@ -171,93 +204,152 @@ export async function uploadCabinImage(cabinId: string, formData: FormData) {
 
   const filePath = path.join(uploadDir, fileName);
 
-  await fs.mkdir(uploadDir, { recursive: true });
+  await fs.mkdir(uploadDir, {
+    recursive: true,
+  });
+
   await fs.writeFile(filePath, buffer);
 
   const imageUrl = `/uploads/cabins/${cabinId}/${fileName}`;
 
-  const [imageCount, lastImage] = await Promise.all([
-    prisma.cabinImage.count({
-      where: { cabinId },
-    }),
-    prisma.cabinImage.findFirst({
-      where: { cabinId },
-      orderBy: { sortOrder: "desc" },
-      select: { sortOrder: true },
-    }),
-  ]);
+  const imageCount = await prisma.cabinImage.count({
+    where: {
+      cabinId,
+    },
+  });
 
   await prisma.cabinImage.create({
     data: {
       cabinId,
       url: imageUrl,
       isMain: imageCount === 0,
-      sortOrder: (lastImage?.sortOrder ?? -1) + 1,
+      sortOrder: imageCount,
     },
   });
 
+  if (imageCount === 0) {
+    await prisma.cabin.update({
+      where: {
+        id: cabinId,
+      },
+      data: {
+        mainImageUrl: imageUrl,
+      },
+    });
+  }
+
   revalidatePath("/admin/domki");
   revalidatePath(`/admin/domki/${cabinId}/zdjecia`);
+  revalidatePath("/admin/kalendarz");
 }
 
 export async function setMainCabinImage(imageId: string) {
   const image = await prisma.cabinImage.findUnique({
-    where: { id: imageId },
+    where: {
+      id: imageId,
+    },
   });
 
-  if (!image) return;
+  if (!image) {
+    return;
+  }
 
   await prisma.$transaction([
     prisma.cabinImage.updateMany({
-      where: { cabinId: image.cabinId },
-      data: { isMain: false },
+      where: {
+        cabinId: image.cabinId,
+      },
+      data: {
+        isMain: false,
+      },
     }),
     prisma.cabinImage.update({
-      where: { id: imageId },
-      data: { isMain: true },
+      where: {
+        id: imageId,
+      },
+      data: {
+        isMain: true,
+      },
+    }),
+    prisma.cabin.update({
+      where: {
+        id: image.cabinId,
+      },
+      data: {
+        mainImageUrl: image.url,
+      },
     }),
   ]);
 
   revalidatePath("/admin/domki");
   revalidatePath(`/admin/domki/${image.cabinId}/zdjecia`);
+  revalidatePath("/admin/kalendarz");
 }
 
-export async function deleteCabinImage(imageId: string) {
+async function moveCabinImage(imageId: string, direction: "up" | "down") {
   const image = await prisma.cabinImage.findUnique({
-    where: { id: imageId },
+    where: {
+      id: imageId,
+    },
   });
 
-  if (!image) return;
-
-  await prisma.cabinImage.delete({
-    where: { id: imageId },
-  });
-
-  if (image.isMain) {
-    const nextMainImage = await prisma.cabinImage.findFirst({
-      where: { cabinId: image.cabinId },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-    });
-
-    if (nextMainImage) {
-      await prisma.cabinImage.update({
-        where: { id: nextMainImage.id },
-        data: { isMain: true },
-      });
-    }
+  if (!image) {
+    return;
   }
 
   await normalizeCabinImageOrder(image.cabinId);
 
-  if (image.url.startsWith("/uploads/")) {
-    const fs = await import("fs/promises");
-    const filePath = path.join(process.cwd(), "public", image.url);
+  const images = await prisma.cabinImage.findMany({
+    where: {
+      cabinId: image.cabinId,
+    },
+    orderBy: [
+      {
+        sortOrder: "asc",
+      },
+      {
+        createdAt: "asc",
+      },
+    ],
+  });
 
-    await fs.unlink(filePath).catch(() => {});
+  const currentIndex = images.findIndex((item) => item.id === imageId);
+
+  if (currentIndex === -1) {
+    return;
   }
+
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+  if (targetIndex < 0 || targetIndex >= images.length) {
+    return;
+  }
+
+  const currentImage = images[currentIndex];
+  const targetImage = images[targetIndex];
+
+  await prisma.$transaction([
+    prisma.cabinImage.update({
+      where: {
+        id: currentImage.id,
+      },
+      data: {
+        sortOrder: targetImage.sortOrder,
+      },
+    }),
+    prisma.cabinImage.update({
+      where: {
+        id: targetImage.id,
+      },
+      data: {
+        sortOrder: currentImage.sortOrder,
+      },
+    }),
+  ]);
 
   revalidatePath("/admin/domki");
   revalidatePath(`/admin/domki/${image.cabinId}/zdjecia`);
+  revalidatePath("/admin/kalendarz");
 }
 
 export async function moveCabinImageUp(imageId: string) {
@@ -266,4 +358,83 @@ export async function moveCabinImageUp(imageId: string) {
 
 export async function moveCabinImageDown(imageId: string) {
   await moveCabinImage(imageId, "down");
+}
+
+export async function deleteCabinImage(imageId: string) {
+  const image = await prisma.cabinImage.findUnique({
+    where: {
+      id: imageId,
+    },
+  });
+
+  if (!image) {
+    return;
+  }
+
+  await prisma.cabinImage.delete({
+    where: {
+      id: imageId,
+    },
+  });
+
+  if (image.url.startsWith("/uploads/")) {
+    const fs = await import("fs/promises");
+    const filePath = path.join(process.cwd(), "public", image.url);
+
+    await fs.unlink(filePath).catch(() => {});
+  }
+
+  const remainingImages = await prisma.cabinImage.findMany({
+    where: {
+      cabinId: image.cabinId,
+    },
+    orderBy: [
+      {
+        sortOrder: "asc",
+      },
+      {
+        createdAt: "asc",
+      },
+    ],
+  });
+
+  if (image.isMain) {
+    const nextMainImage = remainingImages[0];
+
+    if (nextMainImage) {
+      await prisma.$transaction([
+        prisma.cabinImage.update({
+          where: {
+            id: nextMainImage.id,
+          },
+          data: {
+            isMain: true,
+          },
+        }),
+        prisma.cabin.update({
+          where: {
+            id: image.cabinId,
+          },
+          data: {
+            mainImageUrl: nextMainImage.url,
+          },
+        }),
+      ]);
+    } else {
+      await prisma.cabin.update({
+        where: {
+          id: image.cabinId,
+        },
+        data: {
+          mainImageUrl: null,
+        },
+      });
+    }
+  }
+
+  await normalizeCabinImageOrder(image.cabinId);
+
+  revalidatePath("/admin/domki");
+  revalidatePath(`/admin/domki/${image.cabinId}/zdjecia`);
+  revalidatePath("/admin/kalendarz");
 }
