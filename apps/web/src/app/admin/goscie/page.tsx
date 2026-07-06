@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { syncGuestsFromReservations } from "@/actions/guests";
 import { prisma } from "@/lib/prisma";
 
 type Props = {
   searchParams?: Promise<{
     q?: string;
+    sync?: string;
+    reservations?: string;
+    created?: string;
+    updated?: string;
   }>;
 };
 
@@ -70,7 +75,23 @@ function buildExportUrl(searchQuery: string) {
 
   const queryString = params.toString();
 
-  return queryString ? `/admin/goscie/export?${queryString}` : "/admin/goscie/export";
+  return queryString
+    ? `/admin/goscie/export?${queryString}`
+    : "/admin/goscie/export";
+}
+
+function getNumberFromSearchParam(value: string | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    return 0;
+  }
+
+  return parsedValue;
 }
 
 export default async function GuestsPage({ searchParams }: Props) {
@@ -139,6 +160,12 @@ export default async function GuestsPage({ searchParams }: Props) {
     },
   });
 
+  const reservationsWithoutGuestCount = await prisma.reservation.count({
+    where: {
+      guestId: null,
+    },
+  });
+
   const totalGuests = guests.length;
 
   const guestsWithReservations = guests.filter(
@@ -173,6 +200,20 @@ export default async function GuestsPage({ searchParams }: Props) {
 
   const exportUrl = buildExportUrl(searchQuery);
 
+  const syncReservations = getNumberFromSearchParam(
+    resolvedSearchParams?.reservations
+  );
+
+  const syncCreatedGuests = getNumberFromSearchParam(
+    resolvedSearchParams?.created
+  );
+
+  const syncUpdatedGuests = getNumberFromSearchParam(
+    resolvedSearchParams?.updated
+  );
+
+  const showSyncSuccess = resolvedSearchParams?.sync === "ok";
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -200,6 +241,48 @@ export default async function GuestsPage({ searchParams }: Props) {
           </Link>
         </div>
       </div>
+
+      {showSyncSuccess ? (
+        <section className="rounded-xl border border-green-200 bg-green-50 p-5 text-green-800">
+          <div className="font-semibold">
+            Synchronizacja zakończona poprawnie.
+          </div>
+
+          <div className="mt-2 text-sm">
+            Połączono rezerwacje: {syncReservations}. Utworzono gości:{" "}
+            {syncCreatedGuests}. Zaktualizowano gości: {syncUpdatedGuests}.
+          </div>
+        </section>
+      ) : null}
+
+      {reservationsWithoutGuestCount > 0 ? (
+        <section className="rounded-xl border border-yellow-200 bg-yellow-50 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-yellow-900">
+                Są stare rezerwacje bez przypisanego gościa
+              </h2>
+
+              <p className="mt-1 text-sm text-yellow-800">
+                Liczba rezerwacji bez `guestId`: {reservationsWithoutGuestCount}
+                . Kliknij synchronizację, aby połączyć je z bazą gości.
+              </p>
+            </div>
+
+            <form action={syncGuestsFromReservations}>
+              <button className="rounded-lg bg-yellow-600 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-700">
+                Synchronizuj stare rezerwacje
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-xl border border-green-200 bg-green-50 p-5 text-green-800">
+          <div className="font-semibold">
+            Wszystkie rezerwacje są połączone z bazą gości.
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-4 md:grid-cols-4">
         <div className="rounded-xl border bg-white p-5 shadow-sm">
