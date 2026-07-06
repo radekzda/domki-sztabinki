@@ -61,6 +61,18 @@ function getLastReservationDate(
     .sort((a, b) => b.getTime() - a.getTime())[0];
 }
 
+function buildExportUrl(searchQuery: string) {
+  const params = new URLSearchParams();
+
+  if (searchQuery) {
+    params.set("q", searchQuery);
+  }
+
+  const queryString = params.toString();
+
+  return queryString ? `/admin/goscie/export?${queryString}` : "/admin/goscie/export";
+}
+
 export default async function GuestsPage({ searchParams }: Props) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const searchQuery = getSearchQuery(resolvedSearchParams?.q);
@@ -159,6 +171,8 @@ export default async function GuestsPage({ searchParams }: Props) {
     0
   );
 
+  const exportUrl = buildExportUrl(searchQuery);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -170,12 +184,21 @@ export default async function GuestsPage({ searchParams }: Props) {
           </p>
         </div>
 
-        <Link
-          href="/admin/rezerwacje/nowa"
-          className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
-        >
-          + Dodaj rezerwację
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href={exportUrl}
+            className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
+          >
+            Eksport CSV
+          </Link>
+
+          <Link
+            href="/admin/rezerwacje/nowa"
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
+          >
+            + Dodaj rezerwację
+          </Link>
+        </div>
       </div>
 
       <section className="grid gap-4 md:grid-cols-4">
