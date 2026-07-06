@@ -78,6 +78,38 @@ function getStatusClassName(status: string) {
   return "bg-zinc-100 text-zinc-700 border-zinc-200";
 }
 
+function getAlertClassName(type: string) {
+  if (type === "warning") {
+    return "border-amber-200 bg-amber-50";
+  }
+
+  if (type === "danger") {
+    return "border-red-200 bg-red-50";
+  }
+
+  if (type === "success") {
+    return "border-green-200 bg-green-50";
+  }
+
+  return "border-blue-200 bg-blue-50";
+}
+
+function getAlertIconClassName(type: string) {
+  if (type === "warning") {
+    return "bg-amber-100 text-amber-700";
+  }
+
+  if (type === "danger") {
+    return "bg-red-100 text-red-700";
+  }
+
+  if (type === "success") {
+    return "bg-green-100 text-green-700";
+  }
+
+  return "bg-blue-100 text-blue-700";
+}
+
 export default async function AdminPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -267,6 +299,70 @@ export default async function AdminPage() {
     },
   ];
 
+  const operationalAlerts = [
+    ...(pendingReservationsCount > 0
+      ? [
+          {
+            type: "warning",
+            title: "Rezerwacje oczekujące na potwierdzenie",
+            description: `Masz ${pendingReservationsCount} rezerwacji ze statusem oczekującym. Warto je sprawdzić i potwierdzić albo anulować.`,
+            href: "/admin/rezerwacje?status=PENDING",
+            icon: AlertCircle,
+          },
+        ]
+      : []),
+    ...(unpaidRevenue > 0
+      ? [
+          {
+            type: "warning",
+            title: "Płatności do sprawdzenia",
+            description: `W systemie pozostaje ${formatCurrency(
+              unpaidRevenue,
+            )} do rozliczenia względem zapisanych wartości rezerwacji.`,
+            href: "/admin/rezerwacje",
+            icon: CircleDollarSign,
+          },
+        ]
+      : []),
+    ...(nextSevenDaysReservations.length > 0
+      ? [
+          {
+            type: "info",
+            title: "Przyjazdy w najbliższych 7 dniach",
+            description: `W najbliższym tygodniu zaczyna się ${nextSevenDaysReservations.length} rezerwacji. Sprawdź przygotowanie domków i płatności.`,
+            href: "/admin/kalendarz",
+            icon: CalendarClock,
+          },
+        ]
+      : []),
+    ...(activeCabinsCount === 0
+      ? [
+          {
+            type: "danger",
+            title: "Brak aktywnych domków",
+            description:
+              "Żaden domek nie jest obecnie aktywny. Sprawdź ustawienia domków, żeby oferta była dostępna w systemie.",
+            href: "/admin/domki",
+            icon: Building2,
+          },
+        ]
+      : []),
+  ];
+
+  const visibleOperationalAlerts =
+    operationalAlerts.length > 0
+      ? operationalAlerts
+      : [
+          {
+            type: "success",
+            title: "Brak pilnych alertów",
+            description:
+              "Nie ma teraz pilnych spraw operacyjnych na dashboardzie. System wygląda spokojnie.",
+            href: "/admin",
+            icon: CheckCircle2,
+          },
+        ];
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -356,6 +452,54 @@ export default async function AdminPage() {
             </Link>
           );
         })}
+      </section>
+
+      <section className="rounded-xl border bg-white shadow-sm">
+        <div className="border-b px-6 py-4">
+          <h2 className="text-xl font-semibold text-zinc-900">
+            Alerty operacyjne
+          </h2>
+
+          <p className="mt-1 text-sm text-zinc-500">
+            Sprawy, które mogą wymagać uwagi przed kolejnymi przyjazdami.
+          </p>
+        </div>
+
+        <div className="grid gap-4 p-6 xl:grid-cols-2">
+          {visibleOperationalAlerts.map((alert) => {
+            const Icon = alert.icon;
+
+            return (
+              <Link
+                key={alert.title}
+                href={alert.href}
+                className={`rounded-xl border p-5 transition hover:shadow-md ${getAlertClassName(
+                  alert.type,
+                )}`}
+              >
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`rounded-lg p-3 ${getAlertIconClassName(
+                      alert.type,
+                    )}`}
+                  >
+                    <Icon size={22} />
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-zinc-900">
+                      {alert.title}
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-zinc-600">
+                      {alert.description}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
