@@ -349,18 +349,23 @@ export default async function GuestsPage({ searchParams }: Props) {
                       </td>
 
                       <td className="border-b p-4 text-right">
-                        {lastReservation ? (
+                        <div className="flex justify-end gap-2">
                           <Link
-                            href={`/admin/rezerwacje/${lastReservation.id}`}
-                            className="rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-zinc-50"
+                            href={`/admin/goscie/${guest.id}`}
+                            className="rounded-lg bg-green-700 px-3 py-2 text-xs font-semibold text-white hover:bg-green-800"
                           >
-                            Ostatnia rezerwacja
+                            Szczegóły
                           </Link>
-                        ) : (
-                          <span className="text-xs text-zinc-400">
-                            Brak akcji
-                          </span>
-                        )}
+
+                          {lastReservation ? (
+                            <Link
+                              href={`/admin/rezerwacje/${lastReservation.id}`}
+                              className="rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-zinc-50"
+                            >
+                              Ostatnia
+                            </Link>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
