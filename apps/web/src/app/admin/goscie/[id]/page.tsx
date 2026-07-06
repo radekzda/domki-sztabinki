@@ -226,12 +226,21 @@ export default async function GuestDetailsPage({ params }: Props) {
             </p>
           </div>
 
-          <Link
-            href="/admin/rezerwacje/nowa"
-            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
-          >
-            + Dodaj rezerwację
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/admin/goscie/${guest.id}/edytuj`}
+              className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
+            >
+              Edytuj gościa
+            </Link>
+
+            <Link
+              href="/admin/rezerwacje/nowa"
+              className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
+            >
+              + Dodaj rezerwację
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -275,7 +284,9 @@ export default async function GuestDetailsPage({ params }: Props) {
               <div className="text-sm text-zinc-500">Ostatni pobyt</div>
               <div className="mt-1 font-semibold">
                 {lastReservation
-                  ? formatDate(lastReservation.checkInAt ?? lastReservation.startDate)
+                  ? formatDate(
+                      lastReservation.checkInAt ?? lastReservation.startDate
+                    )
                   : "—"}
               </div>
             </div>

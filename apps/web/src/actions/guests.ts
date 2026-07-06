@@ -31,6 +31,32 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function getRequiredString(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  if (typeof value !== "string" || value.trim() === "") {
+    return "";
+  }
+
+  return value.trim();
+}
+
+function getOptionalString(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue === "" ? null : trimmedValue;
+}
+
+function redirectWithEditGuestError(guestId: string, message: string): never {
+  redirect(`/admin/goscie/${guestId}/edytuj?error=${encodeURIComponent(message)}`);
+}
+
 export async function syncGuestsFromReservations() {
   const reservationsWithoutGuest = await prisma.reservation.findMany({
     where: {
@@ -110,4 +136,78 @@ export async function syncGuestsFromReservations() {
   redirect(
     `/admin/goscie?sync=ok&reservations=${updatedReservationsCount}&created=${createdGuestsCount}&updated=${updatedGuestsCount}`
   );
+}
+
+export async function updateGuest(formData: FormData) {
+  const guestId = getRequiredString(formData, "guestId");
+
+  if (!guestId) {
+    redirect("/admin/goscie");
+  }
+
+  const firstName = getRequiredString(formData, "firstName");
+  const lastName = getRequiredString(formData, "lastName");
+  const email = normalizeEmail(getRequiredString(formData, "email"));
+  const phone = getOptionalString(formData, "phone");
+  const country = getOptionalString(formData, "country");
+
+  if (!firstName) {
+    redirectWithEditGuestError(guestId, "Podaj imię gościa.");
+  }
+
+  if (!lastName) {
+    redirectWithEditGuestError(guestId, "Podaj nazwisko gościa.");
+  }
+
+  if (!email) {
+    redirectWithEditGuestError(guestId, "Podaj email gościa.");
+  }
+
+  const guest = await prisma.guest.findUnique({
+    where: {
+      id: guestId,
+    },
+  });
+
+  if (!guest) {
+    redirect("/admin/goscie");
+  }
+
+  const guestName = `${firstName} ${lastName}`.trim();
+
+  await prisma.$transaction([
+    prisma.guest.update({
+      where: {
+        id: guestId,
+      },
+      data: {
+        firstName,
+        lastName,
+        email,
+        phone,
+        country,
+      },
+    }),
+    prisma.reservation.updateMany({
+      where: {
+        guestId,
+      },
+      data: {
+        guestName,
+        firstName,
+        lastName,
+        email,
+        phone,
+        country,
+      },
+    }),
+  ]);
+
+  revalidatePath("/admin/goscie");
+  revalidatePath(`/admin/goscie/${guestId}`);
+  revalidatePath(`/admin/goscie/${guestId}/edytuj`);
+  revalidatePath("/admin/rezerwacje");
+  revalidatePath("/admin/kalendarz");
+
+  redirect(`/admin/goscie/${guestId}`);
 }
