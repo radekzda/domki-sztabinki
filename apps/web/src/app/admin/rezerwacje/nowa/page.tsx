@@ -125,6 +125,7 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
 
       <ReservationForm
         cabins={cabins}
+        initialGuestId={initialGuest?.id ?? ""}
         initialCabinId={
           initialCabinExists ? resolvedSearchParams?.cabinId ?? "" : ""
         }

@@ -25,6 +25,7 @@ type CabinOption = {
 
 type ReservationFormProps = {
   cabins: CabinOption[];
+  initialGuestId?: string;
   initialCabinId?: string;
   initialStartDate?: string;
   initialEndDate?: string;
@@ -60,6 +61,7 @@ function formatPrice(value: number | null) {
 
 export default function ReservationForm({
   cabins,
+  initialGuestId = "",
   initialCabinId = "",
   initialStartDate = "",
   initialEndDate = "",
@@ -119,6 +121,8 @@ export default function ReservationForm({
       action={createReservation}
       className="space-y-8 rounded-xl border bg-white p-6 shadow-sm"
     >
+      <input type="hidden" name="guestId" value={initialGuestId} />
+
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-semibold">Gość</h2>

@@ -28,6 +28,8 @@ type CabinPricingData = {
 };
 
 type ReservationFormValues = {
+  guestId: string | null;
+
   cabinId: string;
 
   guestName: string;
@@ -180,6 +182,7 @@ function parseReservationForm(
   formData: FormData,
   onError: ErrorRedirect
 ): ReservationFormValues {
+  const guestId = getOptionalString(formData, "guestId");
   const cabinId = getRequiredString(formData, "cabinId", onError);
 
   const firstName = getOptionalString(formData, "firstName");
@@ -262,6 +265,8 @@ function parseReservationForm(
   );
 
   return {
+    guestId,
+
     cabinId,
 
     guestName,
@@ -444,11 +449,14 @@ export async function createReservation(formData: FormData) {
 
   const guest = await saveGuestForReservation({
     values: valuesWithPricing,
+    existingGuestId: valuesWithPricing.guestId,
   });
+
+  const { guestId, ...reservationData } = valuesWithPricing;
 
   await prisma.reservation.create({
     data: {
-      ...valuesWithPricing,
+      ...reservationData,
       guestId: guest.id,
     },
   });
@@ -456,6 +464,7 @@ export async function createReservation(formData: FormData) {
   revalidatePath("/admin/rezerwacje");
   revalidatePath("/admin/kalendarz");
   revalidatePath("/admin/goscie");
+  revalidatePath(`/admin/goscie/${guest.id}`);
 
   redirect("/admin/rezerwacje");
 }
@@ -501,12 +510,14 @@ export async function updateReservation(formData: FormData) {
     existingGuestId: existingReservation.guestId,
   });
 
+  const { guestId, ...reservationData } = valuesWithPricing;
+
   await prisma.reservation.update({
     where: {
       id: reservationId,
     },
     data: {
-      ...valuesWithPricing,
+      ...reservationData,
       guestId: guest.id,
     },
   });
@@ -516,6 +527,7 @@ export async function updateReservation(formData: FormData) {
   revalidatePath(`/admin/rezerwacje/${reservationId}/edytuj`);
   revalidatePath("/admin/kalendarz");
   revalidatePath("/admin/goscie");
+  revalidatePath(`/admin/goscie/${guest.id}`);
 
   redirect(`/admin/rezerwacje/${reservationId}`);
 }
