@@ -34,6 +34,9 @@ type ReservationFormProps = {
   initialEmail?: string;
   initialPhone?: string;
   initialCountry?: string;
+  initialCheckInTime?: string;
+  initialCheckOutTime?: string;
+  minimumNights?: number;
 };
 
 const statuses = [
@@ -70,6 +73,9 @@ export default function ReservationForm({
   initialEmail = "",
   initialPhone = "",
   initialCountry = "Polska",
+  initialCheckInTime = "15:00",
+  initialCheckOutTime = "11:00",
+  minimumNights = 4,
 }: ReservationFormProps) {
   const [selectedCabinId, setSelectedCabinId] = useState(initialCabinId);
   const [startDateValue, setStartDateValue] = useState(initialStartDate);
@@ -79,16 +85,16 @@ export default function ReservationForm({
 
   const selectedCabin = useMemo(
     () => cabins.find((cabin) => cabin.id === selectedCabinId) ?? null,
-    [cabins, selectedCabinId]
+    [cabins, selectedCabinId],
   );
 
   const nights = useMemo(
     () =>
       calculateReservationNightsFromDateValues(
         startDateValue,
-        endDateValue
+        endDateValue,
       ),
-    [startDateValue, endDateValue]
+    [startDateValue, endDateValue],
   );
 
   const defaultNightPrice =
@@ -106,6 +112,9 @@ export default function ReservationForm({
     Number.isFinite(totalPrice) && Number.isFinite(paidAmount)
       ? Math.max(0, totalPrice - paidAmount)
       : defaultTotalPrice;
+
+  const isBelowMinimumNights =
+    nights !== null && nights !== undefined && nights < minimumNights;
 
   useEffect(() => {
     if (defaultTotalPrice === null) {
@@ -185,7 +194,11 @@ export default function ReservationForm({
           <h2 className="text-xl font-semibold">Pobyt</h2>
           <p className="text-sm text-zinc-500">
             Po wybraniu domku i dat system automatycznie wyliczy liczbę nocy i
-            cenę domyślną.
+            cenę domyślną. Minimalna liczba nocy według ustawień systemu:{" "}
+            <span className="font-semibold text-zinc-700">
+              {minimumNights}
+            </span>
+            .
           </p>
         </div>
 
@@ -227,7 +240,7 @@ export default function ReservationForm({
             <input
               type="time"
               name="checkInTime"
-              defaultValue="15:00"
+              defaultValue={initialCheckInTime}
               required
               className="w-full rounded-lg border p-3"
             />
@@ -252,7 +265,7 @@ export default function ReservationForm({
             <input
               type="time"
               name="checkOutTime"
-              defaultValue="11:00"
+              defaultValue={initialCheckOutTime}
               required
               className="w-full rounded-lg border p-3"
             />
@@ -279,6 +292,14 @@ export default function ReservationForm({
             </div>
           </div>
         </div>
+
+        {isBelowMinimumNights ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            Wybrany pobyt ma {nights} nocy, a minimalna liczba nocy w
+            ustawieniach systemu to {minimumNights}. Zmień datę wyjazdu albo
+            minimalną liczbę nocy w ustawieniach systemu.
+          </div>
+        ) : null}
       </section>
 
       <section className="space-y-4 border-t pt-8">
@@ -458,7 +479,15 @@ export default function ReservationForm({
       </section>
 
       <div className="flex gap-3 border-t pt-8">
-        <button className="rounded-lg bg-green-700 px-6 py-3 text-white hover:bg-green-800">
+        <button
+          type="submit"
+          disabled={isBelowMinimumNights}
+          className={
+            isBelowMinimumNights
+              ? "cursor-not-allowed rounded-lg bg-zinc-300 px-6 py-3 text-zinc-600"
+              : "rounded-lg bg-green-700 px-6 py-3 text-white hover:bg-green-800"
+          }
+        >
           Zapisz rezerwację
         </button>
 
