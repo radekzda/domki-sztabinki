@@ -1,0 +1,14 @@
+-- AlterTable
+ALTER TABLE "Reservation" ADD COLUMN     "adults" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN     "checkInAt" TIMESTAMP(3),
+ADD COLUMN     "checkOutAt" TIMESTAMP(3),
+ADD COLUMN     "children" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "city" TEXT,
+ADD COLUMN     "country" TEXT,
+ADD COLUMN     "firstName" TEXT,
+ADD COLUMN     "lastName" TEXT,
+ADD COLUMN     "paidAmount" DECIMAL(10,2),
+ADD COLUMN     "postalCode" TEXT,
+ADD COLUMN     "street" TEXT,
+ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN "source" SET DEFAULT 'MANUAL';
