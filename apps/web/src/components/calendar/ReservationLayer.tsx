@@ -26,12 +26,11 @@ export default function ReservationLayer({
         );
 
         return (
-          <div
+          <ReservationBar
             key={reservation.id}
-            className="pointer-events-auto absolute left-0 right-0 top-3"
-          >
-            <ReservationBar reservation={reservation} position={position} />
-          </div>
+            reservation={reservation}
+            position={position}
+          />
         );
       })}
     </div>

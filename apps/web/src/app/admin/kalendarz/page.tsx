@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   CalendarCabin,
   CalendarEngineData,
+  CalendarReservationSource,
   CalendarReservationStatus,
 } from "@/modules/calendar/calendar.types";
 import {
@@ -51,6 +52,28 @@ function mapReservationStatus(status: string): CalendarReservationStatus {
   return "PENDING";
 }
 
+function mapReservationSource(source: string): CalendarReservationSource {
+  if (
+    source === "MANUAL" ||
+    source === "PHONE" ||
+    source === "WEBSITE" ||
+    source === "BOOKING" ||
+    source === "AIRBNB"
+  ) {
+    return source;
+  }
+
+  return "MANUAL";
+}
+
+function decimalToNumber(value: { toString: () => string } | null) {
+  if (!value) {
+    return null;
+  }
+
+  return Number(value.toString());
+}
+
 export default async function KalendarzPage({ searchParams }: Props) {
   const resolvedSearchParams = await searchParams;
 
@@ -93,13 +116,39 @@ export default async function KalendarzPage({ searchParams }: Props) {
     reservations: cabin.reservations.map((reservation) => ({
       id: reservation.id,
       cabinId: reservation.cabinId,
+
       guestName: reservation.guestName,
+      firstName: reservation.firstName,
+      lastName: reservation.lastName,
+
       email: reservation.email,
       phone: reservation.phone,
+
       startDate: reservation.startDate,
       endDate: reservation.endDate,
+
+      checkInAt: reservation.checkInAt,
+      checkOutAt: reservation.checkOutAt,
+
+      nights: reservation.nights,
+      pricePerNight: decimalToNumber(reservation.pricePerNight),
+
       guests: reservation.guests,
+      adults: reservation.adults,
+      children: reservation.children,
+
       status: mapReservationStatus(reservation.status),
+      source: mapReservationSource(reservation.source),
+
+      totalPrice: decimalToNumber(reservation.totalPrice),
+      paidAmount: decimalToNumber(reservation.paidAmount),
+
+      street: reservation.street,
+      postalCode: reservation.postalCode,
+      city: reservation.city,
+      country: reservation.country,
+
+      notes: reservation.notes,
     })),
   }));
 

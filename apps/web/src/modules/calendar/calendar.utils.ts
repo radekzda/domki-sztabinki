@@ -20,12 +20,34 @@ const MONTH_NAMES = [
   "Grudzień",
 ];
 
+const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+
 export function createCalendarDate(
   year: number,
   month: number,
   day: number
 ): Date {
   return new Date(Date.UTC(year, month, day, 12, 0, 0));
+}
+
+function createLocalDayStartFromCalendarDate(date: Date): Date {
+  return new Date(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+    0,
+    0,
+    0,
+    0
+  );
+}
+
+function getCalendarReservationStart(reservation: CalendarReservation): Date {
+  return reservation.checkInAt ?? reservation.startDate;
+}
+
+function getCalendarReservationEnd(reservation: CalendarReservation): Date {
+  return reservation.checkOutAt ?? reservation.endDate;
 }
 
 export function isCalendarToday(date: Date): boolean {
@@ -87,6 +109,20 @@ export function formatCalendarDate(date: Date): string {
   }).format(date);
 }
 
+export function formatCalendarDateTime(date: Date | null): string {
+  if (!date) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function formatCalendarShortDate(date: Date): string {
   return new Intl.DateTimeFormat("pl-PL", {
     day: "2-digit",
@@ -98,19 +134,15 @@ export function isDateInsideReservation(
   date: Date,
   reservation: CalendarReservation
 ): boolean {
-  const dayStart = createCalendarDate(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate()
-  );
+  const dayStart = createLocalDayStartFromCalendarDate(date);
 
-  const dayEnd = createCalendarDate(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate() + 1
-  );
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
 
-  return reservation.startDate < dayEnd && reservation.endDate > dayStart;
+  return (
+    getCalendarReservationStart(reservation) < dayEnd &&
+    getCalendarReservationEnd(reservation) > dayStart
+  );
 }
 
 export function calculateReservationBarPosition(
@@ -118,35 +150,33 @@ export function calculateReservationBarPosition(
   visibleRangeStart: Date,
   visibleRangeEnd: Date
 ): ReservationBarPosition {
-  const reservationStart =
-    reservation.startDate < visibleRangeStart
-      ? visibleRangeStart
-      : reservation.startDate;
+  const rangeStart = createLocalDayStartFromCalendarDate(visibleRangeStart);
+  const rangeEnd = createLocalDayStartFromCalendarDate(visibleRangeEnd);
 
-  const reservationEnd =
-    reservation.endDate > visibleRangeEnd
-      ? visibleRangeEnd
-      : reservation.endDate;
+  const reservationStart = getCalendarReservationStart(reservation);
+  const reservationEnd = getCalendarReservationEnd(reservation);
 
-  const millisecondsPerDay = 1000 * 60 * 60 * 24;
+  const effectiveStart =
+    reservationStart < rangeStart ? rangeStart : reservationStart;
 
-  const startColumn =
-    Math.floor(
-      (reservationStart.getTime() - visibleRangeStart.getTime()) /
-        millisecondsPerDay
-    ) + 1;
+  const effectiveEnd = reservationEnd > rangeEnd ? rangeEnd : reservationEnd;
 
-  const endColumn =
-    Math.ceil(
-      (reservationEnd.getTime() - visibleRangeStart.getTime()) /
-        millisecondsPerDay
-    ) + 1;
+  const rawStartOffset =
+    (effectiveStart.getTime() - rangeStart.getTime()) / MILLISECONDS_PER_DAY;
+
+  const rawEndOffset =
+    (effectiveEnd.getTime() - rangeStart.getTime()) / MILLISECONDS_PER_DAY;
+
+  const startOffset = Math.max(0, rawStartOffset);
+  const endOffset = Math.max(startOffset, rawEndOffset);
+
+  const durationInDays = endOffset - startOffset;
 
   return {
-    startColumn,
-    endColumn,
-    columnSpan: Math.max(1, endColumn - startColumn),
-    startsBeforeVisibleRange: reservation.startDate < visibleRangeStart,
-    endsAfterVisibleRange: reservation.endDate > visibleRangeEnd,
+    startColumn: startOffset + 1,
+    endColumn: endOffset + 1,
+    columnSpan: Math.max(0.15, durationInDays),
+    startsBeforeVisibleRange: reservationStart < rangeStart,
+    endsAfterVisibleRange: reservationEnd > rangeEnd,
   };
 }
