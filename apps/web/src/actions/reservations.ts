@@ -72,28 +72,28 @@ function redirectWithNewReservationError(message: string): never {
 
 function redirectWithEditReservationError(
   reservationId: string,
-  message: string
+  message: string,
 ): never {
   redirect(
     `/admin/rezerwacje/${reservationId}/edytuj?error=${encodeURIComponent(
-      message
-    )}`
+      message,
+    )}`,
   );
 }
 
 function redirectWithReservationDetailsError(
   reservationId: string,
-  message: string
+  message: string,
 ): never {
   redirect(
-    `/admin/rezerwacje/${reservationId}?error=${encodeURIComponent(message)}`
+    `/admin/rezerwacje/${reservationId}?error=${encodeURIComponent(message)}`,
   );
 }
 
 function getRequiredString(
   formData: FormData,
   key: string,
-  onError: ErrorRedirect
+  onError: ErrorRedirect,
 ) {
   const value = formData.get(key);
 
@@ -155,7 +155,7 @@ function splitGuestName(guestName: string) {
 function parseMoney(
   value: string | null,
   fieldName: string,
-  onError: ErrorRedirect
+  onError: ErrorRedirect,
 ) {
   if (value === null) {
     return null;
@@ -178,9 +178,31 @@ function decimalToNumber(value: { toString: () => string } | null) {
   return Number(value.toString());
 }
 
+async function getSystemSettingsForReservationValidation() {
+  return prisma.systemSettings.upsert({
+    where: {
+      id: "main",
+    },
+    create: {
+      id: "main",
+      propertyName: "Domki Sztabinki",
+      propertyCountry: "Polska",
+      checkInTime: "15:00",
+      checkOutTime: "11:00",
+      minimumNights: 4,
+      seasonStartMonth: 5,
+      seasonEndMonth: 9,
+    },
+    update: {},
+    select: {
+      minimumNights: true,
+    },
+  });
+}
+
 function parseReservationForm(
   formData: FormData,
-  onError: ErrorRedirect
+  onError: ErrorRedirect,
 ): ReservationFormValues {
   const guestId = getOptionalString(formData, "guestId");
   const cabinId = getRequiredString(formData, "cabinId", onError);
@@ -255,13 +277,13 @@ function parseReservationForm(
   const totalPrice = parseMoney(
     getOptionalString(formData, "totalPrice"),
     "cena pobytu",
-    onError
+    onError,
   );
 
   const paidAmount = parseMoney(
     getOptionalString(formData, "paidAmount"),
     "wpłacono",
-    onError
+    onError,
   );
 
   return {
@@ -312,26 +334,35 @@ async function validateReservationData({
   onError: ErrorRedirect;
   ignoreReservationId?: string;
 }): Promise<CabinPricingData> {
-  const cabin = await prisma.cabin.findUnique({
-    where: {
-      id: values.cabinId,
-    },
-    select: {
-      id: true,
-      maxGuests: true,
-      pricePerNight: true,
-      priceOneNight: true,
-      priceTwoNights: true,
-      priceThreeNights: true,
-      priceFourNights: true,
-      priceFiveNights: true,
-      priceSixNights: true,
-      priceSevenPlusNights: true,
-    },
-  });
+  const [cabin, settings] = await Promise.all([
+    prisma.cabin.findUnique({
+      where: {
+        id: values.cabinId,
+      },
+      select: {
+        id: true,
+        maxGuests: true,
+        pricePerNight: true,
+        priceOneNight: true,
+        priceTwoNights: true,
+        priceThreeNights: true,
+        priceFourNights: true,
+        priceFiveNights: true,
+        priceSixNights: true,
+        priceSevenPlusNights: true,
+      },
+    }),
+    getSystemSettingsForReservationValidation(),
+  ]);
 
   if (!cabin) {
     return onError("Wybrany domek nie istnieje.");
+  }
+
+  if (values.nights < settings.minimumNights) {
+    return onError(
+      `Minimalna liczba nocy w ustawieniach systemu to ${settings.minimumNights}.`,
+    );
   }
 
   if (values.guests > cabin.maxGuests) {
@@ -348,7 +379,7 @@ async function validateReservationData({
 
     if (!availability.available) {
       return onError(
-        "Wybrany domek jest już zarezerwowany w podanym terminie."
+        "Wybrany domek jest już zarezerwowany w podanym terminie.",
       );
     }
   }
@@ -359,7 +390,7 @@ async function validateReservationData({
 function completeReservationPricing(
   values: ReservationFormValues,
   cabin: CabinPricingData,
-  onError: ErrorRedirect
+  onError: ErrorRedirect,
 ): ReservationFormValues {
   const defaultTotalPrice = calculateDefaultTotalPrice(values.nights, cabin);
 
@@ -433,7 +464,7 @@ async function saveGuestForReservation({
 export async function createReservation(formData: FormData) {
   const values = parseReservationForm(
     formData,
-    redirectWithNewReservationError
+    redirectWithNewReservationError,
   );
 
   const cabin = await validateReservationData({
@@ -444,7 +475,7 @@ export async function createReservation(formData: FormData) {
   const valuesWithPricing = completeReservationPricing(
     values,
     cabin,
-    redirectWithNewReservationError
+    redirectWithNewReservationError,
   );
 
   const guest = await saveGuestForReservation({
@@ -548,7 +579,7 @@ export async function updateReservationStatus(formData: FormData) {
   if (typeof statusValue !== "string" || statusValue.trim() === "") {
     redirectWithReservationDetailsError(
       reservationId,
-      "Nie wybrano statusu rezerwacji."
+      "Nie wybrano statusu rezerwacji.",
     );
   }
 
@@ -557,7 +588,7 @@ export async function updateReservationStatus(formData: FormData) {
   if (!allowedStatuses.includes(status)) {
     redirectWithReservationDetailsError(
       reservationId,
-      "Nieprawidłowy status rezerwacji."
+      "Nieprawidłowy status rezerwacji.",
     );
   }
 
@@ -582,7 +613,7 @@ export async function updateReservationStatus(formData: FormData) {
     if (!availability.available) {
       redirectWithReservationDetailsError(
         reservationId,
-        "Nie można ustawić tego statusu, ponieważ termin koliduje z inną rezerwacją."
+        "Nie można ustawić tego statusu, ponieważ termin koliduje z inną rezerwacją.",
       );
     }
   }
@@ -636,7 +667,7 @@ export async function updateReservationPayment(formData: FormData) {
     if (totalPrice === null) {
       redirectWithReservationDetailsError(
         reservationId,
-        "Nie można oznaczyć jako opłacone, bo nie wpisano ceny pobytu."
+        "Nie można oznaczyć jako opłacone, bo nie wpisano ceny pobytu.",
       );
     }
 
@@ -650,7 +681,7 @@ export async function updateReservationPayment(formData: FormData) {
       if (!Number.isFinite(parsedPaidAmount) || parsedPaidAmount < 0) {
         redirectWithReservationDetailsError(
           reservationId,
-          "Nieprawidłowa kwota wpłaty."
+          "Nieprawidłowa kwota wpłaty.",
         );
       }
 
@@ -661,7 +692,7 @@ export async function updateReservationPayment(formData: FormData) {
   if (totalPrice !== null && paidAmount !== null && paidAmount > totalPrice) {
     redirectWithReservationDetailsError(
       reservationId,
-      "Kwota wpłacona nie może być większa niż cena pobytu."
+      "Kwota wpłacona nie może być większa niż cena pobytu.",
     );
   }
 
