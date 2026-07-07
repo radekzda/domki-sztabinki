@@ -33,8 +33,62 @@ async function getPublicCabins() {
   });
 }
 
+async function getPublicSettings() {
+  return prisma.systemSettings.findUnique({
+    where: {
+      id: "main",
+    },
+  });
+}
+
+function getMonthName(month: number) {
+  const monthNames = [
+    "styczeń",
+    "luty",
+    "marzec",
+    "kwiecień",
+    "maj",
+    "czerwiec",
+    "lipiec",
+    "sierpień",
+    "wrzesień",
+    "październik",
+    "listopad",
+    "grudzień",
+  ];
+
+  if (month < 1 || month > 12) {
+    return "maj";
+  }
+
+  return monthNames[month - 1];
+}
+
+function formatMinimumNights(nights: number) {
+  if (nights === 1) {
+    return "1 noc";
+  }
+
+  if (nights >= 2 && nights <= 4) {
+    return `${nights} noce`;
+  }
+
+  return `${nights} nocy`;
+}
+
 export default async function HomePage() {
-  const cabins = await getPublicCabins();
+  const [cabins, settings] = await Promise.all([
+    getPublicCabins(),
+    getPublicSettings(),
+  ]);
+
+  const minimumNights = settings?.minimumNights ?? 1;
+  const checkInTime = settings?.checkInTime ?? "16:00";
+  const checkOutTime = settings?.checkOutTime ?? "11:00";
+  const seasonStartMonth = settings?.seasonStartMonth ?? 5;
+  const seasonEndMonth = settings?.seasonEndMonth ?? 9;
+  const seasonStartLabel = getMonthName(seasonStartMonth);
+  const seasonEndLabel = getMonthName(seasonEndMonth);
 
   return (
     <main className="min-h-screen bg-white text-slate-950">
@@ -50,6 +104,13 @@ export default async function HomePage() {
               className="rounded-xl border border-slate-300 px-5 py-3 text-center text-slate-900 transition hover:bg-slate-100"
             >
               Zobacz domki
+            </a>
+
+            <a
+              href="#cennik"
+              className="rounded-xl border border-slate-300 px-5 py-3 text-center text-slate-900 transition hover:bg-slate-100"
+            >
+              Cennik
             </a>
 
             <a
@@ -323,7 +384,128 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-slate-50 px-6 py-24 lg:px-8">
+      <section id="cennik" className="bg-slate-50 px-6 py-24 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="max-w-3xl">
+            <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-500">
+              Cennik i zasady pobytu
+            </p>
+
+            <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
+              Najważniejsze informacje przed rezerwacją
+            </h2>
+
+            <p className="mt-5 text-lg leading-8 text-slate-600">
+              Ceny zależą od długości pobytu, terminu oraz wybranego domku.
+              Ostateczną dostępność i cenę najlepiej potwierdzić telefonicznie.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-4">
+            <div className="rounded-3xl bg-white p-6 shadow-sm">
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+                Minimum pobytu
+              </p>
+              <p className="mt-4 text-3xl font-black">
+                {formatMinimumNights(minimumNights)}
+              </p>
+              <p className="mt-3 leading-7 text-slate-600">
+                Minimalna liczba nocy jest pobierana z ustawień systemu.
+              </p>
+            </div>
+
+            <div className="rounded-3xl bg-white p-6 shadow-sm">
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+                Zameldowanie
+              </p>
+              <p className="mt-4 text-3xl font-black">{checkInTime}</p>
+              <p className="mt-3 leading-7 text-slate-600">
+                Godzina zameldowania może być ustalana indywidualnie po
+                wcześniejszym kontakcie.
+              </p>
+            </div>
+
+            <div className="rounded-3xl bg-white p-6 shadow-sm">
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+                Wymeldowanie
+              </p>
+              <p className="mt-4 text-3xl font-black">{checkOutTime}</p>
+              <p className="mt-3 leading-7 text-slate-600">
+                Późniejsze wymeldowanie zależy od kolejnej rezerwacji i
+                harmonogramu sprzątania.
+              </p>
+            </div>
+
+            <div className="rounded-3xl bg-white p-6 shadow-sm">
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+                Sezon
+              </p>
+              <p className="mt-4 text-3xl font-black">
+                {seasonStartLabel} — {seasonEndLabel}
+              </p>
+              <p className="mt-3 leading-7 text-slate-600">
+                Sezon pobytowy jest pobierany z ustawień systemu.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-[2rem] bg-slate-950 p-6 text-white shadow-sm md:p-8">
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-300">
+                  Ważne
+                </p>
+
+                <h3 className="mt-4 text-3xl font-black">
+                  Obiekt jest miejscem spokojnego wypoczynku
+                </h3>
+
+                <p className="mt-4 leading-8 text-slate-300">
+                  Domki Sztabinki są przeznaczone dla osób szukających ciszy,
+                  natury i rodzinnego odpoczynku. Nie jest to miejsce na głośne
+                  imprezy.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-3xl bg-white/10 p-5">
+                  <p className="font-black">Grill dostępny</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Goście mogą korzystać z grilla. Węgiel i rozpałka są po
+                    stronie gości.
+                  </p>
+                </div>
+
+                <div className="rounded-3xl bg-white/10 p-5">
+                  <p className="font-black">Sprzęt wodny</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Na miejscu dostępne są między innymi rowerki wodne, kajak i
+                    łódka.
+                  </p>
+                </div>
+
+                <div className="rounded-3xl bg-white/10 p-5">
+                  <p className="font-black">Wędkowanie</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Możliwość wędkowania w jeziorze lub w prywatnych stawach na
+                    terenie obiektu.
+                  </p>
+                </div>
+
+                <div className="rounded-3xl bg-white/10 p-5">
+                  <p className="font-black">Kontakt telefoniczny</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Najszybszy sposób potwierdzenia terminu i ceny to kontakt
+                    pod numerem 502 286 724.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white px-6 py-24 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-500">
@@ -342,28 +524,28 @@ export default async function HomePage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
               <p className="text-sm font-semibold text-slate-500">
                 Najbliższa okolica
               </p>
               <p className="mt-2 text-2xl font-black">jezioro i natura</p>
             </div>
 
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
               <p className="text-sm font-semibold text-slate-500">
                 Charakter pobytu
               </p>
               <p className="mt-2 text-2xl font-black">spokojny wypoczynek</p>
             </div>
 
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
               <p className="text-sm font-semibold text-slate-500">
                 Dla rodzin
               </p>
               <p className="mt-2 text-2xl font-black">plac zabaw i woda</p>
             </div>
 
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
               <p className="text-sm font-semibold text-slate-500">
                 Kontakt
               </p>
