@@ -178,6 +178,7 @@ export function InquiryForm({
   ]);
 
   const hasDateCollision = collidingDateRanges.length > 0;
+  const isSubmitDisabled = isPending || hasDateCollision;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -206,6 +207,14 @@ export function InquiryForm({
       setIsSuccess(false);
       setMessage(
         "Uzupełnij imię, nazwisko, telefon oraz termin pobytu."
+      );
+      return;
+    }
+
+    if (hasDateCollision) {
+      setIsSuccess(false);
+      setMessage(
+        "Wybrany termin jest zajęty dla tego domku. Wybierz inny termin, inny domek albo opcję dowolną / do ustalenia."
       );
       return;
     }
@@ -420,13 +429,13 @@ export function InquiryForm({
         {hasDateCollision ? (
           <div className="rounded-3xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 md:col-span-2">
             <p className="font-black uppercase tracking-[0.14em]">
-              Uwaga: wybrany termin nachodzi na zajęty pobyt
+              Uwaga: wybrany termin jest zajęty
             </p>
 
             <p className="mt-3 leading-6">
               Wybrany termin dla domku {selectedCabinName} koliduje z terminem
-              zapisanym w systemie. Możesz wysłać zapytanie, ale prawdopodobnie
-              trzeba będzie zaproponować inny domek albo inny termin.
+              zapisanym w systemie. Wybierz inny termin, inny domek albo opcję
+              dowolną / do ustalenia.
             </p>
 
             <div className="mt-4 grid gap-2">
@@ -542,10 +551,18 @@ export function InquiryForm({
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <button
           type="submit"
-          disabled={isPending}
-          className="rounded-2xl bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+          disabled={isSubmitDisabled}
+          className={
+            isSubmitDisabled
+              ? "cursor-not-allowed rounded-2xl bg-slate-400 px-7 py-4 text-sm font-black text-white"
+              : "rounded-2xl bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:bg-slate-800"
+          }
         >
-          {isPending ? "Wysyłanie zapytania..." : "Wyślij zapytanie"}
+          {isPending
+            ? "Wysyłanie zapytania..."
+            : hasDateCollision
+              ? "Termin zajęty — wybierz inny"
+              : "Wyślij zapytanie"}
         </button>
 
         <a
