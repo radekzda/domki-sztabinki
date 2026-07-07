@@ -1,6 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useTransition } from "react";
+
+import { createPublicInquiry } from "@/actions/inquiries";
 
 type PublicCabinOption = {
   id: string;
@@ -26,8 +28,21 @@ function getStringValue(formData: FormData, key: string) {
   return value.trim();
 }
 
+function getPhoneHref(phone: string) {
+  const normalizedPhone = phone.replace(/[^\d+]/g, "");
+
+  if (normalizedPhone.startsWith("+")) {
+    return `tel:${normalizedPhone}`;
+  }
+
+  if (normalizedPhone.length === 9) {
+    return `tel:+48${normalizedPhone}`;
+  }
+
+  return `tel:${normalizedPhone}`;
+}
+
 export function InquiryForm({
-  recipientEmail,
   phoneNumber,
   cabins,
   minimumNightsLabel,
@@ -35,67 +50,54 @@ export function InquiryForm({
   checkOutTime,
 }: InquiryFormProps) {
   const [message, setMessage] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
 
     const fullName = getStringValue(formData, "fullName");
     const phone = getStringValue(formData, "phone");
     const email = getStringValue(formData, "email");
-    const cabinName = getStringValue(formData, "cabinName");
+    const cabinId = getStringValue(formData, "cabinId");
+    const cabinName =
+      cabins.find((cabin) => cabin.id === cabinId)?.name || "";
     const dateFrom = getStringValue(formData, "dateFrom");
     const dateTo = getStringValue(formData, "dateTo");
     const guests = getStringValue(formData, "guests");
     const notes = getStringValue(formData, "notes");
 
     if (!fullName || !phone || !dateFrom || !dateTo || !guests) {
+      setIsSuccess(false);
       setMessage(
         "Uzupełnij imię i nazwisko, telefon, termin pobytu oraz liczbę osób."
       );
       return;
     }
 
-    if (!recipientEmail) {
-      setMessage(
-        `Brakuje adresu e-mail właściciela w ustawieniach systemu. Najszybciej zadzwoń pod numer ${phoneNumber}.`
-      );
-      return;
-    }
+    startTransition(async () => {
+      const result = await createPublicInquiry({
+        fullName,
+        phone,
+        email,
+        cabinId,
+        cabinName,
+        dateFrom,
+        dateTo,
+        guests,
+        notes,
+      });
 
-    const subject = `Zapytanie o pobyt — Domki Sztabinki`;
+      setIsSuccess(result.ok);
+      setMessage(result.message);
 
-    const body = [
-      "Dzień dobry,",
-      "",
-      "Chciałbym/chciałabym zapytać o wolny termin w Domkach Sztabinki.",
-      "",
-      `Imię i nazwisko: ${fullName}`,
-      `Telefon: ${phone}`,
-      `E-mail: ${email || "nie podano"}`,
-      `Wybrany domek: ${cabinName || "dowolny / do ustalenia"}`,
-      `Termin od: ${dateFrom}`,
-      `Termin do: ${dateTo}`,
-      `Liczba osób: ${guests}`,
-      "",
-      "Dodatkowe informacje:",
-      notes || "brak",
-      "",
-      "Informacje ze strony:",
-      `Minimalny pobyt: ${minimumNightsLabel}`,
-      `Zameldowanie: ${checkInTime}`,
-      `Wymeldowanie: ${checkOutTime}`,
-      "",
-      "Proszę o informację o dostępności i cenie.",
-    ].join("\n");
-
-    const mailtoUrl = `mailto:${recipientEmail}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
-
-    window.location.href = mailtoUrl;
-    setMessage("Otwieram program pocztowy z gotową wiadomością.");
+      if (result.ok) {
+        form.reset();
+      }
+    });
   }
 
   return (
@@ -147,13 +149,13 @@ export function InquiryForm({
             Domek
           </span>
           <select
-            name="cabinName"
+            name="cabinId"
             className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
             defaultValue=""
           >
             <option value="">Dowolny / do ustalenia</option>
             {cabins.map((cabin) => (
-              <option key={cabin.id} value={cabin.name}>
+              <option key={cabin.id} value={cabin.id}>
                 {cabin.name}
               </option>
             ))}
@@ -220,7 +222,13 @@ export function InquiryForm({
       </div>
 
       {message ? (
-        <div className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+        <div
+          className={
+            isSuccess
+              ? "mt-5 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
+              : "mt-5 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
+          }
+        >
           {message}
         </div>
       ) : null}
@@ -228,13 +236,14 @@ export function InquiryForm({
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <button
           type="submit"
-          className="rounded-2xl bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:bg-slate-800"
+          disabled={isPending}
+          className="rounded-2xl bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
-          Przygotuj wiadomość e-mail
+          {isPending ? "Wysyłanie zapytania..." : "Wyślij zapytanie"}
         </button>
 
         <a
-          href={`tel:${phoneNumber.replace(/[^\d+]/g, "")}`}
+          href={getPhoneHref(phoneNumber)}
           className="rounded-2xl border border-slate-300 px-7 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
         >
           Zadzwoń: {phoneNumber}

@@ -35,6 +35,7 @@ model Cabin {
 
   images       CabinImage[]
   reservations Reservation[]
+  inquiries    Inquiry[]
 }
 
 model Reservation {
@@ -116,6 +117,35 @@ model Guest {
   createdAt DateTime @default(now())
 
   reservations Reservation[]
+}
+
+model Inquiry {
+  id String @id @default(cuid())
+
+  fullName String
+  phone    String
+  email    String?
+
+  cabinId   String?
+  cabinName String?
+
+  dateFrom DateTime
+  dateTo   DateTime
+
+  guests Int
+  notes  String?
+
+  status String @default("NEW")
+  source String @default("WEBSITE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  cabin Cabin? @relation(fields: [cabinId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([cabinId])
 }
 
 model SystemSettings {
