@@ -161,4 +161,5 @@ export async function updateInquiryStatus(formData: FormData) {
   });
 
   revalidatePath("/admin/zapytania");
+  revalidatePath(`/admin/zapytania/${inquiryId}`);
 }

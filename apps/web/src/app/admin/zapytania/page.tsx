@@ -543,49 +543,60 @@ export default async function AdminInquiriesPage({
                     </div>
                   ) : null}
 
-                  <form
-                    action={updateInquiryStatus}
-                    className="mt-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <input
-                      type="hidden"
-                      name="inquiryId"
-                      value={inquiry.id}
-                    />
-
-                    {inquiry.status !== "CONTACTED" ? (
-                      <button
-                        type="submit"
-                        name="status"
-                        value="CONTACTED"
-                        className={getActionButtonClassName("CONTACTED")}
+                  <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-wrap gap-3">
+                      <Link
+                        href={`/admin/zapytania/${inquiry.id}`}
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-800 transition hover:bg-slate-100"
                       >
-                        Oznacz jako po kontakcie
-                      </button>
-                    ) : null}
+                        Szczegóły
+                      </Link>
+                    </div>
 
-                    {inquiry.status !== "NEW" ? (
-                      <button
-                        type="submit"
-                        name="status"
-                        value="NEW"
-                        className={getActionButtonClassName("NEW")}
-                      >
-                        Przywróć jako nowe
-                      </button>
-                    ) : null}
+                    <form
+                      action={updateInquiryStatus}
+                      className="flex flex-wrap gap-3"
+                    >
+                      <input
+                        type="hidden"
+                        name="inquiryId"
+                        value={inquiry.id}
+                      />
 
-                    {inquiry.status !== "ARCHIVED" ? (
-                      <button
-                        type="submit"
-                        name="status"
-                        value="ARCHIVED"
-                        className={getActionButtonClassName("ARCHIVED")}
-                      >
-                        Archiwizuj
-                      </button>
-                    ) : null}
-                  </form>
+                      {inquiry.status !== "CONTACTED" ? (
+                        <button
+                          type="submit"
+                          name="status"
+                          value="CONTACTED"
+                          className={getActionButtonClassName("CONTACTED")}
+                        >
+                          Oznacz jako po kontakcie
+                        </button>
+                      ) : null}
+
+                      {inquiry.status !== "NEW" ? (
+                        <button
+                          type="submit"
+                          name="status"
+                          value="NEW"
+                          className={getActionButtonClassName("NEW")}
+                        >
+                          Przywróć jako nowe
+                        </button>
+                      ) : null}
+
+                      {inquiry.status !== "ARCHIVED" ? (
+                        <button
+                          type="submit"
+                          name="status"
+                          value="ARCHIVED"
+                          className={getActionButtonClassName("ARCHIVED")}
+                        >
+                          Archiwizuj
+                        </button>
+                      ) : null}
+                    </form>
+                  </div>
                 </article>
               );
             })}
