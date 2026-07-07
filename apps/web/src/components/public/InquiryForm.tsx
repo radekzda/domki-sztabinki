@@ -17,6 +17,20 @@ type OccupiedDateRange = {
   status: string;
 };
 
+type CalendarDay = {
+  dateInputValue: string;
+  dayNumber: number;
+  isToday: boolean;
+  isOccupied: boolean;
+};
+
+type CalendarMonth = {
+  key: string;
+  label: string;
+  emptyDaysBeforeMonth: number[];
+  days: CalendarDay[];
+};
+
 type InquiryFormProps = {
   recipientEmail: string;
   phoneNumber: string;
@@ -26,6 +40,8 @@ type InquiryFormProps = {
   checkInTime: string;
   checkOutTime: string;
 };
+
+const weekDayLabels = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
 
 function getStringValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -110,6 +126,109 @@ function dateRangesOverlap({
   return selectedDateFrom < occupiedDateTo && selectedDateTo > occupiedDateFrom;
 }
 
+function getDateInputValueFromDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getDateInputValueFromIso(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return getDateInputValueFromDate(date);
+}
+
+function getMonthLabel(date: Date) {
+  return new Intl.DateTimeFormat("pl-PL", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function getMondayFirstWeekdayIndex(date: Date) {
+  const day = date.getDay();
+
+  if (day === 0) {
+    return 6;
+  }
+
+  return day - 1;
+}
+
+function isDateOccupiedByRanges(
+  dateInputValue: string,
+  occupiedRanges: OccupiedDateRange[],
+) {
+  return occupiedRanges.some((dateRange) => {
+    const occupiedDateFrom = getDateInputValueFromIso(dateRange.dateFrom);
+    const occupiedDateTo = getDateInputValueFromIso(dateRange.dateTo);
+
+    if (!occupiedDateFrom || !occupiedDateTo) {
+      return false;
+    }
+
+    return (
+      dateInputValue >= occupiedDateFrom && dateInputValue < occupiedDateTo
+    );
+  });
+}
+
+function buildCalendarMonths({
+  occupiedRanges,
+  monthsCount,
+}: {
+  occupiedRanges: OccupiedDateRange[];
+  monthsCount: number;
+}): CalendarMonth[] {
+  const today = new Date();
+  const todayInputValue = getDateInputValueFromDate(today);
+  const months: CalendarMonth[] = [];
+
+  for (let monthOffset = 0; monthOffset < monthsCount; monthOffset += 1) {
+    const monthDate = new Date(
+      today.getFullYear(),
+      today.getMonth() + monthOffset,
+      1,
+      12,
+    );
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1, 12);
+    const emptyDaysBeforeMonth = Array.from({
+      length: getMondayFirstWeekdayIndex(firstDayOfMonth),
+    }).map((_, index) => index);
+
+    const days = Array.from({ length: daysInMonth }).map((_, index) => {
+      const dayNumber = index + 1;
+      const date = new Date(year, month, dayNumber, 12);
+      const dateInputValue = getDateInputValueFromDate(date);
+
+      return {
+        dateInputValue,
+        dayNumber,
+        isToday: dateInputValue === todayInputValue,
+        isOccupied: isDateOccupiedByRanges(dateInputValue, occupiedRanges),
+      };
+    });
+
+    months.push({
+      key: `${year}-${String(month + 1).padStart(2, "0")}`,
+      label: getMonthLabel(monthDate),
+      emptyDaysBeforeMonth,
+      days,
+    });
+  }
+
+  return months;
+}
+
 export function InquiryForm({
   phoneNumber,
   cabins,
@@ -139,6 +258,15 @@ export function InquiryForm({
 
   const selectedCabinName =
     cabins.find((cabin) => cabin.id === selectedCabinId)?.name || "";
+
+  const availabilityCalendarMonths = useMemo(
+    () =>
+      buildCalendarMonths({
+        occupiedRanges: selectedCabinOccupiedDateRanges,
+        monthsCount: 6,
+      }),
+    [selectedCabinOccupiedDateRanges],
+  );
 
   const collidingDateRanges = useMemo(() => {
     const selectedDateFrom = parseDateInputValue(dateFromValue);
@@ -206,7 +334,7 @@ export function InquiryForm({
     if (!firstName || !lastName || !phone || !dateFrom || !dateTo) {
       setIsSuccess(false);
       setMessage(
-        "Uzupełnij imię, nazwisko, telefon oraz termin pobytu."
+        "Uzupełnij imię, nazwisko, telefon oraz termin pobytu.",
       );
       return;
     }
@@ -214,7 +342,7 @@ export function InquiryForm({
     if (hasDateCollision) {
       setIsSuccess(false);
       setMessage(
-        "Wybrany termin jest zajęty dla tego domku. Wybierz inny termin, inny domek albo opcję dowolną / do ustalenia."
+        "Wybrany termin jest zajęty dla tego domku. Wybierz inny termin, inny domek albo opcję dowolną / do ustalenia.",
       );
       return;
     }
@@ -397,6 +525,82 @@ export function InquiryForm({
             </div>
           )}
         </div>
+
+        {selectedCabinId ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 md:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+                  Kalendarz dostępności
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Widok najbliższych 6 miesięcy dla domku {selectedCabinName}.
+                  Dzień wymeldowania nie jest liczony jako zajęty.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs font-bold">
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-800">
+                  wolny
+                </span>
+                <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-red-800">
+                  zajęty
+                </span>
+                <span className="rounded-full border border-slate-300 bg-slate-950 px-3 py-1 text-white">
+                  dziś
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+              {availabilityCalendarMonths.map((calendarMonth) => (
+                <div
+                  key={calendarMonth.key}
+                  className="rounded-3xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <p className="text-center text-sm font-black uppercase tracking-[0.16em] text-slate-700">
+                    {calendarMonth.label}
+                  </p>
+
+                  <div className="mt-4 grid grid-cols-7 gap-1 text-center">
+                    {weekDayLabels.map((weekDayLabel) => (
+                      <div
+                        key={weekDayLabel}
+                        className="py-1 text-xs font-black uppercase text-slate-500"
+                      >
+                        {weekDayLabel}
+                      </div>
+                    ))}
+
+                    {calendarMonth.emptyDaysBeforeMonth.map((emptyDay) => (
+                      <div key={emptyDay} className="h-9" />
+                    ))}
+
+                    {calendarMonth.days.map((day) => (
+                      <div
+                        key={day.dateInputValue}
+                        title={
+                          day.isOccupied
+                            ? `${day.dateInputValue} — zajęty`
+                            : `${day.dateInputValue} — wolny`
+                        }
+                        className={
+                          day.isToday
+                            ? "flex h-9 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white"
+                            : day.isOccupied
+                              ? "flex h-9 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-xs font-black text-red-800"
+                              : "flex h-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-black text-emerald-800"
+                        }
+                      >
+                        {day.dayNumber}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <label className="grid gap-2">
           <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
