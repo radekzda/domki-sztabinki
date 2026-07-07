@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CalendarRange,
   LayoutDashboard,
+  MessageSquare,
   Settings,
   Users,
 } from "lucide-react";
@@ -37,6 +38,11 @@ const menuItems = [
     label: "Kalendarz",
     href: "/admin/kalendarz",
     icon: CalendarRange,
+  },
+  {
+    label: "Zapytania",
+    href: "/admin/zapytania",
+    icon: MessageSquare,
   },
   {
     label: "Ustawienia",
