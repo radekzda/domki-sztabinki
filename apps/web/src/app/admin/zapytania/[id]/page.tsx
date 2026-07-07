@@ -528,6 +528,13 @@ export default async function AdminInquiryDetailsPage({
           >
             Przejdź do rezerwacji
           </Link>
+
+          <Link
+            href={`/admin/zapytania/${inquiry.id}/usun`}
+            className="rounded-xl bg-red-700 px-5 py-3 text-sm font-black text-white transition hover:bg-red-800"
+          >
+            Usuń zapytanie
+          </Link>
         </div>
       </section>
 

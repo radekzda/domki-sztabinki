@@ -559,6 +559,13 @@ export default async function AdminInquiriesPage({
                       >
                         Szczegóły
                       </Link>
+
+                      <Link
+                        href={`/admin/zapytania/${inquiry.id}/usun`}
+                        className="rounded-xl bg-red-700 px-4 py-2 text-xs font-black text-white transition hover:bg-red-800"
+                      >
+                        Usuń
+                      </Link>
                     </div>
 
                     <form
