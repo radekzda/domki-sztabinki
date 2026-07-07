@@ -82,6 +82,34 @@ function getReservationStatusLabel(status: string) {
   return "zajęty";
 }
 
+function parseDateInputValue(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const date = new Date(`${value}T12:00:00.000Z`);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+}
+
+function dateRangesOverlap({
+  selectedDateFrom,
+  selectedDateTo,
+  occupiedDateFrom,
+  occupiedDateTo,
+}: {
+  selectedDateFrom: Date;
+  selectedDateTo: Date;
+  occupiedDateFrom: Date;
+  occupiedDateTo: Date;
+}) {
+  return selectedDateFrom < occupiedDateTo && selectedDateTo > occupiedDateFrom;
+}
+
 export function InquiryForm({
   phoneNumber,
   cabins,
@@ -94,6 +122,8 @@ export function InquiryForm({
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [selectedCabinId, setSelectedCabinId] = useState("");
+  const [dateFromValue, setDateFromValue] = useState("");
+  const [dateToValue, setDateToValue] = useState("");
 
   const selectedCabinOccupiedDateRanges = useMemo(
     () =>
@@ -109,6 +139,45 @@ export function InquiryForm({
 
   const selectedCabinName =
     cabins.find((cabin) => cabin.id === selectedCabinId)?.name || "";
+
+  const collidingDateRanges = useMemo(() => {
+    const selectedDateFrom = parseDateInputValue(dateFromValue);
+    const selectedDateTo = parseDateInputValue(dateToValue);
+
+    if (!selectedCabinId || !selectedDateFrom || !selectedDateTo) {
+      return [];
+    }
+
+    if (selectedDateTo <= selectedDateFrom) {
+      return [];
+    }
+
+    return selectedCabinOccupiedDateRanges.filter((dateRange) => {
+      const occupiedDateFrom = new Date(dateRange.dateFrom);
+      const occupiedDateTo = new Date(dateRange.dateTo);
+
+      if (
+        Number.isNaN(occupiedDateFrom.getTime()) ||
+        Number.isNaN(occupiedDateTo.getTime())
+      ) {
+        return false;
+      }
+
+      return dateRangesOverlap({
+        selectedDateFrom,
+        selectedDateTo,
+        occupiedDateFrom,
+        occupiedDateTo,
+      });
+    });
+  }, [
+    dateFromValue,
+    dateToValue,
+    selectedCabinId,
+    selectedCabinOccupiedDateRanges,
+  ]);
+
+  const hasDateCollision = collidingDateRanges.length > 0;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -166,6 +235,8 @@ export function InquiryForm({
       if (result.ok) {
         form.reset();
         setSelectedCabinId("");
+        setDateFromValue("");
+        setDateToValue("");
       }
     });
   }
@@ -326,6 +397,8 @@ export function InquiryForm({
             name="dateFrom"
             type="date"
             required
+            value={dateFromValue}
+            onChange={(event) => setDateFromValue(event.target.value)}
             className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
           />
         </label>
@@ -338,9 +411,52 @@ export function InquiryForm({
             name="dateTo"
             type="date"
             required
+            value={dateToValue}
+            onChange={(event) => setDateToValue(event.target.value)}
             className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
           />
         </label>
+
+        {hasDateCollision ? (
+          <div className="rounded-3xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 md:col-span-2">
+            <p className="font-black uppercase tracking-[0.14em]">
+              Uwaga: wybrany termin nachodzi na zajęty pobyt
+            </p>
+
+            <p className="mt-3 leading-6">
+              Wybrany termin dla domku {selectedCabinName} koliduje z terminem
+              zapisanym w systemie. Możesz wysłać zapytanie, ale prawdopodobnie
+              trzeba będzie zaproponować inny domek albo inny termin.
+            </p>
+
+            <div className="mt-4 grid gap-2">
+              {collidingDateRanges.map((dateRange) => (
+                <div
+                  key={dateRange.id}
+                  className="rounded-2xl border border-red-200 bg-white px-4 py-3"
+                >
+                  <span className="font-black">
+                    {formatDate(dateRange.dateFrom)} –{" "}
+                    {formatDate(dateRange.dateTo)}
+                  </span>{" "}
+                  <span>
+                    ({getReservationStatusLabel(dateRange.status)})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : selectedCabinId && dateFromValue && dateToValue ? (
+          <div className="rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-900 md:col-span-2">
+            <p className="font-black uppercase tracking-[0.14em]">
+              Brak kolizji z zajętymi terminami
+            </p>
+            <p className="mt-3 leading-6">
+              Wybrany termin nie nachodzi na aktualnie zapisane rezerwacje tego
+              domku. Ostateczną dostępność i cenę potwierdzimy po kontakcie.
+            </p>
+          </div>
+        ) : null}
 
         <label className="grid gap-2 md:col-span-2">
           <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
