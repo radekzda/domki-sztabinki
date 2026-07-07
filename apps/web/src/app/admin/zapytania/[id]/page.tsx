@@ -73,8 +73,8 @@ function getStatusLabel(status: string) {
     return "Nowe";
   }
 
-  if (status === "CONTACTED") {
-    return "Po kontakcie";
+  if (status === "APPROVED" || status === "CONTACTED") {
+    return "Zatwierdzone";
   }
 
   if (status === "ARCHIVED") {
@@ -89,7 +89,7 @@ function getStatusClassName(status: string) {
     return "bg-emerald-50 text-emerald-800 ring-emerald-200";
   }
 
-  if (status === "CONTACTED") {
+  if (status === "APPROVED" || status === "CONTACTED") {
     return "bg-sky-50 text-sky-800 ring-sky-200";
   }
 
@@ -105,7 +105,7 @@ function getActionButtonClassName(status: string) {
     return "rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-700";
   }
 
-  if (status === "CONTACTED") {
+  if (status === "APPROVED" || status === "CONTACTED") {
     return "rounded-xl bg-sky-600 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-700";
   }
 
@@ -435,7 +435,8 @@ export default async function AdminInquiryDetailsPage({
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Domek w bazie: do {inquiry.cabin.maxGuests} osób,{" "}
               {inquiry.cabin.bedrooms} sypialnie, {inquiry.cabin.bathrooms}{" "}
-              łazienka, cena bazowa {inquiry.cabin.pricePerNight} PLN za dobę.
+              łazienka, cena bazowa {String(inquiry.cabin.pricePerNight)} PLN
+              za dobę.
             </p>
           ) : (
             <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -509,7 +510,8 @@ export default async function AdminInquiryDetailsPage({
         <p className="mt-2 text-sm text-slate-600">
           Możesz przejść do formularza nowej rezerwacji z danymi tego zapytania.
           Rezerwacja nie zostanie utworzona automatycznie — najpierw sprawdzisz
-          i zatwierdzisz formularz.
+          i zatwierdzisz formularz. Po zapisaniu rezerwacji zapytanie zostanie
+          oznaczone jako zatwierdzone.
         </p>
 
         <div className="mt-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -534,7 +536,7 @@ export default async function AdminInquiryDetailsPage({
           Status zapytania
         </h2>
         <p className="mt-2 text-sm text-slate-600">
-          Zmień status po kontakcie z gościem. To nadal nie tworzy rezerwacji.
+          Zmień status zapytania. To nadal nie tworzy rezerwacji.
         </p>
 
         <form
@@ -543,14 +545,14 @@ export default async function AdminInquiryDetailsPage({
         >
           <input type="hidden" name="inquiryId" value={inquiry.id} />
 
-          {inquiry.status !== "CONTACTED" ? (
+          {inquiry.status !== "APPROVED" && inquiry.status !== "CONTACTED" ? (
             <button
               type="submit"
               name="status"
-              value="CONTACTED"
-              className={getActionButtonClassName("CONTACTED")}
+              value="APPROVED"
+              className={getActionButtonClassName("APPROVED")}
             >
-              Oznacz jako po kontakcie
+              Oznacz jako zatwierdzone
             </button>
           ) : null}
 
