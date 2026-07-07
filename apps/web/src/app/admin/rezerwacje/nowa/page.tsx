@@ -12,10 +12,18 @@ type Props = {
     guestId?: string;
     inquiryId?: string;
     guestName?: string;
+    firstName?: string;
+    lastName?: string;
     email?: string;
     phone?: string;
     guests?: string;
+    adults?: string;
+    children?: string;
     source?: string;
+    street?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
     notes?: string;
   }>;
 };
@@ -73,6 +81,56 @@ function splitGuestName(guestName: string) {
   };
 }
 
+function getNumberInputValue(value: string, fallback: string) {
+  const parsedValue = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < 0 || parsedValue > 20) {
+    return fallback;
+  }
+
+  return String(parsedValue);
+}
+
+function getReservationSource(value: string) {
+  if (value === "WWW" || value === "WEBSITE") {
+    return "WEBSITE";
+  }
+
+  if (value === "PHONE") {
+    return "PHONE";
+  }
+
+  if (value === "BOOKING") {
+    return "BOOKING";
+  }
+
+  if (value === "AIRBNB") {
+    return "AIRBNB";
+  }
+
+  return "MANUAL";
+}
+
+function getReservationSourceLabel(source: string) {
+  if (source === "WEBSITE") {
+    return "WWW";
+  }
+
+  if (source === "PHONE") {
+    return "Telefon";
+  }
+
+  if (source === "BOOKING") {
+    return "Booking";
+  }
+
+  if (source === "AIRBNB") {
+    return "Airbnb";
+  }
+
+  return "Ręcznie";
+}
+
 async function getSystemSettings() {
   return prisma.systemSettings.upsert({
     where: {
@@ -98,10 +156,25 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
   const error = resolvedSearchParams?.error;
   const inquiryId = getSearchParamValue(resolvedSearchParams?.inquiryId);
   const urlGuestName = getSearchParamValue(resolvedSearchParams?.guestName);
+  const urlFirstName = getSearchParamValue(resolvedSearchParams?.firstName);
+  const urlLastName = getSearchParamValue(resolvedSearchParams?.lastName);
   const urlEmail = getSearchParamValue(resolvedSearchParams?.email);
   const urlPhone = getSearchParamValue(resolvedSearchParams?.phone);
-  const urlGuests = getSearchParamValue(resolvedSearchParams?.guests);
-  const urlSource = getSearchParamValue(resolvedSearchParams?.source);
+  const urlAdults = getNumberInputValue(
+    getSearchParamValue(resolvedSearchParams?.adults),
+    "2",
+  );
+  const urlChildren = getNumberInputValue(
+    getSearchParamValue(resolvedSearchParams?.children),
+    "0",
+  );
+  const urlSource = getReservationSource(
+    getSearchParamValue(resolvedSearchParams?.source),
+  );
+  const urlStreet = getSearchParamValue(resolvedSearchParams?.street);
+  const urlPostalCode = getSearchParamValue(resolvedSearchParams?.postalCode);
+  const urlCity = getSearchParamValue(resolvedSearchParams?.city);
+  const urlCountry = getSearchParamValue(resolvedSearchParams?.country);
   const urlNotes = getSearchParamValue(resolvedSearchParams?.notes);
   const splitUrlGuestName = splitGuestName(urlGuestName);
 
@@ -154,11 +227,13 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
   );
 
   const initialFirstName =
-    initialGuest?.firstName ?? splitUrlGuestName.firstName;
-  const initialLastName = initialGuest?.lastName ?? splitUrlGuestName.lastName;
+    initialGuest?.firstName ?? (urlFirstName || splitUrlGuestName.firstName);
+  const initialLastName =
+    initialGuest?.lastName ?? (urlLastName || splitUrlGuestName.lastName);
   const initialEmail = initialGuest?.email ?? urlEmail;
   const initialPhone = initialGuest?.phone ?? urlPhone;
-  const initialCountry = initialGuest?.country ?? settings.propertyCountry;
+  const initialCountry =
+    initialGuest?.country ?? (urlCountry || settings.propertyCountry);
   const isFromInquiry = Boolean(inquiryId);
 
   return (
@@ -200,15 +275,22 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
       {isFromInquiry ? (
         <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
           <div className="font-semibold">
-            Tworzysz rezerwację na podstawie zapytania ze strony publicznej.
+            Tworzysz rezerwację na podstawie zapytania z WWW.
           </div>
 
-          <div className="mt-2 space-y-1">
-            {urlGuestName ? <div>Gość: {urlGuestName}</div> : null}
+          <div className="mt-2 grid gap-1 md:grid-cols-2">
+            <div>
+              Gość: {initialFirstName} {initialLastName}
+            </div>
             {urlPhone ? <div>Telefon: {urlPhone}</div> : null}
             {urlEmail ? <div>E-mail: {urlEmail}</div> : null}
-            {urlGuests ? <div>Liczba osób z zapytania: {urlGuests}</div> : null}
-            {urlSource ? <div>Źródło: {urlSource}</div> : null}
+            <div>Dorośli: {urlAdults}</div>
+            <div>Dzieci: {urlChildren}</div>
+            <div>Źródło rezerwacji: {getReservationSourceLabel(urlSource)}</div>
+            {urlStreet ? <div>Ulica i numer: {urlStreet}</div> : null}
+            {urlPostalCode ? <div>Kod pocztowy: {urlPostalCode}</div> : null}
+            {urlCity ? <div>Miasto: {urlCity}</div> : null}
+            {initialCountry ? <div>Kraj: {initialCountry}</div> : null}
           </div>
 
           {urlNotes ? (
@@ -232,7 +314,14 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         initialLastName={initialLastName}
         initialEmail={initialEmail}
         initialPhone={initialPhone}
+        initialAdults={urlAdults}
+        initialChildren={urlChildren}
+        initialSource={urlSource}
+        initialStreet={urlStreet}
+        initialPostalCode={urlPostalCode}
+        initialCity={urlCity}
         initialCountry={initialCountry}
+        initialNotes={urlNotes}
         initialCheckInTime={settings.checkInTime}
         initialCheckOutTime={settings.checkOutTime}
         minimumNights={settings.minimumNights}

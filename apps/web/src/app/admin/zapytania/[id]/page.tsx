@@ -43,6 +43,31 @@ function getNightsCount(dateFrom: Date, dateTo: Date) {
   return Math.max(1, Math.round(difference / millisecondsPerDay));
 }
 
+function splitFullName(fullName: string) {
+  const cleanedFullName = fullName.trim().replace(/\s+/g, " ");
+
+  if (!cleanedFullName) {
+    return {
+      firstName: "",
+      lastName: "",
+    };
+  }
+
+  const parts = cleanedFullName.split(" ");
+
+  if (parts.length === 1) {
+    return {
+      firstName: parts[0],
+      lastName: "",
+    };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
 function getStatusLabel(status: string) {
   if (status === "NEW") {
     return "Nowe";
@@ -108,32 +133,47 @@ function getPhoneHref(phone: string) {
 function getCreateReservationHref({
   inquiryId,
   cabinId,
-  fullName,
+  firstName,
+  lastName,
   email,
   phone,
   dateFrom,
   dateTo,
-  guests,
+  adults,
+  children,
+  street,
+  postalCode,
+  city,
+  country,
   notes,
 }: {
   inquiryId: string;
   cabinId: string | null;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string | null;
   phone: string;
   dateFrom: Date;
   dateTo: Date;
-  guests: number;
+  adults: number;
+  children: number;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
   notes: string | null;
 }) {
   const params = new URLSearchParams();
 
   params.set("inquiryId", inquiryId);
-  params.set("guestName", fullName);
+  params.set("firstName", firstName);
+  params.set("lastName", lastName);
   params.set("phone", phone);
   params.set("startDate", formatDateForInput(dateFrom));
   params.set("endDate", formatDateForInput(dateTo));
-  params.set("guests", String(guests));
+  params.set("adults", String(adults));
+  params.set("children", String(children));
+  params.set("guests", String(adults + children));
   params.set("source", "WEBSITE");
 
   if (cabinId) {
@@ -142,6 +182,22 @@ function getCreateReservationHref({
 
   if (email) {
     params.set("email", email);
+  }
+
+  if (street) {
+    params.set("street", street);
+  }
+
+  if (postalCode) {
+    params.set("postalCode", postalCode);
+  }
+
+  if (city) {
+    params.set("city", city);
+  }
+
+  if (country) {
+    params.set("country", country);
   }
 
   if (notes) {
@@ -178,18 +234,27 @@ export default async function AdminInquiryDetailsPage({
     notFound();
   }
 
+  const fallbackNameParts = splitFullName(inquiry.fullName);
+  const firstName = inquiry.firstName || fallbackNameParts.firstName;
+  const lastName = inquiry.lastName || fallbackNameParts.lastName;
   const selectedCabinName =
     inquiry.cabin?.name || inquiry.cabinName || "Dowolny / do ustalenia";
   const nights = getNightsCount(inquiry.dateFrom, inquiry.dateTo);
   const createReservationHref = getCreateReservationHref({
     inquiryId: inquiry.id,
     cabinId: inquiry.cabinId,
-    fullName: inquiry.fullName,
+    firstName,
+    lastName,
     email: inquiry.email,
     phone: inquiry.phone,
     dateFrom: inquiry.dateFrom,
     dateTo: inquiry.dateTo,
-    guests: inquiry.guests,
+    adults: inquiry.adults,
+    children: inquiry.children,
+    street: inquiry.street,
+    postalCode: inquiry.postalCode,
+    city: inquiry.city,
+    country: inquiry.country,
     notes: inquiry.notes,
   });
 
@@ -215,7 +280,7 @@ export default async function AdminInquiryDetailsPage({
 
         <span
           className={`inline-flex w-fit rounded-full px-4 py-2 text-sm font-black ring-1 ${getStatusClassName(
-            inquiry.status
+            inquiry.status,
           )}`}
         >
           {getStatusLabel(inquiry.status)}
@@ -241,10 +306,19 @@ export default async function AdminInquiryDetailsPage({
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl bg-slate-50 p-5">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Imię i nazwisko
+              Imię
             </p>
             <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.fullName}
+              {firstName || "Nie podano"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Nazwisko
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {lastName || "Nie podano"}
             </p>
           </div>
 
@@ -260,7 +334,7 @@ export default async function AdminInquiryDetailsPage({
             </a>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 p-5">
+          <div className="rounded-2xl bg-slate-50 p-5 md:col-span-3">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
               E-mail
             </p>
@@ -281,9 +355,7 @@ export default async function AdminInquiryDetailsPage({
       </section>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="text-xl font-black text-slate-950">
-          Pobyt
-        </h2>
+        <h2 className="text-xl font-black text-slate-950">Pobyt</h2>
         <p className="mt-2 text-sm text-slate-600">
           Termin i podstawowe informacje z zapytania.
         </p>
@@ -311,17 +383,42 @@ export default async function AdminInquiryDetailsPage({
             <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
               Liczba nocy
             </p>
+            <p className="mt-2 text-lg font-black text-slate-950">{nights}</p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Razem osób
+            </p>
             <p className="mt-2 text-lg font-black text-slate-950">
-              {nights}
+              {inquiry.guests}
             </p>
           </div>
 
           <div className="rounded-2xl bg-slate-50 p-5">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Liczba osób
+              Dorośli
             </p>
             <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.guests}
+              {inquiry.adults}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Dzieci
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {inquiry.children}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-5 md:col-span-2">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Źródło zapytania
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {inquiry.source}
             </p>
           </div>
         </div>
@@ -350,6 +447,48 @@ export default async function AdminInquiryDetailsPage({
       </section>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 className="text-xl font-black text-slate-950">Adres</h2>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl bg-slate-50 p-5 xl:col-span-2">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Ulica i numer
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {inquiry.street || "Nie podano"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Kod pocztowy
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {inquiry.postalCode || "Nie podano"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Miasto
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {inquiry.city || "Nie podano"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-5 xl:col-span-4">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Kraj
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {inquiry.country || "Nie podano"}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-xl font-black text-slate-950">
           Wiadomość od gościa
         </h2>
@@ -366,9 +505,7 @@ export default async function AdminInquiryDetailsPage({
       </section>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="text-xl font-black text-slate-950">
-          Dalsza obsługa
-        </h2>
+        <h2 className="text-xl font-black text-slate-950">Dalsza obsługa</h2>
         <p className="mt-2 text-sm text-slate-600">
           Możesz przejść do formularza nowej rezerwacji z danymi tego zapytania.
           Rezerwacja nie zostanie utworzona automatycznie — najpierw sprawdzisz

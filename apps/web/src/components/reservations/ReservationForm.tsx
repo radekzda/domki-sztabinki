@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+
 import { createReservation } from "@/actions/reservations";
 import {
   calculateDefaultTotalPrice,
@@ -33,7 +34,14 @@ type ReservationFormProps = {
   initialLastName?: string;
   initialEmail?: string;
   initialPhone?: string;
+  initialAdults?: string;
+  initialChildren?: string;
+  initialSource?: string;
+  initialStreet?: string;
+  initialPostalCode?: string;
+  initialCity?: string;
   initialCountry?: string;
+  initialNotes?: string;
   initialCheckInTime?: string;
   initialCheckOutTime?: string;
   minimumNights?: number;
@@ -72,7 +80,14 @@ export default function ReservationForm({
   initialLastName = "",
   initialEmail = "",
   initialPhone = "",
+  initialAdults = "2",
+  initialChildren = "0",
+  initialSource = "MANUAL",
+  initialStreet = "",
+  initialPostalCode = "",
+  initialCity = "",
   initialCountry = "Polska",
+  initialNotes = "",
   initialCheckInTime = "15:00",
   initialCheckOutTime = "11:00",
   minimumNights = 4,
@@ -314,7 +329,7 @@ export default function ReservationForm({
               type="number"
               name="adults"
               min={0}
-              defaultValue={2}
+              defaultValue={initialAdults}
               required
               className="w-full rounded-lg border p-3"
             />
@@ -326,7 +341,7 @@ export default function ReservationForm({
               type="number"
               name="children"
               min={0}
-              defaultValue={0}
+              defaultValue={initialChildren}
               required
               className="w-full rounded-lg border p-3"
             />
@@ -407,7 +422,7 @@ export default function ReservationForm({
             <label className="text-sm font-medium">Źródło</label>
             <select
               name="source"
-              defaultValue="MANUAL"
+              defaultValue={initialSource}
               required
               className="w-full rounded-lg border p-3"
             >
@@ -430,6 +445,7 @@ export default function ReservationForm({
           <label className="text-sm font-medium">Ulica i numer</label>
           <input
             name="street"
+            defaultValue={initialStreet}
             className="w-full rounded-lg border p-3"
             placeholder="np. Leśna 12"
           />
@@ -440,6 +456,7 @@ export default function ReservationForm({
             <label className="text-sm font-medium">Kod pocztowy</label>
             <input
               name="postalCode"
+              defaultValue={initialPostalCode}
               className="w-full rounded-lg border p-3"
               placeholder="np. 00-001"
             />
@@ -449,6 +466,7 @@ export default function ReservationForm({
             <label className="text-sm font-medium">Miasto</label>
             <input
               name="city"
+              defaultValue={initialCity}
               className="w-full rounded-lg border p-3"
               placeholder="np. Warszawa"
             />
@@ -473,6 +491,7 @@ export default function ReservationForm({
         <textarea
           name="notes"
           rows={5}
+          defaultValue={initialNotes}
           className="w-full rounded-lg border p-3"
           placeholder="Uwagi do rezerwacji, płatności, przyjazdu lub gości..."
         />
