@@ -1,3 +1,4 @@
+import { InquiryForm } from "@/components/public/InquiryForm";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +77,20 @@ function formatMinimumNights(nights: number) {
   return `${nights} nocy`;
 }
 
+function getPhoneHref(phone: string) {
+  const normalizedPhone = phone.replace(/[^\d+]/g, "");
+
+  if (normalizedPhone.startsWith("+")) {
+    return `tel:${normalizedPhone}`;
+  }
+
+  if (normalizedPhone.length === 9) {
+    return `tel:+48${normalizedPhone}`;
+  }
+
+  return `tel:${normalizedPhone}`;
+}
+
 export default async function HomePage() {
   const [cabins, settings] = await Promise.all([
     getPublicCabins(),
@@ -89,6 +104,9 @@ export default async function HomePage() {
   const seasonEndMonth = settings?.seasonEndMonth ?? 9;
   const seasonStartLabel = getMonthName(seasonStartMonth);
   const seasonEndLabel = getMonthName(seasonEndMonth);
+  const contactPhone = settings?.ownerPhone || "502 286 724";
+  const contactPhoneHref = getPhoneHref(contactPhone);
+  const contactEmail = settings?.ownerEmail || "";
 
   return (
     <main className="min-h-screen bg-white text-slate-950">
@@ -121,10 +139,10 @@ export default async function HomePage() {
             </a>
 
             <a
-              href="tel:+48502286724"
+              href={contactPhoneHref}
               className="rounded-xl bg-slate-950 px-6 py-3 text-center text-white shadow-sm transition hover:bg-slate-800"
             >
-              Zadzwoń: 502 286 724
+              Zadzwoń: {contactPhone}
             </a>
           </nav>
         </div>
@@ -149,10 +167,10 @@ export default async function HomePage() {
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
               <a
-                href="tel:+48502286724"
+                href={contactPhoneHref}
                 className="rounded-2xl bg-white px-8 py-5 text-center text-lg font-black text-slate-950 shadow-sm transition hover:bg-slate-100"
               >
-                Zadzwoń teraz: 502 286 724
+                Zadzwoń teraz: {contactPhone}
               </a>
 
               <a
@@ -361,7 +379,7 @@ export default async function HomePage() {
 
                         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                           <a
-                            href="tel:+48502286724"
+                            href={contactPhoneHref}
                             className="rounded-2xl bg-slate-950 px-6 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
                           >
                             Zapytaj o termin
@@ -496,7 +514,7 @@ export default async function HomePage() {
                   <p className="font-black">Kontakt telefoniczny</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
                     Najszybszy sposób potwierdzenia terminu i ceny to kontakt
-                    pod numerem 502 286 724.
+                    pod numerem {contactPhone}.
                   </p>
                 </div>
               </div>
@@ -549,16 +567,16 @@ export default async function HomePage() {
               <p className="text-sm font-semibold text-slate-500">
                 Kontakt
               </p>
-              <p className="mt-2 text-2xl font-black">502 286 724</p>
+              <p className="mt-2 text-2xl font-black">{contactPhone}</p>
             </div>
           </div>
         </div>
       </section>
 
       <section id="kontakt" className="bg-slate-950 px-6 py-24 text-white lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-300">
-            Rezerwacja
+            Zapytanie
           </p>
 
           <h2 className="mt-4 text-4xl font-black tracking-tight md:text-5xl">
@@ -566,18 +584,21 @@ export default async function HomePage() {
           </h2>
 
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-            Strona rezerwacji online będzie rozwijana w kolejnym etapie. Na ten
-            moment najlepiej skontaktować się telefonicznie.
+            Wypełnij krótki formularz, a przygotujemy wiadomość e-mail z Twoim
+            zapytaniem. Możesz też od razu zadzwonić.
           </p>
 
-          <div className="mt-8">
-            <a
-              href="tel:+48502286724"
-              className="inline-flex justify-center rounded-2xl bg-white px-8 py-5 text-lg font-black text-slate-950 shadow-sm transition hover:bg-slate-100"
-            >
-              Zadzwoń: 502 286 724
-            </a>
-          </div>
+          <InquiryForm
+            recipientEmail={contactEmail}
+            phoneNumber={contactPhone}
+            cabins={cabins.map((cabin) => ({
+              id: cabin.id,
+              name: cabin.name,
+            }))}
+            minimumNightsLabel={formatMinimumNights(minimumNights)}
+            checkInTime={checkInTime}
+            checkOutTime={checkOutTime}
+          />
         </div>
       </section>
 
