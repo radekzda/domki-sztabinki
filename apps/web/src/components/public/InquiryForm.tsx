@@ -229,6 +229,38 @@ function buildCalendarMonths({
   return months;
 }
 
+function getCalendarDayClassName({
+  isToday,
+  isOccupied,
+  isSelectedStart,
+  isSelectedEnd,
+  isSelectedBetween,
+}: {
+  isToday: boolean;
+  isOccupied: boolean;
+  isSelectedStart: boolean;
+  isSelectedEnd: boolean;
+  isSelectedBetween: boolean;
+}) {
+  if (isOccupied) {
+    return "flex h-9 cursor-not-allowed items-center justify-center rounded-xl border border-red-200 bg-red-50 text-xs font-black text-red-800";
+  }
+
+  if (isSelectedStart || isSelectedEnd) {
+    return "flex h-9 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white ring-2 ring-slate-400";
+  }
+
+  if (isSelectedBetween) {
+    return "flex h-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-xs font-black text-sky-800";
+  }
+
+  if (isToday) {
+    return "flex h-9 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white";
+  }
+
+  return "flex h-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-black text-emerald-800 transition hover:bg-emerald-100";
+}
+
 export function InquiryForm({
   phoneNumber,
   cabins,
@@ -309,6 +341,28 @@ export function InquiryForm({
 
   const hasDateCollision = collidingDateRanges.length > 0;
   const isSubmitDisabled = isPending || hasDateCollision;
+
+  function handleCalendarDayClick(day: CalendarDay) {
+    if (day.isOccupied) {
+      return;
+    }
+
+    setMessage("");
+
+    if (!dateFromValue || (dateFromValue && dateToValue)) {
+      setDateFromValue(day.dateInputValue);
+      setDateToValue("");
+      return;
+    }
+
+    if (day.dateInputValue <= dateFromValue) {
+      setDateFromValue(day.dateInputValue);
+      setDateToValue("");
+      return;
+    }
+
+    setDateToValue(day.dateInputValue);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -690,8 +744,9 @@ export function InquiryForm({
                   Kalendarz dostępności
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Widok najbliższych 6 miesięcy dla domku {selectedCabinName}.
-                  Dzień wymeldowania nie jest liczony jako zajęty.
+                  Kliknij pierwszy wolny dzień jako przyjazd, a następnie drugi
+                  wolny dzień jako wyjazd. Dzień wymeldowania nie jest liczony
+                  jako zajęty.
                 </p>
               </div>
 
@@ -702,11 +757,21 @@ export function InquiryForm({
                 <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-red-800">
                   zajęty
                 </span>
-                <span className="rounded-full border border-slate-300 bg-slate-950 px-3 py-1 text-white">
-                  dziś
+                <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-800">
+                  wybrany zakres
                 </span>
               </div>
             </div>
+
+            {dateFromValue ? (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                <strong>Wybrany termin:</strong>{" "}
+                {formatDate(`${dateFromValue}T12:00:00.000Z`)}
+                {dateToValue
+                  ? ` – ${formatDate(`${dateToValue}T12:00:00.000Z`)}`
+                  : " – kliknij datę wyjazdu"}
+              </div>
+            ) : null}
 
             <div className="mt-6 grid gap-5">
               {availabilityCalendarMonths.map((calendarMonth) => (
@@ -732,25 +797,39 @@ export function InquiryForm({
                       <div key={emptyDay} className="h-9" />
                     ))}
 
-                    {calendarMonth.days.map((day) => (
-                      <div
-                        key={day.dateInputValue}
-                        title={
-                          day.isOccupied
-                            ? `${day.dateInputValue} — zajęty`
-                            : `${day.dateInputValue} — wolny`
-                        }
-                        className={
-                          day.isToday
-                            ? "flex h-9 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white"
-                            : day.isOccupied
-                              ? "flex h-9 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-xs font-black text-red-800"
-                              : "flex h-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-black text-emerald-800"
-                        }
-                      >
-                        {day.dayNumber}
-                      </div>
-                    ))}
+                    {calendarMonth.days.map((day) => {
+                      const isSelectedStart =
+                        day.dateInputValue === dateFromValue;
+                      const isSelectedEnd = day.dateInputValue === dateToValue;
+                      const isSelectedBetween =
+                        Boolean(dateFromValue) &&
+                        Boolean(dateToValue) &&
+                        day.dateInputValue > dateFromValue &&
+                        day.dateInputValue < dateToValue;
+
+                      return (
+                        <button
+                          key={day.dateInputValue}
+                          type="button"
+                          disabled={day.isOccupied}
+                          title={
+                            day.isOccupied
+                              ? `${day.dateInputValue} — zajęty`
+                              : `${day.dateInputValue} — wolny`
+                          }
+                          onClick={() => handleCalendarDayClick(day)}
+                          className={getCalendarDayClassName({
+                            isToday: day.isToday,
+                            isOccupied: day.isOccupied,
+                            isSelectedStart,
+                            isSelectedEnd,
+                            isSelectedBetween,
+                          })}
+                        >
+                          {day.dayNumber}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
