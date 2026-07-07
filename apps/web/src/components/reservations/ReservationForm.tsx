@@ -42,6 +42,7 @@ type ReservationFormProps = {
   initialCity?: string;
   initialCountry?: string;
   initialNotes?: string;
+  initialInquiryId?: string;
   initialCheckInTime?: string;
   initialCheckOutTime?: string;
   minimumNights?: number;
@@ -88,6 +89,7 @@ export default function ReservationForm({
   initialCity = "",
   initialCountry = "Polska",
   initialNotes = "",
+  initialInquiryId = "",
   initialCheckInTime = "15:00",
   initialCheckOutTime = "11:00",
   minimumNights = 4,
@@ -146,6 +148,7 @@ export default function ReservationForm({
       className="space-y-8 rounded-xl border bg-white p-6 shadow-sm"
     >
       <input type="hidden" name="guestId" value={initialGuestId} />
+      <input type="hidden" name="inquiryId" value={initialInquiryId} />
 
       <section className="space-y-4">
         <div>

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-type InquiryStatusFilter = "NEW" | "CONTACTED" | "ARCHIVED";
+type InquiryStatusFilter = "NEW" | "APPROVED" | "ARCHIVED";
 
 type AdminInquiriesPageProps = {
   searchParams?: Promise<{
@@ -27,8 +27,8 @@ const statusFilters: {
     status: "NEW",
   },
   {
-    label: "Po kontakcie",
-    status: "CONTACTED",
+    label: "Zatwierdzone",
+    status: "APPROVED",
   },
   {
     label: "Archiwalne",
@@ -71,8 +71,8 @@ function getStatusFilter(value: string | string[] | undefined) {
     return "NEW";
   }
 
-  if (status === "CONTACTED") {
-    return "CONTACTED";
+  if (status === "APPROVED") {
+    return "APPROVED";
   }
 
   if (status === "ARCHIVED") {
@@ -91,8 +91,8 @@ function getStatusLabel(status: string) {
     return "Nowe";
   }
 
-  if (status === "CONTACTED") {
-    return "Po kontakcie";
+  if (status === "APPROVED" || status === "CONTACTED") {
+    return "Zatwierdzone";
   }
 
   if (status === "ARCHIVED") {
@@ -107,7 +107,7 @@ function getStatusClassName(status: string) {
     return "bg-emerald-50 text-emerald-800 ring-emerald-200";
   }
 
-  if (status === "CONTACTED") {
+  if (status === "APPROVED" || status === "CONTACTED") {
     return "bg-sky-50 text-sky-800 ring-sky-200";
   }
 
@@ -123,7 +123,7 @@ function getActionButtonClassName(status: string) {
     return "rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-700";
   }
 
-  if (status === "CONTACTED") {
+  if (status === "APPROVED" || status === "CONTACTED") {
     return "rounded-xl bg-sky-600 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-700";
   }
 
@@ -185,8 +185,8 @@ function getEmptyStateText(
     return "Nie ma obecnie nowych zapytań.";
   }
 
-  if (activeStatus === "CONTACTED") {
-    return "Nie ma obecnie zapytań oznaczonych jako po kontakcie.";
+  if (activeStatus === "APPROVED") {
+    return "Nie ma obecnie zapytań zatwierdzonych.";
   }
 
   if (activeStatus === "ARCHIVED") {
@@ -204,11 +204,17 @@ export default async function AdminInquiriesPage({
   const searchQuery = normalizeSearchQuery(resolvedSearchParams.q);
 
   const inquiryWhere = {
-    ...(activeStatus
+    ...(activeStatus === "APPROVED"
       ? {
-          status: activeStatus,
+          status: {
+            in: ["APPROVED", "CONTACTED"],
+          },
         }
-      : {}),
+      : activeStatus
+        ? {
+            status: activeStatus,
+          }
+        : {}),
     ...(searchQuery
       ? {
           OR: [
@@ -261,7 +267,7 @@ export default async function AdminInquiriesPage({
     inquiries,
     totalInquiriesCount,
     newInquiriesCount,
-    contactedInquiriesCount,
+    approvedInquiriesCount,
     archivedInquiriesCount,
   ] = await Promise.all([
     prisma.inquiry.findMany({
@@ -286,7 +292,9 @@ export default async function AdminInquiriesPage({
     }),
     prisma.inquiry.count({
       where: {
-        status: "CONTACTED",
+        status: {
+          in: ["APPROVED", "CONTACTED"],
+        },
       },
     }),
     prisma.inquiry.count({
@@ -315,8 +323,8 @@ export default async function AdminInquiriesPage({
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
               Tutaj trafiają wiadomości wysłane przez formularz kontaktowy na
-              stronie głównej. Na tym etapie zapytanie nie tworzy jeszcze
-              rezerwacji — służy tylko do kontaktu z gościem.
+              stronie głównej. Zapytanie można zatwierdzić ręcznie albo
+              automatycznie po utworzeniu z niego rezerwacji.
             </p>
           </div>
 
@@ -339,10 +347,10 @@ export default async function AdminInquiriesPage({
 
             <div className="rounded-2xl bg-sky-600 px-5 py-4 text-white">
               <p className="text-sm font-semibold text-sky-100">
-                Po kontakcie
+                Zatwierdzone
               </p>
               <p className="mt-1 text-3xl font-black">
-                {contactedInquiriesCount}
+                {approvedInquiriesCount}
               </p>
             </div>
 
@@ -563,14 +571,15 @@ export default async function AdminInquiriesPage({
                         value={inquiry.id}
                       />
 
-                      {inquiry.status !== "CONTACTED" ? (
+                      {inquiry.status !== "APPROVED" &&
+                      inquiry.status !== "CONTACTED" ? (
                         <button
                           type="submit"
                           name="status"
-                          value="CONTACTED"
-                          className={getActionButtonClassName("CONTACTED")}
+                          value="APPROVED"
+                          className={getActionButtonClassName("APPROVED")}
                         >
-                          Oznacz jako po kontakcie
+                          Oznacz jako zatwierdzone
                         </button>
                       ) : null}
 

@@ -27,12 +27,20 @@ export type CreatePublicInquiryResult = {
   message: string;
 };
 
-const allowedInquiryStatuses = ["NEW", "CONTACTED", "ARCHIVED"] as const;
+const allowedInquiryStatuses = ["NEW", "APPROVED", "ARCHIVED"] as const;
 
 type InquiryStatus = (typeof allowedInquiryStatuses)[number];
 
 function normalizeText(value: string) {
   return value.trim();
+}
+
+function normalizeInquiryStatus(value: string) {
+  if (value === "CONTACTED") {
+    return "APPROVED";
+  }
+
+  return value;
 }
 
 function parseDateOnly(value: string) {
@@ -246,7 +254,8 @@ export async function updateInquiryStatus(formData: FormData) {
   const statusValue = formData.get("status");
 
   const inquiryId = typeof inquiryIdValue === "string" ? inquiryIdValue : "";
-  const status = typeof statusValue === "string" ? statusValue : "";
+  const rawStatus = typeof statusValue === "string" ? statusValue : "";
+  const status = normalizeInquiryStatus(rawStatus);
 
   if (!inquiryId || !isInquiryStatus(status)) {
     return;

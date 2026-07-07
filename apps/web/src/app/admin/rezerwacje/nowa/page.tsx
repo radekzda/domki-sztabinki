@@ -278,6 +278,11 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
             Tworzysz rezerwację na podstawie zapytania z WWW.
           </div>
 
+          <div className="mt-1">
+            Po zapisaniu rezerwacji zapytanie zostanie oznaczone jako
+            zatwierdzone.
+          </div>
+
           <div className="mt-2 grid gap-1 md:grid-cols-2">
             <div>
               Gość: {initialFirstName} {initialLastName}
@@ -324,6 +329,7 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         initialNotes={urlNotes}
         initialCheckInTime={settings.checkInTime}
         initialCheckOutTime={settings.checkOutTime}
+        initialInquiryId={inquiryId}
         minimumNights={settings.minimumNights}
       />
     </div>

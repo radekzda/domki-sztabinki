@@ -462,6 +462,8 @@ async function saveGuestForReservation({
 }
 
 export async function createReservation(formData: FormData) {
+  const inquiryId = getOptionalString(formData, "inquiryId");
+
   const values = parseReservationForm(
     formData,
     redirectWithNewReservationError,
@@ -492,10 +494,26 @@ export async function createReservation(formData: FormData) {
     },
   });
 
+  if (inquiryId) {
+    await prisma.inquiry.updateMany({
+      where: {
+        id: inquiryId,
+      },
+      data: {
+        status: "APPROVED",
+      },
+    });
+  }
+
   revalidatePath("/admin/rezerwacje");
   revalidatePath("/admin/kalendarz");
   revalidatePath("/admin/goscie");
   revalidatePath(`/admin/goscie/${guest.id}`);
+  revalidatePath("/admin/zapytania");
+
+  if (inquiryId) {
+    revalidatePath(`/admin/zapytania/${inquiryId}`);
+  }
 
   redirect("/admin/rezerwacje");
 }
