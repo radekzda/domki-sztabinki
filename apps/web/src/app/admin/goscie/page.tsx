@@ -102,39 +102,39 @@ export default async function GuestsPage({ searchParams }: Props) {
     where: {
       ...(searchQuery
         ? {
-            OR: [
-              {
-                firstName: {
-                  contains: searchQuery,
-                  mode: "insensitive",
-                },
+          OR: [
+            {
+              firstName: {
+                contains: searchQuery,
+                mode: "insensitive",
               },
-              {
-                lastName: {
-                  contains: searchQuery,
-                  mode: "insensitive",
-                },
+            },
+            {
+              lastName: {
+                contains: searchQuery,
+                mode: "insensitive",
               },
-              {
-                email: {
-                  contains: searchQuery,
-                  mode: "insensitive",
-                },
+            },
+            {
+              email: {
+                contains: searchQuery,
+                mode: "insensitive",
               },
-              {
-                phone: {
-                  contains: searchQuery,
-                  mode: "insensitive",
-                },
+            },
+            {
+              phone: {
+                contains: searchQuery,
+                mode: "insensitive",
               },
-              {
-                country: {
-                  contains: searchQuery,
-                  mode: "insensitive",
-                },
+            },
+            {
+              country: {
+                contains: searchQuery,
+                mode: "insensitive",
               },
-            ],
-          }
+            },
+          ],
+        }
         : {}),
     },
     orderBy: [
@@ -450,7 +450,7 @@ export default async function GuestsPage({ searchParams }: Props) {
                       <td className="border-b p-4">
                         {lastReservation
                           ? lastReservation.cabin.shortName ||
-                            lastReservation.cabin.name
+                          lastReservation.cabin.name
                           : "—"}
                       </td>
 
@@ -471,6 +471,13 @@ export default async function GuestsPage({ searchParams }: Props) {
                               Ostatnia
                             </Link>
                           ) : null}
+
+                          <Link
+                            href={`/admin/goscie/${guest.id}/usun`}
+                            className="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white hover:bg-red-800"
+                          >
+                            Usuń
+                          </Link>
                         </div>
                       </td>
                     </tr>

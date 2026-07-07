@@ -317,73 +317,73 @@ export default async function ReservationsPage({ searchParams }: Props) {
     where: {
       ...(statusFilter !== "ALL"
         ? {
-            status: statusFilter,
-          }
+          status: statusFilter,
+        }
         : {}),
 
       ...(sourceFilter !== "ALL"
         ? {
-            source: sourceFilter,
-          }
+          source: sourceFilter,
+        }
         : {}),
 
       ...(dateConditions.length > 0
         ? {
-            AND: dateConditions,
-          }
+          AND: dateConditions,
+        }
         : {}),
 
       ...(searchQuery
         ? {
-            OR: [
-              {
-                guestName: {
+          OR: [
+            {
+              guestName: {
+                contains: searchQuery,
+                mode: "insensitive",
+              },
+            },
+            {
+              firstName: {
+                contains: searchQuery,
+                mode: "insensitive",
+              },
+            },
+            {
+              lastName: {
+                contains: searchQuery,
+                mode: "insensitive",
+              },
+            },
+            {
+              email: {
+                contains: searchQuery,
+                mode: "insensitive",
+              },
+            },
+            {
+              phone: {
+                contains: searchQuery,
+                mode: "insensitive",
+              },
+            },
+            {
+              cabin: {
+                name: {
                   contains: searchQuery,
                   mode: "insensitive",
                 },
               },
-              {
-                firstName: {
+            },
+            {
+              cabin: {
+                shortName: {
                   contains: searchQuery,
                   mode: "insensitive",
                 },
               },
-              {
-                lastName: {
-                  contains: searchQuery,
-                  mode: "insensitive",
-                },
-              },
-              {
-                email: {
-                  contains: searchQuery,
-                  mode: "insensitive",
-                },
-              },
-              {
-                phone: {
-                  contains: searchQuery,
-                  mode: "insensitive",
-                },
-              },
-              {
-                cabin: {
-                  name: {
-                    contains: searchQuery,
-                    mode: "insensitive",
-                  },
-                },
-              },
-              {
-                cabin: {
-                  shortName: {
-                    contains: searchQuery,
-                    mode: "insensitive",
-                  },
-                },
-              },
-            ],
-          }
+            },
+          ],
+        }
         : {}),
     },
     orderBy: [
@@ -840,6 +840,13 @@ export default async function ReservationsPage({ searchParams }: Props) {
                             className="rounded-lg bg-green-700 px-3 py-2 text-xs font-semibold text-white hover:bg-green-800"
                           >
                             Edytuj
+                          </Link>
+
+                          <Link
+                            href={`/admin/rezerwacje/${reservation.id}/usun`}
+                            className="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white hover:bg-red-800"
+                          >
+                            Usuń
                           </Link>
                         </div>
                       </td>
