@@ -1,4 +1,41 @@
-export default function HomePage() {
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+async function getPublicCabins() {
+  return prisma.cabin.findMany({
+    where: {
+      isActive: true,
+    },
+    orderBy: [
+      {
+        sortOrder: "asc",
+      },
+      {
+        createdAt: "desc",
+      },
+    ],
+    include: {
+      images: {
+        orderBy: [
+          {
+            isMain: "desc",
+          },
+          {
+            sortOrder: "asc",
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
+      },
+    },
+  });
+}
+
+export default async function HomePage() {
+  const cabins = await getPublicCabins();
+
   return (
     <main className="min-h-screen bg-white text-slate-950">
       <header className="border-b border-slate-200 bg-white">
@@ -104,41 +141,117 @@ export default function HomePage() {
           </p>
 
           <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
-            Komfortowy pobyt blisko natury
+            Wybierz domek dla siebie
           </h2>
 
           <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
-            Każdy domek ma funkcjonalny układ, taras oraz dostęp do atrakcji na
-            terenie obiektu. To miejsce dla osób, które szukają spokojnego
-            wypoczynku, a nie głośnych imprez.
+            Poniżej znajdują się aktywne domki dostępne w systemie PMS. Dane są
+            pobierane bezpośrednio z bazy, dlatego po zmianie domku w panelu
+            admina strona publiczna będzie korzystać z aktualnych informacji.
           </p>
 
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-black">Wygodne wnętrze</h3>
-              <p className="mt-3 leading-7 text-slate-600">
-                Salon z aneksem kuchennym, sypialnia z łóżkiem podwójnym,
-                druga sypialnia z dwoma łóżkami pojedynczymi oraz łazienka z
-                prysznicem.
+          {cabins.length === 0 ? (
+            <div className="mt-12 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+              <h3 className="text-2xl font-black">Brak aktywnych domków</h3>
+              <p className="mt-3 text-slate-600">
+                W panelu admina dodaj domek albo ustaw istniejący domek jako
+                aktywny, żeby pojawił się na stronie publicznej.
               </p>
-            </article>
+            </div>
+          ) : (
+            <div className="mt-12 grid gap-8 lg:grid-cols-2">
+              {cabins.map((cabin) => {
+                const mainImage =
+                  cabin.mainImageUrl ||
+                  cabin.images.find((image) => image.isMain)?.url ||
+                  cabin.images[0]?.url ||
+                  null;
 
-            <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-black">Pełne wyposażenie</h3>
-              <p className="mt-3 leading-7 text-slate-600">
-                Smart TV, Wi-Fi, lodówka, zmywarka, mikrofalówka, płyta
-                indukcyjna, czajnik, kostkarka, moskitiery i klimatyzacja.
-              </p>
-            </article>
+                return (
+                  <article
+                    key={cabin.id}
+                    className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm"
+                  >
+                    {mainImage ? (
+                      <div className="aspect-[16/10] overflow-hidden bg-slate-100">
+                        <img
+                          src={mainImage}
+                          alt={cabin.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex aspect-[16/10] items-center justify-center bg-slate-100 px-6 text-center text-slate-500">
+                        Zdjęcie domku będzie widoczne po dodaniu go w panelu
+                        admina.
+                      </div>
+                    )}
 
-            <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-black">Atrakcje na miejscu</h3>
-              <p className="mt-3 leading-7 text-slate-600">
-                Pomost, rowerki wodne, kajak, łódka, grill, miejsce na ognisko,
-                plac zabaw dla dzieci oraz możliwość wędkowania.
-              </p>
-            </article>
-          </div>
+                    <div className="p-6">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+                            {cabin.shortName || "Domek"}
+                          </p>
+
+                          <h3 className="mt-2 text-2xl font-black">
+                            {cabin.name}
+                          </h3>
+                        </div>
+
+                        <div className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-white">
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">
+                            od
+                          </p>
+                          <p className="text-2xl font-black">
+                            {cabin.priceSevenPlusNights} zł
+                          </p>
+                          <p className="text-xs text-slate-300">za noc</p>
+                        </div>
+                      </div>
+
+                      <p className="mt-5 line-clamp-4 leading-7 text-slate-600">
+                        {cabin.description}
+                      </p>
+
+                      <div className="mt-6 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
+                        <div className="rounded-2xl bg-slate-50 p-4">
+                          <p className="font-black">{cabin.maxGuests} osób</p>
+                          <p className="mt-1 text-slate-500">maksymalnie</p>
+                        </div>
+
+                        <div className="rounded-2xl bg-slate-50 p-4">
+                          <p className="font-black">{cabin.bedrooms}</p>
+                          <p className="mt-1 text-slate-500">sypialnie</p>
+                        </div>
+
+                        <div className="rounded-2xl bg-slate-50 p-4">
+                          <p className="font-black">{cabin.bathrooms}</p>
+                          <p className="mt-1 text-slate-500">łazienka</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                        <a
+                          href="tel:+48502286724"
+                          className="rounded-2xl bg-slate-950 px-6 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
+                        >
+                          Zapytaj o termin
+                        </a>
+
+                        <a
+                          href="#kontakt"
+                          className="rounded-2xl border border-slate-300 px-6 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
+                        >
+                          Kontakt
+                        </a>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
