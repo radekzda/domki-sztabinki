@@ -10,32 +10,28 @@ type InquiryStatusFilter = "NEW" | "CONTACTED" | "ARCHIVED";
 type AdminInquiriesPageProps = {
   searchParams?: Promise<{
     status?: string | string[];
+    q?: string | string[];
   }>;
 };
 
 const statusFilters: {
   label: string;
-  href: string;
   status: InquiryStatusFilter | null;
 }[] = [
   {
     label: "Wszystkie",
-    href: "/admin/zapytania",
     status: null,
   },
   {
     label: "Nowe",
-    href: "/admin/zapytania?status=NEW",
     status: "NEW",
   },
   {
     label: "Po kontakcie",
-    href: "/admin/zapytania?status=CONTACTED",
     status: "CONTACTED",
   },
   {
     label: "Archiwalne",
-    href: "/admin/zapytania?status=ARCHIVED",
     status: "ARCHIVED",
   },
 ];
@@ -60,8 +56,16 @@ function formatDateTime(date: Date) {
   }).format(date);
 }
 
+function getSingleSearchParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] || "";
+  }
+
+  return value || "";
+}
+
 function getStatusFilter(value: string | string[] | undefined) {
-  const status = Array.isArray(value) ? value[0] : value;
+  const status = getSingleSearchParam(value);
 
   if (status === "NEW") {
     return "NEW";
@@ -76,6 +80,10 @@ function getStatusFilter(value: string | string[] | undefined) {
   }
 
   return null;
+}
+
+function normalizeSearchQuery(value: string | string[] | undefined) {
+  return getSingleSearchParam(value).trim();
 }
 
 function getStatusLabel(status: string) {
@@ -134,7 +142,45 @@ function getFilterLinkClassName(isActive: boolean) {
   return "rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 hover:text-slate-950";
 }
 
-function getEmptyStateText(activeStatus: InquiryStatusFilter | null) {
+function getFilterHref(
+  status: InquiryStatusFilter | null,
+  searchQuery: string
+) {
+  const params = new URLSearchParams();
+
+  if (status) {
+    params.set("status", status);
+  }
+
+  if (searchQuery) {
+    params.set("q", searchQuery);
+  }
+
+  const queryString = params.toString();
+
+  if (!queryString) {
+    return "/admin/zapytania";
+  }
+
+  return `/admin/zapytania?${queryString}`;
+}
+
+function getClearSearchHref(activeStatus: InquiryStatusFilter | null) {
+  if (!activeStatus) {
+    return "/admin/zapytania";
+  }
+
+  return `/admin/zapytania?status=${activeStatus}`;
+}
+
+function getEmptyStateText(
+  activeStatus: InquiryStatusFilter | null,
+  searchQuery: string
+) {
+  if (searchQuery) {
+    return `Brak zapytań pasujących do wyszukiwania: "${searchQuery}".`;
+  }
+
   if (activeStatus === "NEW") {
     return "Nie ma obecnie nowych zapytań.";
   }
@@ -155,44 +201,100 @@ export default async function AdminInquiriesPage({
 }: AdminInquiriesPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const activeStatus = getStatusFilter(resolvedSearchParams.status);
+  const searchQuery = normalizeSearchQuery(resolvedSearchParams.q);
 
-  const [inquiries, totalInquiriesCount, newInquiriesCount, contactedInquiriesCount, archivedInquiriesCount] =
-    await Promise.all([
-      prisma.inquiry.findMany({
-        where: activeStatus
-          ? {
-              status: activeStatus,
-            }
-          : undefined,
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 100,
-        include: {
-          cabin: {
-            select: {
-              name: true,
+  const inquiryWhere = {
+    ...(activeStatus
+      ? {
+          status: activeStatus,
+        }
+      : {}),
+    ...(searchQuery
+      ? {
+          OR: [
+            {
+              fullName: {
+                contains: searchQuery,
+                mode: "insensitive" as const,
+              },
             },
+            {
+              phone: {
+                contains: searchQuery,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              email: {
+                contains: searchQuery,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              cabinName: {
+                contains: searchQuery,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              notes: {
+                contains: searchQuery,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              cabin: {
+                is: {
+                  name: {
+                    contains: searchQuery,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const [
+    inquiries,
+    totalInquiriesCount,
+    newInquiriesCount,
+    contactedInquiriesCount,
+    archivedInquiriesCount,
+  ] = await Promise.all([
+    prisma.inquiry.findMany({
+      where: inquiryWhere,
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 100,
+      include: {
+        cabin: {
+          select: {
+            name: true,
           },
         },
-      }),
-      prisma.inquiry.count(),
-      prisma.inquiry.count({
-        where: {
-          status: "NEW",
-        },
-      }),
-      prisma.inquiry.count({
-        where: {
-          status: "CONTACTED",
-        },
-      }),
-      prisma.inquiry.count({
-        where: {
-          status: "ARCHIVED",
-        },
-      }),
-    ]);
+      },
+    }),
+    prisma.inquiry.count(),
+    prisma.inquiry.count({
+      where: {
+        status: "NEW",
+      },
+    }),
+    prisma.inquiry.count({
+      where: {
+        status: "CONTACTED",
+      },
+    }),
+    prisma.inquiry.count({
+      where: {
+        status: "ARCHIVED",
+      },
+    }),
+  ]);
 
   const activeFilterLabel =
     statusFilters.find((filter) => filter.status === activeStatus)?.label ||
@@ -265,7 +367,14 @@ export default async function AdminInquiriesPage({
               </h2>
               <p className="mt-2 text-sm text-slate-600">
                 Pokazujemy maksymalnie 100 najnowszych zapytań. Aktualny filtr:{" "}
-                <strong>{activeFilterLabel}</strong>.
+                <strong>{activeFilterLabel}</strong>
+                {searchQuery ? (
+                  <>
+                    {" "}
+                    i wyszukiwanie: <strong>{searchQuery}</strong>
+                  </>
+                ) : null}
+                .
               </p>
             </div>
 
@@ -275,8 +384,8 @@ export default async function AdminInquiriesPage({
 
                 return (
                   <Link
-                    key={filter.href}
-                    href={filter.href}
+                    key={filter.label}
+                    href={getFilterHref(filter.status, searchQuery)}
                     className={getFilterLinkClassName(isActive)}
                   >
                     {filter.label}
@@ -285,6 +394,45 @@ export default async function AdminInquiriesPage({
               })}
             </div>
           </div>
+
+          <form
+            action="/admin/zapytania"
+            method="get"
+            className="mt-6 flex flex-col gap-3 rounded-3xl bg-slate-50 p-4 lg:flex-row lg:items-center"
+          >
+            {activeStatus ? (
+              <input type="hidden" name="status" value={activeStatus} />
+            ) : null}
+
+            <label className="flex-1">
+              <span className="sr-only">Szukaj zapytań</span>
+              <input
+                type="search"
+                name="q"
+                defaultValue={searchQuery}
+                placeholder="Szukaj po imieniu, telefonie, e-mailu, domku albo wiadomości"
+                className="w-full rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
+              />
+            </label>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="submit"
+                className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+              >
+                Szukaj
+              </button>
+
+              {searchQuery ? (
+                <Link
+                  href={getClearSearchHref(activeStatus)}
+                  className="rounded-2xl border border-slate-300 bg-white px-6 py-3 text-center text-sm font-black text-slate-700 transition hover:bg-slate-100 hover:text-slate-950"
+                >
+                  Wyczyść
+                </Link>
+              ) : null}
+            </div>
+          </form>
         </div>
 
         {inquiries.length === 0 ? (
@@ -293,7 +441,7 @@ export default async function AdminInquiriesPage({
               Brak zapytań
             </h3>
             <p className="mt-2 text-sm text-slate-600">
-              {getEmptyStateText(activeStatus)}
+              {getEmptyStateText(activeStatus, searchQuery)}
             </p>
           </div>
         ) : (
