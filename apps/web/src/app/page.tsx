@@ -147,7 +147,7 @@ export default async function HomePage() {
           <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
             Poniżej znajdują się aktywne domki dostępne w systemie PMS. Dane są
             pobierane bezpośrednio z bazy, dlatego po zmianie domku w panelu
-            admina strona publiczna będzie korzystać z aktualnych informacji.
+            admina strona publiczna korzysta z aktualnych informacji.
           </p>
 
           {cabins.length === 0 ? (
@@ -159,92 +159,160 @@ export default async function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="mt-12 grid gap-8 lg:grid-cols-2">
+            <div className="mt-12 grid gap-10">
               {cabins.map((cabin) => {
+                const orderedImages = cabin.images;
                 const mainImage =
                   cabin.mainImageUrl ||
-                  cabin.images.find((image) => image.isMain)?.url ||
-                  cabin.images[0]?.url ||
+                  orderedImages.find((image) => image.isMain)?.url ||
+                  orderedImages[0]?.url ||
                   null;
+                const galleryImages = orderedImages
+                  .filter((image) => image.url !== mainImage)
+                  .slice(0, 4);
+                const imageCount = orderedImages.length;
 
                 return (
                   <article
                     key={cabin.id}
                     className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm"
                   >
-                    {mainImage ? (
-                      <div className="aspect-[16/10] overflow-hidden bg-slate-100">
-                        <img
-                          src={mainImage}
-                          alt={cabin.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex aspect-[16/10] items-center justify-center bg-slate-100 px-6 text-center text-slate-500">
-                        Zdjęcie domku będzie widoczne po dodaniu go w panelu
-                        admina.
-                      </div>
-                    )}
+                    <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+                      <div className="bg-slate-100">
+                        {mainImage ? (
+                          <div className="relative aspect-[16/11] overflow-hidden bg-slate-100 lg:h-full lg:min-h-[31rem] lg:aspect-auto">
+                            <img
+                              src={mainImage}
+                              alt={cabin.name}
+                              className="h-full w-full object-cover"
+                            />
 
-                    <div className="p-6">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
-                            {cabin.shortName || "Domek"}
+                            <div className="absolute left-4 top-4 rounded-full bg-white/95 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950 shadow-sm">
+                              {imageCount === 1
+                                ? "1 zdjęcie"
+                                : `${imageCount} zdjęć`}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex aspect-[16/11] items-center justify-center bg-slate-100 px-6 text-center text-slate-500 lg:h-full lg:min-h-[31rem] lg:aspect-auto">
+                            Zdjęcie domku będzie widoczne po dodaniu go w panelu
+                            admina.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col p-6 lg:p-8">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+                              {cabin.shortName || "Domek"}
+                            </p>
+
+                            <h3 className="mt-2 text-3xl font-black">
+                              {cabin.name}
+                            </h3>
+                          </div>
+
+                          <div className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-white">
+                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">
+                              od
+                            </p>
+                            <p className="text-2xl font-black">
+                              {cabin.priceSevenPlusNights} zł
+                            </p>
+                            <p className="text-xs text-slate-300">za noc</p>
+                          </div>
+                        </div>
+
+                        <p className="mt-5 line-clamp-5 leading-7 text-slate-600">
+                          {cabin.description}
+                        </p>
+
+                        {galleryImages.length > 0 ? (
+                          <div className="mt-6">
+                            <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">
+                              Galeria
+                            </p>
+
+                            <div className="mt-3 grid grid-cols-4 gap-3">
+                              {galleryImages.map((image) => (
+                                <div
+                                  key={image.id}
+                                  className="aspect-square overflow-hidden rounded-2xl bg-slate-100"
+                                >
+                                  <img
+                                    src={image.url}
+                                    alt={image.alt || cabin.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="mt-6 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
+                          <div className="rounded-2xl bg-slate-50 p-4">
+                            <p className="font-black">{cabin.maxGuests} osób</p>
+                            <p className="mt-1 text-slate-500">maksymalnie</p>
+                          </div>
+
+                          <div className="rounded-2xl bg-slate-50 p-4">
+                            <p className="font-black">{cabin.bedrooms}</p>
+                            <p className="mt-1 text-slate-500">sypialnie</p>
+                          </div>
+
+                          <div className="rounded-2xl bg-slate-50 p-4">
+                            <p className="font-black">{cabin.bathrooms}</p>
+                            <p className="mt-1 text-slate-500">łazienka</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 rounded-3xl bg-slate-50 p-5">
+                          <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">
+                            Cennik orientacyjny
                           </p>
 
-                          <h3 className="mt-2 text-2xl font-black">
-                            {cabin.name}
-                          </h3>
+                          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                            <div className="flex justify-between gap-4 rounded-2xl bg-white px-4 py-3">
+                              <span>1 noc</span>
+                              <strong>{cabin.priceOneNight} zł / noc</strong>
+                            </div>
+
+                            <div className="flex justify-between gap-4 rounded-2xl bg-white px-4 py-3">
+                              <span>2 noce</span>
+                              <strong>{cabin.priceTwoNights} zł / noc</strong>
+                            </div>
+
+                            <div className="flex justify-between gap-4 rounded-2xl bg-white px-4 py-3">
+                              <span>3 noce</span>
+                              <strong>{cabin.priceThreeNights} zł / noc</strong>
+                            </div>
+
+                            <div className="flex justify-between gap-4 rounded-2xl bg-white px-4 py-3">
+                              <span>7+ nocy</span>
+                              <strong>
+                                {cabin.priceSevenPlusNights} zł / noc
+                              </strong>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-white">
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">
-                            od
-                          </p>
-                          <p className="text-2xl font-black">
-                            {cabin.priceSevenPlusNights} zł
-                          </p>
-                          <p className="text-xs text-slate-300">za noc</p>
+                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                          <a
+                            href="tel:+48502286724"
+                            className="rounded-2xl bg-slate-950 px-6 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
+                          >
+                            Zapytaj o termin
+                          </a>
+
+                          <a
+                            href="#kontakt"
+                            className="rounded-2xl border border-slate-300 px-6 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
+                          >
+                            Kontakt
+                          </a>
                         </div>
-                      </div>
-
-                      <p className="mt-5 line-clamp-4 leading-7 text-slate-600">
-                        {cabin.description}
-                      </p>
-
-                      <div className="mt-6 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-                        <div className="rounded-2xl bg-slate-50 p-4">
-                          <p className="font-black">{cabin.maxGuests} osób</p>
-                          <p className="mt-1 text-slate-500">maksymalnie</p>
-                        </div>
-
-                        <div className="rounded-2xl bg-slate-50 p-4">
-                          <p className="font-black">{cabin.bedrooms}</p>
-                          <p className="mt-1 text-slate-500">sypialnie</p>
-                        </div>
-
-                        <div className="rounded-2xl bg-slate-50 p-4">
-                          <p className="font-black">{cabin.bathrooms}</p>
-                          <p className="mt-1 text-slate-500">łazienka</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                        <a
-                          href="tel:+48502286724"
-                          className="rounded-2xl bg-slate-950 px-6 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
-                        >
-                          Zapytaj o termin
-                        </a>
-
-                        <a
-                          href="#kontakt"
-                          className="rounded-2xl border border-slate-300 px-6 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
-                        >
-                          Kontakt
-                        </a>
                       </div>
                     </div>
                   </article>
