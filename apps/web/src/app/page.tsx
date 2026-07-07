@@ -30,6 +30,27 @@ async function getPublicCabins() {
           },
         ],
       },
+      reservations: {
+        where: {
+          status: {
+            not: "CANCELLED",
+          },
+        },
+        orderBy: [
+          {
+            startDate: "asc",
+          },
+        ],
+        select: {
+          id: true,
+          cabinId: true,
+          startDate: true,
+          endDate: true,
+          checkInAt: true,
+          checkOutAt: true,
+          status: true,
+        },
+      },
     },
   });
 }
@@ -107,6 +128,16 @@ export default async function HomePage() {
   const contactPhone = settings?.ownerPhone || "502 286 724";
   const contactPhoneHref = getPhoneHref(contactPhone);
   const contactEmail = settings?.ownerEmail || "";
+
+  const occupiedDateRanges = cabins.flatMap((cabin) =>
+    cabin.reservations.map((reservation) => ({
+      id: reservation.id,
+      cabinId: reservation.cabinId,
+      dateFrom: (reservation.checkInAt ?? reservation.startDate).toISOString(),
+      dateTo: (reservation.checkOutAt ?? reservation.endDate).toISOString(),
+      status: reservation.status,
+    })),
+  );
 
   return (
     <main className="min-h-screen bg-white text-slate-950">
@@ -379,17 +410,17 @@ export default async function HomePage() {
 
                         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                           <a
-                            href={contactPhoneHref}
+                            href="#kontakt"
                             className="rounded-2xl bg-slate-950 px-6 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
                           >
                             Zapytaj o termin
                           </a>
 
                           <a
-                            href="#kontakt"
+                            href={contactPhoneHref}
                             className="rounded-2xl border border-slate-300 px-6 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
                           >
-                            Kontakt
+                            Zadzwoń
                           </a>
                         </div>
                       </div>
@@ -584,8 +615,8 @@ export default async function HomePage() {
           </h2>
 
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-            Wypełnij krótki formularz, a przygotujemy wiadomość e-mail z Twoim
-            zapytaniem. Możesz też od razu zadzwonić.
+            Wypełnij formularz, wybierz domek i sprawdź widoczne zajęte
+            terminy. Po wysłaniu zapytania potwierdzimy dostępność i cenę.
           </p>
 
           <InquiryForm
@@ -595,6 +626,7 @@ export default async function HomePage() {
               id: cabin.id,
               name: cabin.name,
             }))}
+            occupiedDateRanges={occupiedDateRanges}
             minimumNightsLabel={formatMinimumNights(minimumNights)}
             checkInTime={checkInTime}
             checkOutTime={checkOutTime}

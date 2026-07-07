@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useMemo, useState, useTransition } from "react";
 
 import { createPublicInquiry } from "@/actions/inquiries";
 
@@ -9,10 +9,19 @@ type PublicCabinOption = {
   name: string;
 };
 
+type OccupiedDateRange = {
+  id: string;
+  cabinId: string;
+  dateFrom: string;
+  dateTo: string;
+  status: string;
+};
+
 type InquiryFormProps = {
   recipientEmail: string;
   phoneNumber: string;
   cabins: PublicCabinOption[];
+  occupiedDateRanges: OccupiedDateRange[];
   minimumNightsLabel: string;
   checkInTime: string;
   checkOutTime: string;
@@ -42,9 +51,41 @@ function getPhoneHref(phone: string) {
   return `tel:${normalizedPhone}`;
 }
 
+function formatDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/Warsaw",
+  }).format(date);
+}
+
+function getReservationStatusLabel(status: string) {
+  if (status === "PENDING") {
+    return "wstępnie zajęty";
+  }
+
+  if (status === "CONFIRMED") {
+    return "zajęty";
+  }
+
+  if (status === "COMPLETED") {
+    return "zakończony pobyt";
+  }
+
+  return "zajęty";
+}
+
 export function InquiryForm({
   phoneNumber,
   cabins,
+  occupiedDateRanges,
   minimumNightsLabel,
   checkInTime,
   checkOutTime,
@@ -52,6 +93,22 @@ export function InquiryForm({
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [selectedCabinId, setSelectedCabinId] = useState("");
+
+  const selectedCabinOccupiedDateRanges = useMemo(
+    () =>
+      occupiedDateRanges
+        .filter((dateRange) => dateRange.cabinId === selectedCabinId)
+        .sort(
+          (firstDateRange, secondDateRange) =>
+            new Date(firstDateRange.dateFrom).getTime() -
+            new Date(secondDateRange.dateFrom).getTime(),
+        ),
+    [occupiedDateRanges, selectedCabinId],
+  );
+
+  const selectedCabinName =
+    cabins.find((cabin) => cabin.id === selectedCabinId)?.name || "";
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,6 +165,7 @@ export function InquiryForm({
 
       if (result.ok) {
         form.reset();
+        setSelectedCabinId("");
       }
     });
   }
@@ -204,8 +262,9 @@ export function InquiryForm({
           </span>
           <select
             name="cabinId"
+            value={selectedCabinId}
+            onChange={(event) => setSelectedCabinId(event.target.value)}
             className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            defaultValue=""
           >
             <option value="">Dowolny / do ustalenia</option>
             {cabins.map((cabin) => (
@@ -215,6 +274,49 @@ export function InquiryForm({
             ))}
           </select>
         </label>
+
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 md:col-span-2">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+            Zajęte terminy
+          </p>
+
+          {!selectedCabinId ? (
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Wybierz konkretny domek, aby zobaczyć terminy zajęte w systemie.
+              Przy opcji dowolnej termin potwierdzimy po kontakcie.
+            </p>
+          ) : selectedCabinOccupiedDateRanges.length === 0 ? (
+            <p className="mt-3 text-sm leading-6 text-emerald-700">
+              Dla domku {selectedCabinName} nie ma obecnie zajętych terminów w
+              systemie.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-3">
+              <p className="text-sm leading-6 text-slate-600">
+                Poniżej widoczne są terminy zajęte dla domku {selectedCabinName}.
+                Jeżeli wybierasz termin graniczny, ostateczną dostępność
+                potwierdzimy po kontakcie.
+              </p>
+
+              <div className="grid gap-2">
+                {selectedCabinOccupiedDateRanges.map((dateRange) => (
+                  <div
+                    key={dateRange.id}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                  >
+                    <span className="font-black text-slate-950">
+                      {formatDate(dateRange.dateFrom)} –{" "}
+                      {formatDate(dateRange.dateTo)}
+                    </span>{" "}
+                    <span className="text-slate-500">
+                      ({getReservationStatusLabel(dateRange.status)})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         <label className="grid gap-2">
           <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
