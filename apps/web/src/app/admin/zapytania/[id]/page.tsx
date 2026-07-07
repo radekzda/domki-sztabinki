@@ -32,6 +32,10 @@ function formatDateTime(date: Date) {
   }).format(date);
 }
 
+function formatDateForInput(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 function getNightsCount(dateFrom: Date, dateTo: Date) {
   const millisecondsPerDay = 1000 * 60 * 60 * 24;
   const difference = dateTo.getTime() - dateFrom.getTime();
@@ -101,6 +105,52 @@ function getPhoneHref(phone: string) {
   return `tel:${normalizedPhone}`;
 }
 
+function getCreateReservationHref({
+  inquiryId,
+  cabinId,
+  fullName,
+  email,
+  phone,
+  dateFrom,
+  dateTo,
+  guests,
+  notes,
+}: {
+  inquiryId: string;
+  cabinId: string | null;
+  fullName: string;
+  email: string | null;
+  phone: string;
+  dateFrom: Date;
+  dateTo: Date;
+  guests: number;
+  notes: string | null;
+}) {
+  const params = new URLSearchParams();
+
+  params.set("inquiryId", inquiryId);
+  params.set("guestName", fullName);
+  params.set("phone", phone);
+  params.set("startDate", formatDateForInput(dateFrom));
+  params.set("endDate", formatDateForInput(dateTo));
+  params.set("guests", String(guests));
+  params.set("source", "WEBSITE");
+
+  if (cabinId) {
+    params.set("cabinId", cabinId);
+  }
+
+  if (email) {
+    params.set("email", email);
+  }
+
+  if (notes) {
+    params.set("notes", notes);
+  }
+
+  return `/admin/rezerwacje/nowa?${params.toString()}`;
+}
+
 export default async function AdminInquiryDetailsPage({
   params,
 }: AdminInquiryDetailsPageProps) {
@@ -131,6 +181,17 @@ export default async function AdminInquiryDetailsPage({
   const selectedCabinName =
     inquiry.cabin?.name || inquiry.cabinName || "Dowolny / do ustalenia";
   const nights = getNightsCount(inquiry.dateFrom, inquiry.dateTo);
+  const createReservationHref = getCreateReservationHref({
+    inquiryId: inquiry.id,
+    cabinId: inquiry.cabinId,
+    fullName: inquiry.fullName,
+    email: inquiry.email,
+    phone: inquiry.phone,
+    dateFrom: inquiry.dateFrom,
+    dateTo: inquiry.dateTo,
+    guests: inquiry.guests,
+    notes: inquiry.notes,
+  });
 
   return (
     <main className="space-y-8">
@@ -302,6 +363,33 @@ export default async function AdminInquiryDetailsPage({
             Gość nie dodał dodatkowej wiadomości.
           </p>
         )}
+      </section>
+
+      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 className="text-xl font-black text-slate-950">
+          Dalsza obsługa
+        </h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Możesz przejść do formularza nowej rezerwacji z danymi tego zapytania.
+          Rezerwacja nie zostanie utworzona automatycznie — najpierw sprawdzisz
+          i zatwierdzisz formularz.
+        </p>
+
+        <div className="mt-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <Link
+            href={createReservationHref}
+            className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+          >
+            Utwórz rezerwację
+          </Link>
+
+          <Link
+            href="/admin/rezerwacje"
+            className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-100"
+          >
+            Przejdź do rezerwacji
+          </Link>
+        </div>
       </section>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
