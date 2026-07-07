@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+
 import ReservationForm from "@/components/reservations/ReservationForm";
+import { prisma } from "@/lib/prisma";
 
 type Props = {
   searchParams?: Promise<{
@@ -9,6 +10,13 @@ type Props = {
     startDate?: string;
     endDate?: string;
     guestId?: string;
+    inquiryId?: string;
+    guestName?: string;
+    email?: string;
+    phone?: string;
+    guests?: string;
+    source?: string;
+    notes?: string;
   }>;
 };
 
@@ -36,6 +44,35 @@ function getNextDateInputValue(dateValue: string) {
   return `${year}-${month}-${day}`;
 }
 
+function getSearchParamValue(value: string | undefined) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function splitGuestName(guestName: string) {
+  const cleanedGuestName = guestName.trim().replace(/\s+/g, " ");
+
+  if (!cleanedGuestName) {
+    return {
+      firstName: "",
+      lastName: "",
+    };
+  }
+
+  const parts = cleanedGuestName.split(" ");
+
+  if (parts.length === 1) {
+    return {
+      firstName: parts[0],
+      lastName: "",
+    };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
 async function getSystemSettings() {
   return prisma.systemSettings.upsert({
     where: {
@@ -59,6 +96,14 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   const error = resolvedSearchParams?.error;
+  const inquiryId = getSearchParamValue(resolvedSearchParams?.inquiryId);
+  const urlGuestName = getSearchParamValue(resolvedSearchParams?.guestName);
+  const urlEmail = getSearchParamValue(resolvedSearchParams?.email);
+  const urlPhone = getSearchParamValue(resolvedSearchParams?.phone);
+  const urlGuests = getSearchParamValue(resolvedSearchParams?.guests);
+  const urlSource = getSearchParamValue(resolvedSearchParams?.source);
+  const urlNotes = getSearchParamValue(resolvedSearchParams?.notes);
+  const splitUrlGuestName = splitGuestName(urlGuestName);
 
   const initialStartDate = isValidDateInputValue(
     resolvedSearchParams?.startDate,
@@ -108,6 +153,14 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
     (cabin) => cabin.id === resolvedSearchParams?.cabinId,
   );
 
+  const initialFirstName =
+    initialGuest?.firstName ?? splitUrlGuestName.firstName;
+  const initialLastName = initialGuest?.lastName ?? splitUrlGuestName.lastName;
+  const initialEmail = initialGuest?.email ?? urlEmail;
+  const initialPhone = initialGuest?.phone ?? urlPhone;
+  const initialCountry = initialGuest?.country ?? settings.propertyCountry;
+  const isFromInquiry = Boolean(inquiryId);
+
   return (
     <div className="max-w-5xl space-y-8">
       <div>
@@ -144,6 +197,29 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         </div>
       ) : null}
 
+      {isFromInquiry ? (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
+          <div className="font-semibold">
+            Tworzysz rezerwację na podstawie zapytania ze strony publicznej.
+          </div>
+
+          <div className="mt-2 space-y-1">
+            {urlGuestName ? <div>Gość: {urlGuestName}</div> : null}
+            {urlPhone ? <div>Telefon: {urlPhone}</div> : null}
+            {urlEmail ? <div>E-mail: {urlEmail}</div> : null}
+            {urlGuests ? <div>Liczba osób z zapytania: {urlGuests}</div> : null}
+            {urlSource ? <div>Źródło: {urlSource}</div> : null}
+          </div>
+
+          {urlNotes ? (
+            <div className="mt-3 rounded-lg border border-sky-200 bg-white p-3">
+              <div className="font-semibold">Wiadomość z zapytania:</div>
+              <div className="mt-1 whitespace-pre-wrap">{urlNotes}</div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <ReservationForm
         cabins={cabins}
         initialGuestId={initialGuest?.id ?? ""}
@@ -152,11 +228,11 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         }
         initialStartDate={initialStartDate}
         initialEndDate={initialEndDate}
-        initialFirstName={initialGuest?.firstName ?? ""}
-        initialLastName={initialGuest?.lastName ?? ""}
-        initialEmail={initialGuest?.email ?? ""}
-        initialPhone={initialGuest?.phone ?? ""}
-        initialCountry={initialGuest?.country ?? settings.propertyCountry}
+        initialFirstName={initialFirstName}
+        initialLastName={initialLastName}
+        initialEmail={initialEmail}
+        initialPhone={initialPhone}
+        initialCountry={initialCountry}
         initialCheckInTime={settings.checkInTime}
         initialCheckOutTime={settings.checkOutTime}
         minimumNights={settings.minimumNights}
