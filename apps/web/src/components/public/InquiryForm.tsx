@@ -59,7 +59,8 @@ export function InquiryForm({
     const form = event.currentTarget;
     const formData = new FormData(form);
 
-    const fullName = getStringValue(formData, "fullName");
+    const firstName = getStringValue(formData, "firstName");
+    const lastName = getStringValue(formData, "lastName");
     const phone = getStringValue(formData, "phone");
     const email = getStringValue(formData, "email");
     const cabinId = getStringValue(formData, "cabinId");
@@ -67,27 +68,38 @@ export function InquiryForm({
       cabins.find((cabin) => cabin.id === cabinId)?.name || "";
     const dateFrom = getStringValue(formData, "dateFrom");
     const dateTo = getStringValue(formData, "dateTo");
-    const guests = getStringValue(formData, "guests");
+    const adults = getStringValue(formData, "adults");
+    const children = getStringValue(formData, "children");
+    const street = getStringValue(formData, "street");
+    const postalCode = getStringValue(formData, "postalCode");
+    const city = getStringValue(formData, "city");
+    const country = getStringValue(formData, "country");
     const notes = getStringValue(formData, "notes");
 
-    if (!fullName || !phone || !dateFrom || !dateTo || !guests) {
+    if (!firstName || !lastName || !phone || !dateFrom || !dateTo) {
       setIsSuccess(false);
       setMessage(
-        "Uzupełnij imię i nazwisko, telefon, termin pobytu oraz liczbę osób."
+        "Uzupełnij imię, nazwisko, telefon oraz termin pobytu."
       );
       return;
     }
 
     startTransition(async () => {
       const result = await createPublicInquiry({
-        fullName,
+        firstName,
+        lastName,
         phone,
         email,
         cabinId,
         cabinName,
         dateFrom,
         dateTo,
-        guests,
+        adults,
+        children,
+        street,
+        postalCode,
+        city,
+        country,
         notes,
       });
 
@@ -108,14 +120,27 @@ export function InquiryForm({
       <div className="grid gap-5 md:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Imię i nazwisko
+            Imię
           </span>
           <input
-            name="fullName"
+            name="firstName"
             type="text"
             required
             className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Jan Kowalski"
+            placeholder="Jan"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+            Nazwisko
+          </span>
+          <input
+            name="lastName"
+            type="text"
+            required
+            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            placeholder="Kowalski"
           />
         </label>
 
@@ -145,6 +170,35 @@ export function InquiryForm({
         </label>
 
         <label className="grid gap-2">
+          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+            Dorośli
+          </span>
+          <input
+            name="adults"
+            type="number"
+            required
+            min={1}
+            max={20}
+            defaultValue={2}
+            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+            Dzieci
+          </span>
+          <input
+            name="children"
+            type="number"
+            min={0}
+            max={20}
+            defaultValue={0}
+            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+          />
+        </label>
+
+        <label className="grid gap-2 md:col-span-2">
           <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
             Domek
           </span>
@@ -188,16 +242,50 @@ export function InquiryForm({
 
         <label className="grid gap-2 md:col-span-2">
           <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Liczba osób
+            Ulica i numer
           </span>
           <input
-            name="guests"
-            type="number"
-            required
-            min={1}
-            max={20}
+            name="street"
+            type="text"
             className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="np. 4"
+            placeholder="Leśna 23"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+            Kod pocztowy
+          </span>
+          <input
+            name="postalCode"
+            type="text"
+            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            placeholder="16-500"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+            Miasto
+          </span>
+          <input
+            name="city"
+            type="text"
+            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            placeholder="Sejny"
+          />
+        </label>
+
+        <label className="grid gap-2 md:col-span-2">
+          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+            Kraj
+          </span>
+          <input
+            name="country"
+            type="text"
+            defaultValue="Polska"
+            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            placeholder="Polska"
           />
         </label>
 
