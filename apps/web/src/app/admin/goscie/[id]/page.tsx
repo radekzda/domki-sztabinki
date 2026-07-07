@@ -235,6 +235,13 @@ export default async function GuestDetailsPage({ params }: Props) {
             </Link>
 
             <Link
+              href={`/admin/goscie/${guest.id}/usun`}
+              className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800"
+            >
+              Usuń gościa
+            </Link>
+
+            <Link
               href={`/admin/rezerwacje/nowa?guestId=${guest.id}`}
               className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
             >
