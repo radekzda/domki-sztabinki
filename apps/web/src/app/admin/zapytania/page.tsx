@@ -1,7 +1,44 @@
+import Link from "next/link";
+
 import { updateInquiryStatus } from "@/actions/inquiries";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+type InquiryStatusFilter = "NEW" | "CONTACTED" | "ARCHIVED";
+
+type AdminInquiriesPageProps = {
+  searchParams?: Promise<{
+    status?: string | string[];
+  }>;
+};
+
+const statusFilters: {
+  label: string;
+  href: string;
+  status: InquiryStatusFilter | null;
+}[] = [
+  {
+    label: "Wszystkie",
+    href: "/admin/zapytania",
+    status: null,
+  },
+  {
+    label: "Nowe",
+    href: "/admin/zapytania?status=NEW",
+    status: "NEW",
+  },
+  {
+    label: "Po kontakcie",
+    href: "/admin/zapytania?status=CONTACTED",
+    status: "CONTACTED",
+  },
+  {
+    label: "Archiwalne",
+    href: "/admin/zapytania?status=ARCHIVED",
+    status: "ARCHIVED",
+  },
+];
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("pl-PL", {
@@ -21,6 +58,24 @@ function formatDateTime(date: Date) {
     minute: "2-digit",
     timeZone: "Europe/Warsaw",
   }).format(date);
+}
+
+function getStatusFilter(value: string | string[] | undefined) {
+  const status = Array.isArray(value) ? value[0] : value;
+
+  if (status === "NEW") {
+    return "NEW";
+  }
+
+  if (status === "CONTACTED") {
+    return "CONTACTED";
+  }
+
+  if (status === "ARCHIVED") {
+    return "ARCHIVED";
+  }
+
+  return null;
 }
 
 function getStatusLabel(status: string) {
@@ -71,32 +126,77 @@ function getActionButtonClassName(status: string) {
   return "rounded-xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-slate-800";
 }
 
-export default async function AdminInquiriesPage() {
-  const inquiries = await prisma.inquiry.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 100,
-    include: {
-      cabin: {
-        select: {
-          name: true,
+function getFilterLinkClassName(isActive: boolean) {
+  if (isActive) {
+    return "rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-slate-800";
+  }
+
+  return "rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 hover:text-slate-950";
+}
+
+function getEmptyStateText(activeStatus: InquiryStatusFilter | null) {
+  if (activeStatus === "NEW") {
+    return "Nie ma obecnie nowych zapytań.";
+  }
+
+  if (activeStatus === "CONTACTED") {
+    return "Nie ma obecnie zapytań oznaczonych jako po kontakcie.";
+  }
+
+  if (activeStatus === "ARCHIVED") {
+    return "Nie ma obecnie zapytań archiwalnych.";
+  }
+
+  return "Gdy ktoś wyśle formularz ze strony publicznej, zapytanie pojawi się tutaj.";
+}
+
+export default async function AdminInquiriesPage({
+  searchParams,
+}: AdminInquiriesPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const activeStatus = getStatusFilter(resolvedSearchParams.status);
+
+  const [inquiries, totalInquiriesCount, newInquiriesCount, contactedInquiriesCount, archivedInquiriesCount] =
+    await Promise.all([
+      prisma.inquiry.findMany({
+        where: activeStatus
+          ? {
+              status: activeStatus,
+            }
+          : undefined,
+        orderBy: {
+          createdAt: "desc",
         },
-      },
-    },
-  });
+        take: 100,
+        include: {
+          cabin: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      }),
+      prisma.inquiry.count(),
+      prisma.inquiry.count({
+        where: {
+          status: "NEW",
+        },
+      }),
+      prisma.inquiry.count({
+        where: {
+          status: "CONTACTED",
+        },
+      }),
+      prisma.inquiry.count({
+        where: {
+          status: "ARCHIVED",
+        },
+      }),
+    ]);
 
-  const newInquiriesCount = inquiries.filter(
-    (inquiry) => inquiry.status === "NEW"
-  ).length;
-
-  const contactedInquiriesCount = inquiries.filter(
-    (inquiry) => inquiry.status === "CONTACTED"
-  ).length;
-
-  const archivedInquiriesCount = inquiries.filter(
-    (inquiry) => inquiry.status === "ARCHIVED"
-  ).length;
+  const activeFilterLabel =
+    statusFilters.find((filter) => filter.status === activeStatus)?.label ||
+    "Wszystkie";
 
   return (
     <main className="space-y-8">
@@ -118,9 +218,18 @@ export default async function AdminInquiriesPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <div className="rounded-2xl bg-slate-950 px-5 py-4 text-white">
               <p className="text-sm font-semibold text-slate-300">
+                Wszystkie
+              </p>
+              <p className="mt-1 text-3xl font-black">
+                {totalInquiriesCount}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-emerald-600 px-5 py-4 text-white">
+              <p className="text-sm font-semibold text-emerald-100">
                 Nowe
               </p>
               <p className="mt-1 text-3xl font-black">{newInquiriesCount}</p>
@@ -149,13 +258,33 @@ export default async function AdminInquiriesPage() {
 
       <section className="rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
         <div className="border-b border-slate-200 p-6">
-          <h2 className="text-xl font-black text-slate-950">
-            Ostatnie zapytania
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Pokazujemy maksymalnie 100 najnowszych zapytań. Status możesz
-            zmienić bezpośrednio na karcie zapytania.
-          </p>
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <h2 className="text-xl font-black text-slate-950">
+                Ostatnie zapytania
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Pokazujemy maksymalnie 100 najnowszych zapytań. Aktualny filtr:{" "}
+                <strong>{activeFilterLabel}</strong>.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              {statusFilters.map((filter) => {
+                const isActive = filter.status === activeStatus;
+
+                return (
+                  <Link
+                    key={filter.href}
+                    href={filter.href}
+                    className={getFilterLinkClassName(isActive)}
+                  >
+                    {filter.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {inquiries.length === 0 ? (
@@ -164,8 +293,7 @@ export default async function AdminInquiriesPage() {
               Brak zapytań
             </h3>
             <p className="mt-2 text-sm text-slate-600">
-              Gdy ktoś wyśle formularz ze strony publicznej, zapytanie pojawi
-              się tutaj.
+              {getEmptyStateText(activeStatus)}
             </p>
           </div>
         ) : (
