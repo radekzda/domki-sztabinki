@@ -682,47 +682,6 @@ export function InquiryForm({
           </p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Zajęte terminy
-          </p>
-
-          {!selectedCabinId ? (
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Wybrano opcję dowolną / do ustalenia. Termin potwierdzimy po
-              kontakcie.
-            </p>
-          ) : selectedCabinOccupiedDateRanges.length === 0 ? (
-            <p className="mt-3 text-sm leading-6 text-emerald-700">
-              Dla domku {selectedCabinName} nie ma obecnie zajętych terminów w
-              systemie.
-            </p>
-          ) : (
-            <div className="mt-4 grid gap-3">
-              <p className="text-sm leading-6 text-slate-600">
-                Poniżej widoczne są terminy zajęte dla domku {selectedCabinName}.
-              </p>
-
-              <div className="grid gap-2">
-                {selectedCabinOccupiedDateRanges.map((dateRange) => (
-                  <div
-                    key={dateRange.id}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
-                  >
-                    <span className="font-black text-slate-950">
-                      {formatDate(dateRange.dateFrom)} –{" "}
-                      {formatDate(dateRange.dateTo)}
-                    </span>{" "}
-                    <span className="text-slate-500">
-                      ({getReservationStatusLabel(dateRange.status)})
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
         {selectedCabinId ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -797,7 +756,17 @@ export function InquiryForm({
               ))}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="rounded-3xl border border-slate-200 bg-white p-5">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Kalendarz dostępności
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Przy opcji dowolnej / do ustalenia dostępność dobierzemy po
+              kontakcie.
+            </p>
+          </div>
+        )}
       </aside>
     </form>
   );
