@@ -21,6 +21,10 @@ export type CreatePublicInquiryResult = {
   message: string;
 };
 
+const allowedInquiryStatuses = ["NEW", "CONTACTED", "ARCHIVED"] as const;
+
+type InquiryStatus = (typeof allowedInquiryStatuses)[number];
+
 function normalizeText(value: string) {
   return value.trim();
 }
@@ -37,6 +41,10 @@ function parseDateOnly(value: string) {
   }
 
   return date;
+}
+
+function isInquiryStatus(value: string): value is InquiryStatus {
+  return allowedInquiryStatuses.includes(value as InquiryStatus);
 }
 
 export async function createPublicInquiry(
@@ -130,4 +138,27 @@ export async function createPublicInquiry(
     message:
       "Dziękujemy. Zapytanie zostało zapisane. Skontaktujemy się w sprawie dostępności i ceny.",
   };
+}
+
+export async function updateInquiryStatus(formData: FormData) {
+  const inquiryIdValue = formData.get("inquiryId");
+  const statusValue = formData.get("status");
+
+  const inquiryId = typeof inquiryIdValue === "string" ? inquiryIdValue : "";
+  const status = typeof statusValue === "string" ? statusValue : "";
+
+  if (!inquiryId || !isInquiryStatus(status)) {
+    return;
+  }
+
+  await prisma.inquiry.updateMany({
+    where: {
+      id: inquiryId,
+    },
+    data: {
+      status,
+    },
+  });
+
+  revalidatePath("/admin/zapytania");
 }

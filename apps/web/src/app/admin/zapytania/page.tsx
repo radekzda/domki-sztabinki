@@ -1,3 +1,4 @@
+import { updateInquiryStatus } from "@/actions/inquiries";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,22 @@ function getStatusClassName(status: string) {
   return "bg-amber-50 text-amber-800 ring-amber-200";
 }
 
+function getActionButtonClassName(status: string) {
+  if (status === "NEW") {
+    return "rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-700";
+  }
+
+  if (status === "CONTACTED") {
+    return "rounded-xl bg-sky-600 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-700";
+  }
+
+  if (status === "ARCHIVED") {
+    return "rounded-xl bg-slate-700 px-4 py-2 text-xs font-black text-white transition hover:bg-slate-800";
+  }
+
+  return "rounded-xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-slate-800";
+}
+
 export default async function AdminInquiriesPage() {
   const inquiries = await prisma.inquiry.findMany({
     orderBy: {
@@ -71,6 +88,14 @@ export default async function AdminInquiriesPage() {
 
   const newInquiriesCount = inquiries.filter(
     (inquiry) => inquiry.status === "NEW"
+  ).length;
+
+  const contactedInquiriesCount = inquiries.filter(
+    (inquiry) => inquiry.status === "CONTACTED"
+  ).length;
+
+  const archivedInquiriesCount = inquiries.filter(
+    (inquiry) => inquiry.status === "ARCHIVED"
   ).length;
 
   return (
@@ -93,11 +118,31 @@ export default async function AdminInquiriesPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl bg-slate-950 px-5 py-4 text-white">
-            <p className="text-sm font-semibold text-slate-300">
-              Nowe zapytania
-            </p>
-            <p className="mt-1 text-3xl font-black">{newInquiriesCount}</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl bg-slate-950 px-5 py-4 text-white">
+              <p className="text-sm font-semibold text-slate-300">
+                Nowe
+              </p>
+              <p className="mt-1 text-3xl font-black">{newInquiriesCount}</p>
+            </div>
+
+            <div className="rounded-2xl bg-sky-600 px-5 py-4 text-white">
+              <p className="text-sm font-semibold text-sky-100">
+                Po kontakcie
+              </p>
+              <p className="mt-1 text-3xl font-black">
+                {contactedInquiriesCount}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-200 px-5 py-4 text-slate-950">
+              <p className="text-sm font-semibold text-slate-600">
+                Archiwalne
+              </p>
+              <p className="mt-1 text-3xl font-black">
+                {archivedInquiriesCount}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -108,7 +153,8 @@ export default async function AdminInquiriesPage() {
             Ostatnie zapytania
           </h2>
           <p className="mt-2 text-sm text-slate-600">
-            Pokazujemy maksymalnie 100 najnowszych zapytań.
+            Pokazujemy maksymalnie 100 najnowszych zapytań. Status możesz
+            zmienić bezpośrednio na karcie zapytania.
           </p>
         </div>
 
@@ -220,6 +266,50 @@ export default async function AdminInquiriesPage() {
                       </p>
                     </div>
                   ) : null}
+
+                  <form
+                    action={updateInquiryStatus}
+                    className="mt-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <input
+                      type="hidden"
+                      name="inquiryId"
+                      value={inquiry.id}
+                    />
+
+                    {inquiry.status !== "CONTACTED" ? (
+                      <button
+                        type="submit"
+                        name="status"
+                        value="CONTACTED"
+                        className={getActionButtonClassName("CONTACTED")}
+                      >
+                        Oznacz jako po kontakcie
+                      </button>
+                    ) : null}
+
+                    {inquiry.status !== "NEW" ? (
+                      <button
+                        type="submit"
+                        name="status"
+                        value="NEW"
+                        className={getActionButtonClassName("NEW")}
+                      >
+                        Przywróć jako nowe
+                      </button>
+                    ) : null}
+
+                    {inquiry.status !== "ARCHIVED" ? (
+                      <button
+                        type="submit"
+                        name="status"
+                        value="ARCHIVED"
+                        className={getActionButtonClassName("ARCHIVED")}
+                      >
+                        Archiwizuj
+                      </button>
+                    ) : null}
+                  </form>
                 </article>
               );
             })}
