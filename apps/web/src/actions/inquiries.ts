@@ -59,6 +59,20 @@ function parsePeopleCount(value: string, fallback: number) {
   return parsedValue;
 }
 
+function dateRangesOverlap({
+  selectedDateFrom,
+  selectedDateTo,
+  occupiedDateFrom,
+  occupiedDateTo,
+}: {
+  selectedDateFrom: Date;
+  selectedDateTo: Date;
+  occupiedDateFrom: Date;
+  occupiedDateTo: Date;
+}) {
+  return selectedDateFrom < occupiedDateTo && selectedDateTo > occupiedDateFrom;
+}
+
 function isInquiryStatus(value: string): value is InquiryStatus {
   return allowedInquiryStatuses.includes(value as InquiryStatus);
 }
@@ -155,6 +169,44 @@ export async function createPublicInquiry(
     };
   }
 
+  if (cabin) {
+    const reservationsForCabin = await prisma.reservation.findMany({
+      where: {
+        cabinId: cabin.id,
+        status: {
+          not: "CANCELLED",
+        },
+      },
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
+        checkInAt: true,
+        checkOutAt: true,
+      },
+    });
+
+    const conflictingReservation = reservationsForCabin.find((reservation) => {
+      const occupiedDateFrom = reservation.checkInAt ?? reservation.startDate;
+      const occupiedDateTo = reservation.checkOutAt ?? reservation.endDate;
+
+      return dateRangesOverlap({
+        selectedDateFrom: parsedDateFrom,
+        selectedDateTo: parsedDateTo,
+        occupiedDateFrom,
+        occupiedDateTo,
+      });
+    });
+
+    if (conflictingReservation) {
+      return {
+        ok: false,
+        message:
+          "Wybrany termin jest już zajęty dla tego domku. Wybierz inny termin, inny domek albo opcję dowolną / do ustalenia.",
+      };
+    }
+  }
+
   await prisma.inquiry.create({
     data: {
       fullName,
@@ -179,6 +231,7 @@ export async function createPublicInquiry(
     },
   });
 
+  revalidatePath("/");
   revalidatePath("/admin/zapytania");
 
   return {
