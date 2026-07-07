@@ -237,10 +237,12 @@ export function InquiryForm({
   checkInTime,
   checkOutTime,
 }: InquiryFormProps) {
+  const defaultCabinId = cabins[0]?.id ?? "";
+
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [selectedCabinId, setSelectedCabinId] = useState("");
+  const [selectedCabinId, setSelectedCabinId] = useState(defaultCabinId);
   const [dateFromValue, setDateFromValue] = useState("");
   const [dateToValue, setDateToValue] = useState("");
 
@@ -371,7 +373,7 @@ export function InquiryForm({
 
       if (result.ok) {
         form.reset();
-        setSelectedCabinId("");
+        setSelectedCabinId(defaultCabinId);
         setDateFromValue("");
         setDateToValue("");
       }
@@ -381,117 +383,314 @@ export function InquiryForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-10 rounded-[2rem] bg-white p-6 text-left text-slate-950 shadow-xl md:p-8"
+      className="mt-10 grid gap-8 rounded-[2rem] bg-white p-6 text-left text-slate-950 shadow-xl lg:grid-cols-[0.9fr_1.1fr] md:p-8"
     >
-      <div className="grid gap-5 md:grid-cols-2">
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Imię
-          </span>
-          <input
-            name="firstName"
-            type="text"
-            required
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Jan"
-          />
-        </label>
+      <div className="space-y-5">
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+            Dane zapytania
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Uzupełnij dane kontaktowe i termin pobytu. Dostępność wybranego
+            domku sprawdzisz w kalendarzu po prawej stronie.
+          </p>
+        </div>
 
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Nazwisko
-          </span>
-          <input
-            name="lastName"
-            type="text"
-            required
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Kowalski"
-          />
-        </label>
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Imię
+            </span>
+            <input
+              name="firstName"
+              type="text"
+              required
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Jan"
+            />
+          </label>
 
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Telefon
-          </span>
-          <input
-            name="phone"
-            type="tel"
-            required
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="502 286 724"
-          />
-        </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Nazwisko
+            </span>
+            <input
+              name="lastName"
+              type="text"
+              required
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Kowalski"
+            />
+          </label>
 
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            E-mail
-          </span>
-          <input
-            name="email"
-            type="email"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="adres@email.com"
-          />
-        </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Telefon
+            </span>
+            <input
+              name="phone"
+              type="tel"
+              required
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="502 286 724"
+            />
+          </label>
 
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Dorośli
-          </span>
-          <input
-            name="adults"
-            type="number"
-            required
-            min={1}
-            max={20}
-            defaultValue={2}
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-          />
-        </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              E-mail
+            </span>
+            <input
+              name="email"
+              type="email"
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="adres@email.com"
+            />
+          </label>
 
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Dzieci
-          </span>
-          <input
-            name="children"
-            type="number"
-            min={0}
-            max={20}
-            defaultValue={0}
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-          />
-        </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Dorośli
+            </span>
+            <input
+              name="adults"
+              type="number"
+              required
+              min={1}
+              max={20}
+              defaultValue={2}
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            />
+          </label>
 
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Domek
-          </span>
-          <select
-            name="cabinId"
-            value={selectedCabinId}
-            onChange={(event) => setSelectedCabinId(event.target.value)}
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Dzieci
+            </span>
+            <input
+              name="children"
+              type="number"
+              min={0}
+              max={20}
+              defaultValue={0}
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Pobyt od
+            </span>
+            <input
+              name="dateFrom"
+              type="date"
+              required
+              value={dateFromValue}
+              onChange={(event) => setDateFromValue(event.target.value)}
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Pobyt do
+            </span>
+            <input
+              name="dateTo"
+              type="date"
+              required
+              value={dateToValue}
+              onChange={(event) => setDateToValue(event.target.value)}
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            />
+          </label>
+
+          {hasDateCollision ? (
+            <div className="rounded-3xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 md:col-span-2">
+              <p className="font-black uppercase tracking-[0.14em]">
+                Uwaga: wybrany termin jest zajęty
+              </p>
+
+              <p className="mt-3 leading-6">
+                Wybrany termin dla domku {selectedCabinName} koliduje z
+                terminem zapisanym w systemie. Wybierz inny termin, inny domek
+                albo opcję dowolną / do ustalenia.
+              </p>
+
+              <div className="mt-4 grid gap-2">
+                {collidingDateRanges.map((dateRange) => (
+                  <div
+                    key={dateRange.id}
+                    className="rounded-2xl border border-red-200 bg-white px-4 py-3"
+                  >
+                    <span className="font-black">
+                      {formatDate(dateRange.dateFrom)} –{" "}
+                      {formatDate(dateRange.dateTo)}
+                    </span>{" "}
+                    <span>
+                      ({getReservationStatusLabel(dateRange.status)})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : selectedCabinId && dateFromValue && dateToValue ? (
+            <div className="rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-900 md:col-span-2">
+              <p className="font-black uppercase tracking-[0.14em]">
+                Brak kolizji z zajętymi terminami
+              </p>
+              <p className="mt-3 leading-6">
+                Wybrany termin nie nachodzi na aktualnie zapisane rezerwacje
+                tego domku. Ostateczną dostępność i cenę potwierdzimy po
+                kontakcie.
+              </p>
+            </div>
+          ) : null}
+
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Ulica i numer
+            </span>
+            <input
+              name="street"
+              type="text"
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Leśna 23"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Kod pocztowy
+            </span>
+            <input
+              name="postalCode"
+              type="text"
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="16-500"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Miasto
+            </span>
+            <input
+              name="city"
+              type="text"
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Sejny"
+            />
+          </label>
+
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Kraj
+            </span>
+            <input
+              name="country"
+              type="text"
+              defaultValue="Polska"
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Polska"
+            />
+          </label>
+
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Wiadomość
+            </span>
+            <textarea
+              name="notes"
+              rows={5}
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Napisz dodatkowe informacje, np. przyjazd z dziećmi, pytanie o późniejsze wymeldowanie albo konkretny domek."
+            />
+          </label>
+        </div>
+
+        <div className="rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-600">
+          Minimalny pobyt: <strong>{minimumNightsLabel}</strong>. Zameldowanie
+          od <strong>{checkInTime}</strong>, wymeldowanie do{" "}
+          <strong>{checkOutTime}</strong>. Ostateczną dostępność i cenę
+          potwierdzamy po kontakcie.
+        </div>
+
+        {message ? (
+          <div
+            className={
+              isSuccess
+                ? "rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
+                : "rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
+            }
           >
-            <option value="">Dowolny / do ustalenia</option>
-            {cabins.map((cabin) => (
-              <option key={cabin.id} value={cabin.id}>
-                {cabin.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            {message}
+          </div>
+        ) : null}
 
-        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 md:col-span-2">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="submit"
+            disabled={isSubmitDisabled}
+            className={
+              isSubmitDisabled
+                ? "cursor-not-allowed rounded-2xl bg-slate-400 px-7 py-4 text-sm font-black text-white"
+                : "rounded-2xl bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:bg-slate-800"
+            }
+          >
+            {isPending
+              ? "Wysyłanie zapytania..."
+              : hasDateCollision
+                ? "Termin zajęty — wybierz inny"
+                : "Wyślij zapytanie"}
+          </button>
+
+          <a
+            href={getPhoneHref(phoneNumber)}
+            className="rounded-2xl border border-slate-300 px-7 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
+          >
+            Zadzwoń: {phoneNumber}
+          </a>
+        </div>
+      </div>
+
+      <aside className="space-y-5">
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Wybierz domek
+            </span>
+            <select
+              name="cabinId"
+              value={selectedCabinId}
+              onChange={(event) => setSelectedCabinId(event.target.value)}
+              className="rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-950"
+            >
+              {cabins.map((cabin) => (
+                <option key={cabin.id} value={cabin.id}>
+                  {cabin.name}
+                </option>
+              ))}
+              <option value="">Dowolny / do ustalenia</option>
+            </select>
+          </label>
+
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Domyślnie wybrany jest pierwszy aktywny domek z listy. Jeżeli
+            chcesz, żeby zawsze był to „Domek 1”, ustaw mu najniższy numer
+            sortowania w panelu admina.
+          </p>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
             Zajęte terminy
           </p>
 
           {!selectedCabinId ? (
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Wybierz konkretny domek, aby zobaczyć terminy zajęte w systemie.
-              Przy opcji dowolnej termin potwierdzimy po kontakcie.
+              Wybrano opcję dowolną / do ustalenia. Termin potwierdzimy po
+              kontakcie.
             </p>
           ) : selectedCabinOccupiedDateRanges.length === 0 ? (
             <p className="mt-3 text-sm leading-6 text-emerald-700">
@@ -502,8 +701,6 @@ export function InquiryForm({
             <div className="mt-4 grid gap-3">
               <p className="text-sm leading-6 text-slate-600">
                 Poniżej widoczne są terminy zajęte dla domku {selectedCabinName}.
-                Jeżeli wybierasz termin graniczny, ostateczną dostępność
-                potwierdzimy po kontakcie.
               </p>
 
               <div className="grid gap-2">
@@ -527,7 +724,7 @@ export function InquiryForm({
         </div>
 
         {selectedCabinId ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 md:col-span-2">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
@@ -552,7 +749,7 @@ export function InquiryForm({
               </div>
             </div>
 
-            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            <div className="mt-6 grid gap-5">
               {availabilityCalendarMonths.map((calendarMonth) => (
                 <div
                   key={calendarMonth.key}
@@ -601,181 +798,7 @@ export function InquiryForm({
             </div>
           </div>
         ) : null}
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Pobyt od
-          </span>
-          <input
-            name="dateFrom"
-            type="date"
-            required
-            value={dateFromValue}
-            onChange={(event) => setDateFromValue(event.target.value)}
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-          />
-        </label>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Pobyt do
-          </span>
-          <input
-            name="dateTo"
-            type="date"
-            required
-            value={dateToValue}
-            onChange={(event) => setDateToValue(event.target.value)}
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-          />
-        </label>
-
-        {hasDateCollision ? (
-          <div className="rounded-3xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 md:col-span-2">
-            <p className="font-black uppercase tracking-[0.14em]">
-              Uwaga: wybrany termin jest zajęty
-            </p>
-
-            <p className="mt-3 leading-6">
-              Wybrany termin dla domku {selectedCabinName} koliduje z terminem
-              zapisanym w systemie. Wybierz inny termin, inny domek albo opcję
-              dowolną / do ustalenia.
-            </p>
-
-            <div className="mt-4 grid gap-2">
-              {collidingDateRanges.map((dateRange) => (
-                <div
-                  key={dateRange.id}
-                  className="rounded-2xl border border-red-200 bg-white px-4 py-3"
-                >
-                  <span className="font-black">
-                    {formatDate(dateRange.dateFrom)} –{" "}
-                    {formatDate(dateRange.dateTo)}
-                  </span>{" "}
-                  <span>
-                    ({getReservationStatusLabel(dateRange.status)})
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : selectedCabinId && dateFromValue && dateToValue ? (
-          <div className="rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-900 md:col-span-2">
-            <p className="font-black uppercase tracking-[0.14em]">
-              Brak kolizji z zajętymi terminami
-            </p>
-            <p className="mt-3 leading-6">
-              Wybrany termin nie nachodzi na aktualnie zapisane rezerwacje tego
-              domku. Ostateczną dostępność i cenę potwierdzimy po kontakcie.
-            </p>
-          </div>
-        ) : null}
-
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Ulica i numer
-          </span>
-          <input
-            name="street"
-            type="text"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Leśna 23"
-          />
-        </label>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Kod pocztowy
-          </span>
-          <input
-            name="postalCode"
-            type="text"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="16-500"
-          />
-        </label>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Miasto
-          </span>
-          <input
-            name="city"
-            type="text"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Sejny"
-          />
-        </label>
-
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Kraj
-          </span>
-          <input
-            name="country"
-            type="text"
-            defaultValue="Polska"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Polska"
-          />
-        </label>
-
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Wiadomość
-          </span>
-          <textarea
-            name="notes"
-            rows={5}
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Napisz dodatkowe informacje, np. przyjazd z dziećmi, pytanie o późniejsze wymeldowanie albo konkretny domek."
-          />
-        </label>
-      </div>
-
-      <div className="mt-6 rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-600">
-        Minimalny pobyt: <strong>{minimumNightsLabel}</strong>. Zameldowanie od{" "}
-        <strong>{checkInTime}</strong>, wymeldowanie do{" "}
-        <strong>{checkOutTime}</strong>. Ostateczną dostępność i cenę
-        potwierdzamy po kontakcie.
-      </div>
-
-      {message ? (
-        <div
-          className={
-            isSuccess
-              ? "mt-5 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
-              : "mt-5 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
-          }
-        >
-          {message}
-        </div>
-      ) : null}
-
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <button
-          type="submit"
-          disabled={isSubmitDisabled}
-          className={
-            isSubmitDisabled
-              ? "cursor-not-allowed rounded-2xl bg-slate-400 px-7 py-4 text-sm font-black text-white"
-              : "rounded-2xl bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:bg-slate-800"
-          }
-        >
-          {isPending
-            ? "Wysyłanie zapytania..."
-            : hasDateCollision
-              ? "Termin zajęty — wybierz inny"
-              : "Wyślij zapytanie"}
-        </button>
-
-        <a
-          href={getPhoneHref(phoneNumber)}
-          className="rounded-2xl border border-slate-300 px-7 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
-        >
-          Zadzwoń: {phoneNumber}
-        </a>
-      </div>
+      </aside>
     </form>
   );
 }
