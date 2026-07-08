@@ -331,6 +331,13 @@ export default async function GuestsPage({ searchParams }: Props) {
 
         <div className="flex flex-wrap gap-3">
           <Link
+            href="/admin/goscie/import"
+            className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
+          >
+            Import CSV
+          </Link>
+
+          <Link
             href={exportUrl}
             className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
           >
