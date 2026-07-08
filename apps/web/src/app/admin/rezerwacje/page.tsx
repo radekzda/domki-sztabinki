@@ -12,10 +12,14 @@ type Props = {
   }>;
 };
 
+type ReservationPaymentStatus = "PENDING" | "PAID" | "PARTIAL" | "REFUNDED";
+
 const allowedStatuses = [
   "ALL",
   "PENDING",
   "CONFIRMED",
+  "CHECKED_IN",
+  "CHECKED_OUT",
   "CANCELLED",
   "COMPLETED",
 ];
@@ -29,7 +33,13 @@ const allowedSources = [
   "AIRBNB",
 ];
 
-const allowedPaymentFilters = ["ALL", "PAID", "UNPAID", "NO_PRICE"];
+const allowedPaymentFilters = [
+  "ALL",
+  "PENDING",
+  "PAID",
+  "PARTIAL",
+  "REFUNDED",
+];
 
 const quickStatusFilters = [
   {
@@ -37,20 +47,24 @@ const quickStatusFilters = [
     status: "ALL",
   },
   {
-    label: "Oczekujące",
+    label: "Oczekuje na potwierdzenie",
     status: "PENDING",
   },
   {
-    label: "Potwierdzone",
+    label: "Potwierdzona",
     status: "CONFIRMED",
   },
   {
-    label: "Anulowane",
-    status: "CANCELLED",
+    label: "Zameldowany",
+    status: "CHECKED_IN",
   },
   {
-    label: "Zakończone",
-    status: "COMPLETED",
+    label: "Wymeldowany",
+    status: "CHECKED_OUT",
+  },
+  {
+    label: "Anulowany",
+    status: "CANCELLED",
   },
 ];
 
@@ -87,16 +101,20 @@ const quickPaymentFilters = [
     payment: "ALL",
   },
   {
-    label: "Opłacone",
+    label: "Oczekuje",
+    payment: "PENDING",
+  },
+  {
+    label: "Opłacona",
     payment: "PAID",
   },
   {
-    label: "Nieopłacone",
-    payment: "UNPAID",
+    label: "Częściowa",
+    payment: "PARTIAL",
   },
   {
-    label: "Brak ceny",
-    payment: "NO_PRICE",
+    label: "Zwrócona",
+    payment: "REFUNDED",
   },
 ];
 
@@ -222,10 +240,14 @@ function getStatusLabel(status: string) {
       return "Oczekuje na potwierdzenie";
     case "CONFIRMED":
       return "Potwierdzona";
-    case "CANCELLED":
-      return "Anulowana";
+    case "CHECKED_IN":
+      return "Zameldowany";
+    case "CHECKED_OUT":
+      return "Wymeldowany";
     case "COMPLETED":
-      return "Zakończona";
+      return "Wymeldowany";
+    case "CANCELLED":
+      return "Anulowany";
     default:
       return status;
   }
@@ -250,12 +272,14 @@ function getSourceLabel(source: string) {
 
 function getPaymentFilterLabel(paymentFilter: string) {
   switch (paymentFilter) {
+    case "PENDING":
+      return "Oczekuje";
     case "PAID":
-      return "Opłacone";
-    case "UNPAID":
-      return "Nieopłacone";
-    case "NO_PRICE":
-      return "Brak ceny";
+      return "Opłacona";
+    case "PARTIAL":
+      return "Częściowa";
+    case "REFUNDED":
+      return "Zwrócona";
     default:
       return paymentFilter;
   }
@@ -263,14 +287,18 @@ function getPaymentFilterLabel(paymentFilter: string) {
 
 function getStatusClassName(status: string) {
   switch (status) {
-    case "CONFIRMED":
-      return "bg-blue-100 text-blue-700";
     case "PENDING":
       return "bg-orange-100 text-orange-800";
-    case "CANCELLED":
-      return "bg-red-100 text-red-700";
+    case "CONFIRMED":
+      return "bg-blue-100 text-blue-700";
+    case "CHECKED_IN":
+      return "bg-green-100 text-green-700";
+    case "CHECKED_OUT":
+      return "bg-zinc-100 text-zinc-700";
     case "COMPLETED":
       return "bg-zinc-100 text-zinc-700";
+    case "CANCELLED":
+      return "bg-red-100 text-red-700";
     default:
       return "bg-zinc-100 text-zinc-700";
   }
@@ -317,6 +345,76 @@ function getPaymentLabel(remainingAmount: number | null) {
   return `Do zapłaty ${formatMoney(remainingAmount)}`;
 }
 
+function getReservationPaymentStatus({
+  paymentStatus,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentStatus: string | null;
+  totalPrice: number | null;
+  paidAmount: number | null;
+}): ReservationPaymentStatus {
+  if (paymentStatus === "REFUNDED") {
+    return "REFUNDED";
+  }
+
+  if (paymentStatus === "PAID") {
+    return "PAID";
+  }
+
+  if (paymentStatus === "PARTIAL") {
+    return "PARTIAL";
+  }
+
+  if (paymentStatus === "PENDING") {
+    return "PENDING";
+  }
+
+  if (totalPrice === null) {
+    return "PENDING";
+  }
+
+  if (paidAmount === null || paidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
+}
+
+function getReservationPaymentStatusLabel(status: ReservationPaymentStatus) {
+  switch (status) {
+    case "PENDING":
+      return "Oczekuje";
+    case "PAID":
+      return "Opłacona";
+    case "PARTIAL":
+      return "Częściowa";
+    case "REFUNDED":
+      return "Zwrócona";
+    default:
+      return status;
+  }
+}
+
+function getReservationPaymentStatusClassName(status: ReservationPaymentStatus) {
+  switch (status) {
+    case "PENDING":
+      return "bg-orange-100 text-orange-800";
+    case "PAID":
+      return "bg-green-100 text-green-700";
+    case "PARTIAL":
+      return "bg-yellow-100 text-yellow-800";
+    case "REFUNDED":
+      return "bg-zinc-100 text-zinc-700";
+    default:
+      return "bg-zinc-100 text-zinc-700";
+  }
+}
+
 function getQuickStatusFilterClassName(isActive: boolean) {
   if (isActive) {
     return "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800";
@@ -343,28 +441,26 @@ function getQuickPaymentFilterClassName(isActive: boolean) {
 
 function reservationMatchesPaymentFilter({
   paymentFilter,
+  paymentStatus,
   totalPrice,
   paidAmount,
 }: {
   paymentFilter: string;
+  paymentStatus: string | null;
   totalPrice: number | null;
   paidAmount: number | null;
 }) {
-  const remainingAmount = getRemainingAmount(totalPrice, paidAmount);
-
-  if (paymentFilter === "PAID") {
-    return remainingAmount !== null && remainingAmount === 0;
+  if (paymentFilter === "ALL") {
+    return true;
   }
 
-  if (paymentFilter === "UNPAID") {
-    return remainingAmount !== null && remainingAmount > 0;
-  }
+  const reservationPaymentStatus = getReservationPaymentStatus({
+    paymentStatus,
+    totalPrice,
+    paidAmount,
+  });
 
-  if (paymentFilter === "NO_PRICE") {
-    return remainingAmount === null;
-  }
-
-  return true;
+  return reservationPaymentStatus === paymentFilter;
 }
 
 function isCurrentlyCheckedIn({
@@ -380,6 +476,10 @@ function isCurrentlyCheckedIn({
   checkInAt: Date | null;
   checkOutAt: Date | null;
 }) {
+  if (status === "CHECKED_IN") {
+    return true;
+  }
+
   if (status !== "CONFIRMED") {
     return false;
   }
@@ -388,7 +488,10 @@ function isCurrentlyCheckedIn({
   const checkInDate = checkInAt ?? startDate;
   const checkOutDate = checkOutAt ?? endDate;
 
-  return now.getTime() >= checkInDate.getTime() && now.getTime() < checkOutDate.getTime();
+  return (
+    now.getTime() >= checkInDate.getTime() &&
+    now.getTime() < checkOutDate.getTime()
+  );
 }
 
 function getReservationStatusLabel(reservation: {
@@ -572,7 +675,12 @@ export default async function ReservationsPage({ searchParams }: Props) {
     where: {
       ...(statusFilter !== "ALL"
         ? {
-            status: statusFilter,
+            status:
+              statusFilter === "CHECKED_OUT"
+                ? {
+                    in: ["CHECKED_OUT", "COMPLETED"],
+                  }
+                : statusFilter,
           }
         : {}),
       ...(sourceFilter !== "ALL"
@@ -657,6 +765,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
     return reservationMatchesPaymentFilter({
       paymentFilter,
+      paymentStatus: reservation.paymentStatus,
       totalPrice,
       paidAmount,
     });
@@ -670,6 +779,10 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
   const confirmedReservations = reservations.filter(
     (reservation) => reservation.status === "CONFIRMED"
+  ).length;
+
+  const checkedInReservations = reservations.filter((reservation) =>
+    isCurrentlyCheckedIn(reservation)
   ).length;
 
   const unpaidReservations = reservations.filter((reservation) => {
@@ -759,14 +872,14 @@ export default async function ReservationsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-5">
         <div className="rounded-xl border bg-white p-5 shadow-sm">
           <div className="text-sm text-zinc-500">Rezerwacje</div>
           <div className="mt-1 text-3xl font-bold">{totalReservations}</div>
         </div>
 
         <div className="rounded-xl border bg-white p-5 shadow-sm">
-          <div className="text-sm text-zinc-500">Oczekujące</div>
+          <div className="text-sm text-zinc-500">Oczekuje</div>
           <div className="mt-1 text-3xl font-bold text-orange-700">
             {pendingReservations}
           </div>
@@ -780,7 +893,14 @@ export default async function ReservationsPage({ searchParams }: Props) {
         </div>
 
         <div className="rounded-xl border bg-white p-5 shadow-sm">
-          <div className="text-sm text-zinc-500">Nieopłacone</div>
+          <div className="text-sm text-zinc-500">Zameldowani</div>
+          <div className="mt-1 text-3xl font-bold text-green-700">
+            {checkedInReservations}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <div className="text-sm text-zinc-500">Do zapłaty</div>
           <div className="mt-1 text-3xl font-bold text-yellow-700">
             {unpaidReservations}
           </div>
@@ -836,7 +956,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
         <div className="mb-5 space-y-5">
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Szybki filtr statusu
+              Szybki filtr statusu rezerwacji
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -855,6 +975,35 @@ export default async function ReservationsPage({ searchParams }: Props) {
                       dateTo,
                     })}
                     className={getQuickStatusFilterClassName(isActive)}
+                  >
+                    {filter.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Szybki filtr statusu płatności
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {quickPaymentFilters.map((filter) => {
+                const isActive = filter.payment === paymentFilter;
+
+                return (
+                  <Link
+                    key={filter.payment}
+                    href={buildReservationsUrl({
+                      searchQuery,
+                      statusFilter,
+                      sourceFilter,
+                      paymentFilter: filter.payment,
+                      dateFrom,
+                      dateTo,
+                    })}
+                    className={getQuickPaymentFilterClassName(isActive)}
                   >
                     {filter.label}
                   </Link>
@@ -884,35 +1033,6 @@ export default async function ReservationsPage({ searchParams }: Props) {
                       dateTo,
                     })}
                     className={getQuickSourceFilterClassName(isActive)}
-                  >
-                    {filter.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Szybki filtr płatności
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {quickPaymentFilters.map((filter) => {
-                const isActive = filter.payment === paymentFilter;
-
-                return (
-                  <Link
-                    key={filter.payment}
-                    href={buildReservationsUrl({
-                      searchQuery,
-                      statusFilter,
-                      sourceFilter,
-                      paymentFilter: filter.payment,
-                      dateFrom,
-                      dateTo,
-                    })}
-                    className={getQuickPaymentFilterClassName(isActive)}
                   >
                     {filter.label}
                   </Link>
@@ -964,7 +1084,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Status
+              Status rezerwacji
             </label>
 
             <select
@@ -973,10 +1093,11 @@ export default async function ReservationsPage({ searchParams }: Props) {
               className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
             >
               <option value="ALL">Wszystkie statusy</option>
-              <option value="PENDING">Oczekujące</option>
-              <option value="CONFIRMED">Potwierdzone</option>
-              <option value="CANCELLED">Anulowane</option>
-              <option value="COMPLETED">Zakończone</option>
+              <option value="PENDING">Oczekuje na potwierdzenie</option>
+              <option value="CONFIRMED">Potwierdzona</option>
+              <option value="CHECKED_IN">Zameldowany</option>
+              <option value="CHECKED_OUT">Wymeldowany</option>
+              <option value="CANCELLED">Anulowany</option>
             </select>
           </div>
 
@@ -1001,7 +1122,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Płatność
+              Status płatności
             </label>
 
             <select
@@ -1010,9 +1131,10 @@ export default async function ReservationsPage({ searchParams }: Props) {
               className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
             >
               <option value="ALL">Wszystkie płatności</option>
-              <option value="PAID">Opłacone</option>
-              <option value="UNPAID">Nieopłacone</option>
-              <option value="NO_PRICE">Brak ceny</option>
+              <option value="PENDING">Oczekuje</option>
+              <option value="PAID">Opłacona</option>
+              <option value="PARTIAL">Częściowa</option>
+              <option value="REFUNDED">Zwrócona</option>
             </select>
           </div>
 
@@ -1061,15 +1183,15 @@ export default async function ReservationsPage({ searchParams }: Props) {
                 </span>
               ) : null}
 
-              {sourceFilter !== "ALL" ? (
-                <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
-                  Źródło: {getSourceLabel(sourceFilter)}
-                </span>
-              ) : null}
-
               {paymentFilter !== "ALL" ? (
                 <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
                   Płatność: {getPaymentFilterLabel(paymentFilter)}
+                </span>
+              ) : null}
+
+              {sourceFilter !== "ALL" ? (
+                <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
+                  Źródło: {getSourceLabel(sourceFilter)}
                 </span>
               ) : null}
             </div>
@@ -1082,7 +1204,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1300px] border-collapse text-sm">
+            <table className="w-full min-w-[1450px] border-collapse text-sm">
               <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
                   <th className="border-b p-4">Gość</th>
@@ -1094,6 +1216,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
                   <th className="border-b p-4 text-right">Wpłacono</th>
                   <th className="border-b p-4 text-right">Pozostało</th>
                   <th className="border-b p-4">Status</th>
+                  <th className="border-b p-4">Status płatności</th>
                   <th className="border-b p-4">Źródło</th>
                   <th className="border-b p-4 text-right">Akcje</th>
                 </tr>
@@ -1107,6 +1230,12 @@ export default async function ReservationsPage({ searchParams }: Props) {
                     totalPrice,
                     paidAmount
                   );
+
+                  const reservationPaymentStatus = getReservationPaymentStatus({
+                    paymentStatus: reservation.paymentStatus,
+                    totalPrice,
+                    paidAmount,
+                  });
 
                   return (
                     <tr
@@ -1201,6 +1330,18 @@ export default async function ReservationsPage({ searchParams }: Props) {
                           )}`}
                         >
                           {getReservationStatusLabel(reservation)}
+                        </span>
+                      </td>
+
+                      <td className="border-b p-4">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getReservationPaymentStatusClassName(
+                            reservationPaymentStatus
+                          )}`}
+                        >
+                          {getReservationPaymentStatusLabel(
+                            reservationPaymentStatus
+                          )}
                         </span>
                       </td>
 
