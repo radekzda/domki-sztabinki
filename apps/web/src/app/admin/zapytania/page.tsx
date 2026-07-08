@@ -173,6 +173,29 @@ function getClearSearchHref(activeStatus: InquiryStatusFilter | null) {
   return `/admin/zapytania?status=${activeStatus}`;
 }
 
+function getExportHref(
+  activeStatus: InquiryStatusFilter | null,
+  searchQuery: string
+) {
+  const params = new URLSearchParams();
+
+  if (activeStatus) {
+    params.set("status", activeStatus);
+  }
+
+  if (searchQuery) {
+    params.set("q", searchQuery);
+  }
+
+  const queryString = params.toString();
+
+  if (!queryString) {
+    return "/admin/zapytania/export";
+  }
+
+  return `/admin/zapytania/export?${queryString}`;
+}
+
 function getEmptyStateText(
   activeStatus: InquiryStatusFilter | null,
   searchQuery: string
@@ -202,6 +225,7 @@ export default async function AdminInquiriesPage({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const activeStatus = getStatusFilter(resolvedSearchParams.status);
   const searchQuery = normalizeSearchQuery(resolvedSearchParams.q);
+  const exportHref = getExportHref(activeStatus, searchQuery);
 
   const inquiryWhere = {
     ...(activeStatus === "APPROVED"
@@ -387,6 +411,13 @@ export default async function AdminInquiriesPage({
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <Link
+                href={exportHref}
+                className="rounded-2xl border border-green-700 bg-green-700 px-5 py-3 text-sm font-black text-white transition hover:bg-green-800"
+              >
+                Eksport CSV
+              </Link>
+
               {statusFilters.map((filter) => {
                 const isActive = filter.status === activeStatus;
 
