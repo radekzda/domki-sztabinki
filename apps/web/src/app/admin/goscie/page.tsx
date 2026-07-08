@@ -7,6 +7,7 @@ type GuestFilter =
   | "WITH_RESERVATIONS"
   | "WITHOUT_RESERVATIONS"
   | "MISSING_CONTACT"
+  | "VIP"
   | "SOURCE_BASE44"
   | "SOURCE_CSV_IMPORT"
   | "SOURCE_MANUAL";
@@ -43,6 +44,10 @@ const guestFilters: {
     value: "MISSING_CONTACT",
   },
   {
+    label: "VIP",
+    value: "VIP",
+  },
+  {
     label: "Base44",
     value: "SOURCE_BASE44",
   },
@@ -75,6 +80,10 @@ function getGuestFilter(value: string | undefined): GuestFilter {
 
   if (value === "MISSING_CONTACT") {
     return "MISSING_CONTACT";
+  }
+
+  if (value === "VIP") {
+    return "VIP";
   }
 
   if (value === "SOURCE_BASE44") {
@@ -149,6 +158,10 @@ function getGuestFilterLabel(filter: GuestFilter) {
 
   if (filter === "MISSING_CONTACT") {
     return "Braki kontaktu";
+  }
+
+  if (filter === "VIP") {
+    return "VIP";
   }
 
   if (filter === "SOURCE_BASE44") {
@@ -283,6 +296,7 @@ function guestMatchesFilter(
     email: string;
     phone: string | null;
     source: string;
+    isVip: boolean;
     reservations: unknown[];
   },
   guestFilter: GuestFilter
@@ -300,6 +314,10 @@ function guestMatchesFilter(
       email: guest.email,
       phone: guest.phone,
     });
+  }
+
+  if (guestFilter === "VIP") {
+    return guest.isVip;
   }
 
   if (guestFilter === "SOURCE_BASE44") {
@@ -387,6 +405,30 @@ export default async function GuestsPage({ searchParams }: Props) {
                   mode: "insensitive",
                 },
               },
+              {
+                pesel: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                documentNumber: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                nationality: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                externalGuestId: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
@@ -440,6 +482,8 @@ export default async function GuestsPage({ searchParams }: Props) {
       phone: guest.phone,
     })
   ).length;
+
+  const vipGuests = guests.filter((guest) => guest.isVip).length;
 
   const totalReservations = guests.reduce(
     (sum, guest) => sum + guest.reservations.length,
@@ -569,7 +613,7 @@ export default async function GuestsPage({ searchParams }: Props) {
         </section>
       )}
 
-      <section className="grid gap-4 md:grid-cols-6">
+      <section className="grid gap-4 md:grid-cols-4 xl:grid-cols-7">
         <div className="rounded-xl border bg-white p-5 shadow-sm">
           <div className="text-sm text-zinc-500">Goście</div>
           <div className="mt-1 text-3xl font-bold">{totalGuests}</div>
@@ -593,6 +637,13 @@ export default async function GuestsPage({ searchParams }: Props) {
           <div className="text-sm text-zinc-500">Braki kontaktu</div>
           <div className="mt-1 text-3xl font-bold text-red-700">
             {guestsWithMissingContact}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <div className="text-sm text-zinc-500">VIP</div>
+          <div className="mt-1 text-3xl font-bold text-amber-700">
+            {vipGuests}
           </div>
         </div>
 
@@ -660,7 +711,7 @@ export default async function GuestsPage({ searchParams }: Props) {
               name="q"
               defaultValue={searchQuery}
               className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
-              placeholder="Imię, nazwisko, email, telefon, kraj, miasto albo adres"
+              placeholder="Imię, nazwisko, email, telefon, PESEL, dokument, narodowość, ID albo adres"
             />
           </div>
 
@@ -704,11 +755,12 @@ export default async function GuestsPage({ searchParams }: Props) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1250px] border-collapse text-sm">
+            <table className="w-full min-w-[1450px] border-collapse text-sm">
               <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
                   <th className="border-b p-4">Gość</th>
                   <th className="border-b p-4">Kontakt</th>
+                  <th className="border-b p-4">Dane programu</th>
                   <th className="border-b p-4">Kraj</th>
                   <th className="border-b p-4">Źródło</th>
                   <th className="border-b p-4 text-center">Rezerwacje</th>
@@ -757,11 +809,19 @@ export default async function GuestsPage({ searchParams }: Props) {
                           dodano: {formatDate(guest.createdAt)}
                         </div>
 
-                        {missingContact ? (
-                          <div className="mt-2 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
-                            braki kontaktu
-                          </div>
-                        ) : null}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {guest.isVip ? (
+                            <span className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+                              VIP
+                            </span>
+                          ) : null}
+
+                          {missingContact ? (
+                            <span className="inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                              braki kontaktu
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
 
                       <td className="border-b p-4">
@@ -775,7 +835,28 @@ export default async function GuestsPage({ searchParams }: Props) {
                       </td>
 
                       <td className="border-b p-4">
-                        {guest.country || "—"}
+                        <div>
+                          PESEL:{" "}
+                          <span className="font-medium">
+                            {guest.pesel || "—"}
+                          </span>
+                        </div>
+
+                        <div className="mt-1 text-zinc-500">
+                          Dokument: {guest.documentNumber || "—"}
+                        </div>
+
+                        <div className="mt-1 text-zinc-500">
+                          ID: {guest.externalGuestId || "—"}
+                        </div>
+                      </td>
+
+                      <td className="border-b p-4">
+                        <div>{guest.country || "—"}</div>
+
+                        <div className="mt-1 text-zinc-500">
+                          Narodowość: {guest.nationality || "—"}
+                        </div>
                       </td>
 
                       <td className="border-b p-4">

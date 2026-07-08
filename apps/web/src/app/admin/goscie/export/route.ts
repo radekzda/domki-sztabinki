@@ -5,6 +5,7 @@ type GuestFilter =
   | "WITH_RESERVATIONS"
   | "WITHOUT_RESERVATIONS"
   | "MISSING_CONTACT"
+  | "VIP"
   | "SOURCE_BASE44"
   | "SOURCE_CSV_IMPORT"
   | "SOURCE_MANUAL";
@@ -28,6 +29,10 @@ function getGuestFilter(value: string | null): GuestFilter {
 
   if (value === "MISSING_CONTACT") {
     return "MISSING_CONTACT";
+  }
+
+  if (value === "VIP") {
+    return "VIP";
   }
 
   if (value === "SOURCE_BASE44") {
@@ -145,6 +150,7 @@ function guestMatchesFilter(
     email: string;
     phone: string | null;
     source: string;
+    isVip: boolean;
     reservations: unknown[];
   },
   guestFilter: GuestFilter
@@ -162,6 +168,10 @@ function guestMatchesFilter(
       email: guest.email,
       phone: guest.phone,
     });
+  }
+
+  if (guestFilter === "VIP") {
+    return guest.isVip;
   }
 
   if (guestFilter === "SOURCE_BASE44") {
@@ -261,6 +271,30 @@ export async function GET(request: Request) {
                   mode: "insensitive",
                 },
               },
+              {
+                pesel: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                documentNumber: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                nationality: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                externalGuestId: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
@@ -303,7 +337,13 @@ export async function GET(request: Request) {
     "Kod pocztowy",
     "Miasto",
     "Pełny adres",
-    "Źródło",
+    "PESEL",
+    "Numer dokumentu",
+    "Narodowość",
+    "Data urodzenia",
+    "VIP",
+    "Zewnętrzne ID",
+    "Źródło techniczne",
     "Notatki",
     "Liczba rezerwacji",
     "Liczba nocy",
@@ -350,6 +390,12 @@ export async function GET(request: Request) {
       guest.postalCode,
       guest.city,
       guest.fullAddress,
+      guest.pesel,
+      guest.documentNumber,
+      guest.nationality,
+      formatDate(guest.birthDate),
+      guest.isVip ? "Tak" : "Nie",
+      guest.externalGuestId,
       getSourceLabel(guest.source),
       guest.notes,
       reservationsCount,
