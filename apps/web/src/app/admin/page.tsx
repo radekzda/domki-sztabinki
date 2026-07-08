@@ -10,6 +10,7 @@ import {
   CalendarDays,
   CheckCircle2,
   CircleDollarSign,
+  Inbox,
   Users,
   Wallet,
 } from "lucide-react";
@@ -125,6 +126,10 @@ export default async function AdminPage() {
     confirmedReservationsCount,
     upcomingReservationsCount,
     guestsCount,
+    inquiriesCount,
+    newInquiriesCount,
+    approvedInquiriesCount,
+    archivedInquiriesCount,
     revenueSummary,
     upcomingReservations,
     nextSevenDaysReservations,
@@ -157,6 +162,24 @@ export default async function AdminPage() {
       },
     }),
     prisma.guest.count(),
+    prisma.inquiry.count(),
+    prisma.inquiry.count({
+      where: {
+        status: "NEW",
+      },
+    }),
+    prisma.inquiry.count({
+      where: {
+        status: {
+          in: ["APPROVED", "CONTACTED"],
+        },
+      },
+    }),
+    prisma.inquiry.count({
+      where: {
+        status: "ARCHIVED",
+      },
+    }),
     prisma.reservation.aggregate({
       _sum: {
         totalPrice: true,
@@ -246,28 +269,49 @@ export default async function AdminPage() {
       href: "/admin/goscie",
     },
     {
-      title: "Przychód",
-      value: formatCurrency(totalRevenue),
-      description: `Wpłacono: ${formatCurrency(paidRevenue)}`,
-      icon: Wallet,
-      href: "/admin/rezerwacje",
+      title: "Zapytania WWW",
+      value: inquiriesCount,
+      description: `Nowe: ${newInquiriesCount}`,
+      icon: Inbox,
+      href: "/admin/zapytania",
     },
   ];
 
   const statusCards = [
     {
-      title: "Oczekujące",
+      title: "Oczekujące rezerwacje",
       value: pendingReservationsCount,
       description: "Rezerwacje do potwierdzenia",
       icon: AlertCircle,
       href: "/admin/rezerwacje?status=PENDING",
     },
     {
-      title: "Potwierdzone",
+      title: "Potwierdzone rezerwacje",
       value: confirmedReservationsCount,
       description: "Aktywne potwierdzone pobyty",
       icon: CheckCircle2,
       href: "/admin/rezerwacje?status=CONFIRMED",
+    },
+    {
+      title: "Nowe zapytania",
+      value: newInquiriesCount,
+      description: "Zapytania WWW do obsłużenia",
+      icon: Inbox,
+      href: "/admin/zapytania?status=NEW",
+    },
+    {
+      title: "Zatwierdzone zapytania",
+      value: approvedInquiriesCount,
+      description: "Zapytania po utworzeniu rezerwacji lub ręcznym zatwierdzeniu",
+      icon: CheckCircle2,
+      href: "/admin/zapytania?status=APPROVED",
+    },
+    {
+      title: "Archiwalne zapytania",
+      value: archivedInquiriesCount,
+      description: "Zapytania odłożone do archiwum",
+      icon: Inbox,
+      href: "/admin/zapytania?status=ARCHIVED",
     },
     {
       title: "Do zapłaty",
@@ -286,6 +330,12 @@ export default async function AdminPage() {
       icon: CalendarCheck,
     },
     {
+      title: "Sprawdź zapytania",
+      description: "Obsłuż nowe zapytania ze strony WWW.",
+      href: "/admin/zapytania",
+      icon: Inbox,
+    },
+    {
       title: "Dodaj domek",
       description: "Dodaj nowy domek do oferty.",
       href: "/admin/domki/nowy",
@@ -300,6 +350,17 @@ export default async function AdminPage() {
   ];
 
   const operationalAlerts = [
+    ...(newInquiriesCount > 0
+      ? [
+          {
+            type: "warning",
+            title: "Nowe zapytania WWW do obsłużenia",
+            description: `Masz ${newInquiriesCount} nowych zapytań ze strony publicznej. Warto je sprawdzić, odpisać gościom albo utworzyć rezerwacje.`,
+            href: "/admin/zapytania?status=NEW",
+            icon: Inbox,
+          },
+        ]
+      : []),
     ...(pendingReservationsCount > 0
       ? [
           {
