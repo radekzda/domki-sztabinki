@@ -339,8 +339,8 @@ function combineDateAndTime(date: Date, timeValue: string | undefined | null) {
       date.getUTCDate(),
       time.hour,
       time.minute,
-      0
-    )
+      0,
+    ),
   );
 }
 
@@ -354,12 +354,16 @@ function getNights(checkIn: Date, checkOut: Date) {
 function mapReservationStatus(value: string | undefined | null) {
   const cleanedValue = cleanText(value).toLowerCase();
 
-  if (cleanedValue === "confirmed" || cleanedValue === "checked_in") {
+  if (cleanedValue === "confirmed") {
     return "CONFIRMED";
   }
 
+  if (cleanedValue === "checked_in") {
+    return "CHECKED_IN";
+  }
+
   if (cleanedValue === "checked_out" || cleanedValue === "completed") {
-    return "COMPLETED";
+    return "CHECKED_OUT";
   }
 
   if (cleanedValue === "cancelled" || cleanedValue === "canceled") {
@@ -371,6 +375,67 @@ function mapReservationStatus(value: string | undefined | null) {
   }
 
   return "CONFIRMED";
+}
+
+function mapPaymentStatus({
+  value,
+  totalPrice,
+  paidAmount,
+}: {
+  value: string | undefined | null;
+  totalPrice: number;
+  paidAmount: number;
+}) {
+  const cleanedValue = cleanText(value).toLowerCase();
+
+  if (
+    cleanedValue === "paid" ||
+    cleanedValue === "opłacona" ||
+    cleanedValue === "oplacona"
+  ) {
+    return "PAID";
+  }
+
+  if (
+    cleanedValue === "partial" ||
+    cleanedValue === "partially_paid" ||
+    cleanedValue === "partial_paid" ||
+    cleanedValue === "częściowa" ||
+    cleanedValue === "czesciowa"
+  ) {
+    return "PARTIAL";
+  }
+
+  if (
+    cleanedValue === "pending" ||
+    cleanedValue === "unpaid" ||
+    cleanedValue === "oczekuje"
+  ) {
+    return "PENDING";
+  }
+
+  if (
+    cleanedValue === "refunded" ||
+    cleanedValue === "returned" ||
+    cleanedValue === "zwrócona" ||
+    cleanedValue === "zwrocona"
+  ) {
+    return "REFUNDED";
+  }
+
+  if (totalPrice <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
 }
 
 function mapReservationSource(value: string | undefined | null) {
@@ -401,7 +466,7 @@ function normalizeCabinName(value: string) {
 
 function findCabinByExternalRoomId(
   externalRoomId: string,
-  cabins: ExistingCabin[]
+  cabins: ExistingCabin[],
 ) {
   const cabinName = externalRoomIdToCabinName[externalRoomId];
 
@@ -415,7 +480,7 @@ function findCabinByExternalRoomId(
     cabins.find(
       (cabin) =>
         normalizeCabinName(cabin.name) === normalizedCabinName ||
-        normalizeCabinName(cabin.shortName ?? "") === normalizedCabinName
+        normalizeCabinName(cabin.shortName ?? "") === normalizedCabinName,
     ) ?? null
   );
 }
@@ -426,7 +491,7 @@ function getGuestFullName(guest: ExistingGuest) {
 
 function findGuestByExternalGuestId(
   externalGuestId: string | null,
-  guests: ExistingGuest[]
+  guests: ExistingGuest[],
 ) {
   if (!externalGuestId) {
     return null;
@@ -472,7 +537,11 @@ function createImportedReservation(row: CsvRow): ImportedReservation | null {
     guests,
     totalPrice,
     paidAmount,
-    paymentStatus: cleanNullableText(row.payment_status),
+    paymentStatus: mapPaymentStatus({
+      value: row.payment_status,
+      totalPrice,
+      paidAmount,
+    }),
     source: mapReservationSource(row.source),
     status: mapReservationStatus(row.status),
     specialRequests: cleanNullableText(row.special_requests),
@@ -606,7 +675,7 @@ export async function importReservationsFromCsv(formData: FormData) {
 
     const cabin = findCabinByExternalRoomId(
       importedReservation.externalRoomId,
-      cabins
+      cabins,
     );
 
     if (!cabin) {
@@ -616,7 +685,7 @@ export async function importReservationsFromCsv(formData: FormData) {
 
     const guest = findGuestByExternalGuestId(
       importedReservation.externalGuestId,
-      guests
+      guests,
     );
 
     if (!guest) {
@@ -628,7 +697,9 @@ export async function importReservationsFromCsv(formData: FormData) {
     const notes = buildNotes(importedReservation);
     const pricePerNight =
       importedReservation.nights > 0
-        ? Math.round((importedReservation.totalPrice / importedReservation.nights) * 100) / 100
+        ? Math.round(
+            (importedReservation.totalPrice / importedReservation.nights) * 100,
+          ) / 100
         : importedReservation.totalPrice;
 
     const existingReservation = await prisma.reservation.findFirst({
@@ -752,6 +823,6 @@ export async function importReservationsFromCsv(formData: FormData) {
       created,
       updated,
       skipped,
-    })
+    }),
   );
 }
