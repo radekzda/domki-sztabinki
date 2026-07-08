@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 
-type ReservationFilter = "ALL" | "WITH_RESERVATIONS" | "WITHOUT_RESERVATIONS";
+type GuestFilter =
+  | "ALL"
+  | "WITH_RESERVATIONS"
+  | "WITHOUT_RESERVATIONS"
+  | "MISSING_CONTACT"
+  | "SOURCE_BASE44"
+  | "SOURCE_CSV_IMPORT"
+  | "SOURCE_MANUAL";
 
 function getSearchQuery(value: string | null) {
   if (!value) {
@@ -10,13 +17,29 @@ function getSearchQuery(value: string | null) {
   return value.trim();
 }
 
-function getReservationFilter(value: string | null): ReservationFilter {
+function getGuestFilter(value: string | null): GuestFilter {
   if (value === "WITH_RESERVATIONS") {
     return "WITH_RESERVATIONS";
   }
 
   if (value === "WITHOUT_RESERVATIONS") {
     return "WITHOUT_RESERVATIONS";
+  }
+
+  if (value === "MISSING_CONTACT") {
+    return "MISSING_CONTACT";
+  }
+
+  if (value === "SOURCE_BASE44") {
+    return "SOURCE_BASE44";
+  }
+
+  if (value === "SOURCE_CSV_IMPORT") {
+    return "SOURCE_CSV_IMPORT";
+  }
+
+  if (value === "SOURCE_MANUAL") {
+    return "SOURCE_MANUAL";
   }
 
   return "ALL";
@@ -84,16 +107,73 @@ function getLastReservationDate(
     .sort((a, b) => b.getTime() - a.getTime())[0];
 }
 
-function guestMatchesReservationFilter(
-  reservationsCount: number,
-  reservationFilter: ReservationFilter
+function getSourceLabel(source: string) {
+  switch (source) {
+    case "MANUAL":
+      return "Ręcznie";
+    case "PHONE":
+      return "Telefon";
+    case "WEBSITE":
+      return "WWW";
+    case "BOOKING":
+      return "Booking";
+    case "AIRBNB":
+      return "Airbnb";
+    case "BASE44":
+      return "Base44";
+    case "CSV_IMPORT":
+      return "Import CSV";
+    case "RESERVATION_SYNC":
+      return "Synchronizacja rezerwacji";
+    default:
+      return source;
+  }
+}
+
+function hasMissingContact({
+  email,
+  phone,
+}: {
+  email: string;
+  phone: string | null;
+}) {
+  return !email.trim() || !phone?.trim();
+}
+
+function guestMatchesFilter(
+  guest: {
+    email: string;
+    phone: string | null;
+    source: string;
+    reservations: unknown[];
+  },
+  guestFilter: GuestFilter
 ) {
-  if (reservationFilter === "WITH_RESERVATIONS") {
-    return reservationsCount > 0;
+  if (guestFilter === "WITH_RESERVATIONS") {
+    return guest.reservations.length > 0;
   }
 
-  if (reservationFilter === "WITHOUT_RESERVATIONS") {
-    return reservationsCount === 0;
+  if (guestFilter === "WITHOUT_RESERVATIONS") {
+    return guest.reservations.length === 0;
+  }
+
+  if (guestFilter === "MISSING_CONTACT") {
+    return hasMissingContact({
+      email: guest.email,
+      phone: guest.phone,
+    });
+  }
+
+  if (guestFilter === "SOURCE_BASE44") {
+    return guest.source === "BASE44";
+  }
+
+  if (guestFilter === "SOURCE_CSV_IMPORT") {
+    return guest.source === "CSV_IMPORT";
+  }
+
+  if (guestFilter === "SOURCE_MANUAL") {
+    return guest.source === "MANUAL";
   }
 
   return true;
@@ -114,7 +194,7 @@ function createExportFileName() {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const searchQuery = getSearchQuery(url.searchParams.get("q"));
-  const reservationFilter = getReservationFilter(url.searchParams.get("filter"));
+  const guestFilter = getGuestFilter(url.searchParams.get("filter"));
 
   const allGuests = await prisma.guest.findMany({
     where: {
@@ -151,6 +231,36 @@ export async function GET(request: Request) {
                   mode: "insensitive",
                 },
               },
+              {
+                street: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                postalCode: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                city: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                fullAddress: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                source: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
@@ -179,7 +289,7 @@ export async function GET(request: Request) {
   });
 
   const guests = allGuests.filter((guest) =>
-    guestMatchesReservationFilter(guest.reservations.length, reservationFilter)
+    guestMatchesFilter(guest, guestFilter)
   );
 
   const header = createCsvRow([
@@ -189,6 +299,12 @@ export async function GET(request: Request) {
     "Email",
     "Telefon",
     "Kraj",
+    "Ulica i numer",
+    "Kod pocztowy",
+    "Miasto",
+    "Pełny adres",
+    "Źródło",
+    "Notatki",
     "Liczba rezerwacji",
     "Liczba nocy",
     "Wartość pobytów",
@@ -197,6 +313,7 @@ export async function GET(request: Request) {
     "Ostatni pobyt",
     "Ostatni domek",
     "Dodano do bazy",
+    "Ostatnia aktualizacja",
   ]);
 
   const rows = guests.map((guest) => {
@@ -229,6 +346,12 @@ export async function GET(request: Request) {
       guest.email,
       guest.phone,
       guest.country,
+      guest.street,
+      guest.postalCode,
+      guest.city,
+      guest.fullAddress,
+      getSourceLabel(guest.source),
+      guest.notes,
       reservationsCount,
       totalNights,
       totalValue,
@@ -239,6 +362,7 @@ export async function GET(request: Request) {
         ? lastReservation.cabin.shortName || lastReservation.cabin.name
         : "",
       formatDate(guest.createdAt),
+      formatDate(guest.updatedAt),
     ]);
   });
 

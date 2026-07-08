@@ -2,7 +2,14 @@ import Link from "next/link";
 import { syncGuestsFromReservations } from "@/actions/guests";
 import { prisma } from "@/lib/prisma";
 
-type ReservationFilter = "ALL" | "WITH_RESERVATIONS" | "WITHOUT_RESERVATIONS";
+type GuestFilter =
+  | "ALL"
+  | "WITH_RESERVATIONS"
+  | "WITHOUT_RESERVATIONS"
+  | "MISSING_CONTACT"
+  | "SOURCE_BASE44"
+  | "SOURCE_CSV_IMPORT"
+  | "SOURCE_MANUAL";
 
 type Props = {
   searchParams?: Promise<{
@@ -15,9 +22,9 @@ type Props = {
   }>;
 };
 
-const reservationFilters: {
+const guestFilters: {
   label: string;
-  value: ReservationFilter;
+  value: GuestFilter;
 }[] = [
   {
     label: "Wszyscy goście",
@@ -31,6 +38,22 @@ const reservationFilters: {
     label: "Bez rezerwacji",
     value: "WITHOUT_RESERVATIONS",
   },
+  {
+    label: "Braki kontaktu",
+    value: "MISSING_CONTACT",
+  },
+  {
+    label: "Base44",
+    value: "SOURCE_BASE44",
+  },
+  {
+    label: "Import CSV",
+    value: "SOURCE_CSV_IMPORT",
+  },
+  {
+    label: "Ręcznie dodani",
+    value: "SOURCE_MANUAL",
+  },
 ];
 
 function getSearchQuery(value: string | undefined) {
@@ -41,13 +64,29 @@ function getSearchQuery(value: string | undefined) {
   return value.trim();
 }
 
-function getReservationFilter(value: string | undefined): ReservationFilter {
+function getGuestFilter(value: string | undefined): GuestFilter {
   if (value === "WITH_RESERVATIONS") {
     return "WITH_RESERVATIONS";
   }
 
   if (value === "WITHOUT_RESERVATIONS") {
     return "WITHOUT_RESERVATIONS";
+  }
+
+  if (value === "MISSING_CONTACT") {
+    return "MISSING_CONTACT";
+  }
+
+  if (value === "SOURCE_BASE44") {
+    return "SOURCE_BASE44";
+  }
+
+  if (value === "SOURCE_CSV_IMPORT") {
+    return "SOURCE_CSV_IMPORT";
+  }
+
+  if (value === "SOURCE_MANUAL") {
+    return "SOURCE_MANUAL";
   }
 
   return "ALL";
@@ -99,7 +138,7 @@ function getLastReservationDate(
     .sort((a, b) => b.getTime() - a.getTime())[0];
 }
 
-function getReservationFilterLabel(filter: ReservationFilter) {
+function getGuestFilterLabel(filter: GuestFilter) {
   if (filter === "WITH_RESERVATIONS") {
     return "Z rezerwacjami";
   }
@@ -108,7 +147,69 @@ function getReservationFilterLabel(filter: ReservationFilter) {
     return "Bez rezerwacji";
   }
 
+  if (filter === "MISSING_CONTACT") {
+    return "Braki kontaktu";
+  }
+
+  if (filter === "SOURCE_BASE44") {
+    return "Base44";
+  }
+
+  if (filter === "SOURCE_CSV_IMPORT") {
+    return "Import CSV";
+  }
+
+  if (filter === "SOURCE_MANUAL") {
+    return "Ręcznie dodani";
+  }
+
   return "Wszyscy goście";
+}
+
+function getSourceLabel(source: string) {
+  switch (source) {
+    case "MANUAL":
+      return "Ręcznie";
+    case "PHONE":
+      return "Telefon";
+    case "WEBSITE":
+      return "WWW";
+    case "BOOKING":
+      return "Booking";
+    case "AIRBNB":
+      return "Airbnb";
+    case "BASE44":
+      return "Base44";
+    case "CSV_IMPORT":
+      return "Import CSV";
+    case "RESERVATION_SYNC":
+      return "Synchronizacja rezerwacji";
+    default:
+      return source;
+  }
+}
+
+function getSourceClassName(source: string) {
+  switch (source) {
+    case "BOOKING":
+      return "bg-green-100 text-green-700";
+    case "AIRBNB":
+      return "bg-red-100 text-red-700";
+    case "WEBSITE":
+      return "bg-blue-100 text-blue-700";
+    case "PHONE":
+      return "bg-yellow-100 text-yellow-800";
+    case "BASE44":
+      return "bg-purple-100 text-purple-700";
+    case "CSV_IMPORT":
+      return "bg-purple-100 text-purple-700";
+    case "RESERVATION_SYNC":
+      return "bg-indigo-100 text-indigo-700";
+    case "MANUAL":
+      return "bg-zinc-100 text-zinc-700";
+    default:
+      return "bg-zinc-100 text-zinc-700";
+  }
 }
 
 function getQuickFilterClassName(isActive: boolean) {
@@ -119,18 +220,15 @@ function getQuickFilterClassName(isActive: boolean) {
   return "rounded-full border bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900";
 }
 
-function buildGuestsUrl(
-  searchQuery: string,
-  reservationFilter: ReservationFilter
-) {
+function buildGuestsUrl(searchQuery: string, guestFilter: GuestFilter) {
   const params = new URLSearchParams();
 
   if (searchQuery) {
     params.set("q", searchQuery);
   }
 
-  if (reservationFilter !== "ALL") {
-    params.set("filter", reservationFilter);
+  if (guestFilter !== "ALL") {
+    params.set("filter", guestFilter);
   }
 
   const queryString = params.toString();
@@ -138,18 +236,15 @@ function buildGuestsUrl(
   return queryString ? `/admin/goscie?${queryString}` : "/admin/goscie";
 }
 
-function buildExportUrl(
-  searchQuery: string,
-  reservationFilter: ReservationFilter
-) {
+function buildExportUrl(searchQuery: string, guestFilter: GuestFilter) {
   const params = new URLSearchParams();
 
   if (searchQuery) {
     params.set("q", searchQuery);
   }
 
-  if (reservationFilter !== "ALL") {
-    params.set("filter", reservationFilter);
+  if (guestFilter !== "ALL") {
+    params.set("filter", guestFilter);
   }
 
   const queryString = params.toString();
@@ -173,16 +268,50 @@ function getNumberFromSearchParam(value: string | undefined) {
   return parsedValue;
 }
 
-function guestMatchesReservationFilter(
-  reservationsCount: number,
-  reservationFilter: ReservationFilter
+function hasMissingContact({
+  email,
+  phone,
+}: {
+  email: string;
+  phone: string | null;
+}) {
+  return !email.trim() || !phone?.trim();
+}
+
+function guestMatchesFilter(
+  guest: {
+    email: string;
+    phone: string | null;
+    source: string;
+    reservations: unknown[];
+  },
+  guestFilter: GuestFilter
 ) {
-  if (reservationFilter === "WITH_RESERVATIONS") {
-    return reservationsCount > 0;
+  if (guestFilter === "WITH_RESERVATIONS") {
+    return guest.reservations.length > 0;
   }
 
-  if (reservationFilter === "WITHOUT_RESERVATIONS") {
-    return reservationsCount === 0;
+  if (guestFilter === "WITHOUT_RESERVATIONS") {
+    return guest.reservations.length === 0;
+  }
+
+  if (guestFilter === "MISSING_CONTACT") {
+    return hasMissingContact({
+      email: guest.email,
+      phone: guest.phone,
+    });
+  }
+
+  if (guestFilter === "SOURCE_BASE44") {
+    return guest.source === "BASE44";
+  }
+
+  if (guestFilter === "SOURCE_CSV_IMPORT") {
+    return guest.source === "CSV_IMPORT";
+  }
+
+  if (guestFilter === "SOURCE_MANUAL") {
+    return guest.source === "MANUAL";
   }
 
   return true;
@@ -191,7 +320,7 @@ function guestMatchesReservationFilter(
 export default async function GuestsPage({ searchParams }: Props) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const searchQuery = getSearchQuery(resolvedSearchParams?.q);
-  const reservationFilter = getReservationFilter(resolvedSearchParams?.filter);
+  const guestFilter = getGuestFilter(resolvedSearchParams?.filter);
 
   const allGuests = await prisma.guest.findMany({
     where: {
@@ -228,6 +357,36 @@ export default async function GuestsPage({ searchParams }: Props) {
                   mode: "insensitive",
                 },
               },
+              {
+                street: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                postalCode: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                city: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                fullAddress: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                source: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
@@ -256,7 +415,7 @@ export default async function GuestsPage({ searchParams }: Props) {
   });
 
   const guests = allGuests.filter((guest) =>
-    guestMatchesReservationFilter(guest.reservations.length, reservationFilter)
+    guestMatchesFilter(guest, guestFilter)
   );
 
   const reservationsWithoutGuestCount = await prisma.reservation.count({
@@ -273,6 +432,13 @@ export default async function GuestsPage({ searchParams }: Props) {
 
   const guestsWithoutReservations = guests.filter(
     (guest) => guest.reservations.length === 0
+  ).length;
+
+  const guestsWithMissingContact = guests.filter((guest) =>
+    hasMissingContact({
+      email: guest.email,
+      phone: guest.phone,
+    })
   ).length;
 
   const totalReservations = guests.reduce(
@@ -301,7 +467,7 @@ export default async function GuestsPage({ searchParams }: Props) {
     0
   );
 
-  const exportUrl = buildExportUrl(searchQuery, reservationFilter);
+  const exportUrl = buildExportUrl(searchQuery, guestFilter);
 
   const syncReservations = getNumberFromSearchParam(
     resolvedSearchParams?.reservations
@@ -316,7 +482,7 @@ export default async function GuestsPage({ searchParams }: Props) {
   );
 
   const showSyncSuccess = resolvedSearchParams?.sync === "ok";
-  const activeFilters = searchQuery !== "" || reservationFilter !== "ALL";
+  const activeFilters = searchQuery !== "" || guestFilter !== "ALL";
 
   return (
     <div className="space-y-8">
@@ -325,7 +491,8 @@ export default async function GuestsPage({ searchParams }: Props) {
           <h1 className="text-3xl font-bold">Goście</h1>
 
           <p className="mt-2 text-zinc-500">
-            Baza gości tworzona automatycznie z rezerwacji.
+            Baza gości tworzona automatycznie z rezerwacji, importu CSV i
+            ręcznego dodawania.
           </p>
         </div>
 
@@ -402,7 +569,7 @@ export default async function GuestsPage({ searchParams }: Props) {
         </section>
       )}
 
-      <section className="grid gap-4 md:grid-cols-5">
+      <section className="grid gap-4 md:grid-cols-6">
         <div className="rounded-xl border bg-white p-5 shadow-sm">
           <div className="text-sm text-zinc-500">Goście</div>
           <div className="mt-1 text-3xl font-bold">{totalGuests}</div>
@@ -419,6 +586,13 @@ export default async function GuestsPage({ searchParams }: Props) {
           <div className="text-sm text-zinc-500">Bez rezerwacji</div>
           <div className="mt-1 text-3xl font-bold text-zinc-700">
             {guestsWithoutReservations}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <div className="text-sm text-zinc-500">Braki kontaktu</div>
+          <div className="mt-1 text-3xl font-bold text-red-700">
+            {guestsWithMissingContact}
           </div>
         </div>
 
@@ -456,8 +630,8 @@ export default async function GuestsPage({ searchParams }: Props) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {reservationFilters.map((filter) => {
-              const isActive = filter.value === reservationFilter;
+            {guestFilters.map((filter) => {
+              const isActive = filter.value === guestFilter;
 
               return (
                 <Link
@@ -473,8 +647,8 @@ export default async function GuestsPage({ searchParams }: Props) {
         </div>
 
         <form className="flex flex-wrap items-end gap-4">
-          {reservationFilter !== "ALL" ? (
-            <input type="hidden" name="filter" value={reservationFilter} />
+          {guestFilter !== "ALL" ? (
+            <input type="hidden" name="filter" value={guestFilter} />
           ) : null}
 
           <div className="min-w-[280px] flex-1 space-y-1">
@@ -486,7 +660,7 @@ export default async function GuestsPage({ searchParams }: Props) {
               name="q"
               defaultValue={searchQuery}
               className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
-              placeholder="Imię, nazwisko, email, telefon albo kraj"
+              placeholder="Imię, nazwisko, email, telefon, kraj, miasto albo adres"
             />
           </div>
 
@@ -515,9 +689,9 @@ export default async function GuestsPage({ searchParams }: Props) {
                 </span>
               ) : null}
 
-              {reservationFilter !== "ALL" ? (
+              {guestFilter !== "ALL" ? (
                 <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
-                  Filtr: {getReservationFilterLabel(reservationFilter)}
+                  Filtr: {getGuestFilterLabel(guestFilter)}
                 </span>
               ) : null}
             </div>
@@ -530,12 +704,13 @@ export default async function GuestsPage({ searchParams }: Props) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] border-collapse text-sm">
+            <table className="w-full min-w-[1250px] border-collapse text-sm">
               <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
                   <th className="border-b p-4">Gość</th>
                   <th className="border-b p-4">Kontakt</th>
                   <th className="border-b p-4">Kraj</th>
+                  <th className="border-b p-4">Źródło</th>
                   <th className="border-b p-4 text-center">Rezerwacje</th>
                   <th className="border-b p-4 text-center">Noce</th>
                   <th className="border-b p-4 text-right">Wartość</th>
@@ -566,6 +741,11 @@ export default async function GuestsPage({ searchParams }: Props) {
                     guest.reservations
                   );
 
+                  const missingContact = hasMissingContact({
+                    email: guest.email,
+                    phone: guest.phone,
+                  });
+
                   return (
                     <tr key={guest.id} className="align-top hover:bg-zinc-50">
                       <td className="border-b p-4">
@@ -576,6 +756,12 @@ export default async function GuestsPage({ searchParams }: Props) {
                         <div className="mt-1 text-xs text-zinc-500">
                           dodano: {formatDate(guest.createdAt)}
                         </div>
+
+                        {missingContact ? (
+                          <div className="mt-2 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                            braki kontaktu
+                          </div>
+                        ) : null}
                       </td>
 
                       <td className="border-b p-4">
@@ -590,6 +776,16 @@ export default async function GuestsPage({ searchParams }: Props) {
 
                       <td className="border-b p-4">
                         {guest.country || "—"}
+                      </td>
+
+                      <td className="border-b p-4">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getSourceClassName(
+                            guest.source
+                          )}`}
+                        >
+                          {getSourceLabel(guest.source)}
+                        </span>
                       </td>
 
                       <td className="border-b p-4 text-center font-semibold">
