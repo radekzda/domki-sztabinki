@@ -79,6 +79,38 @@ function getStatusClassName(status: string) {
   return "bg-zinc-100 text-zinc-700 border-zinc-200";
 }
 
+function getInquiryStatusLabel(status: string) {
+  if (status === "NEW") {
+    return "Nowe";
+  }
+
+  if (status === "APPROVED" || status === "CONTACTED") {
+    return "Zatwierdzone";
+  }
+
+  if (status === "ARCHIVED") {
+    return "Archiwalne";
+  }
+
+  return status;
+}
+
+function getInquiryStatusClassName(status: string) {
+  if (status === "NEW") {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  }
+
+  if (status === "APPROVED" || status === "CONTACTED") {
+    return "bg-sky-50 text-sky-700 border-sky-200";
+  }
+
+  if (status === "ARCHIVED") {
+    return "bg-slate-100 text-slate-700 border-slate-200";
+  }
+
+  return "bg-zinc-100 text-zinc-700 border-zinc-200";
+}
+
 function getAlertClassName(type: string) {
   if (type === "warning") {
     return "border-amber-200 bg-amber-50";
@@ -133,6 +165,7 @@ export default async function AdminPage() {
     revenueSummary,
     upcomingReservations,
     nextSevenDaysReservations,
+    latestInquiries,
   ] = await Promise.all([
     prisma.cabin.count(),
     prisma.cabin.count({
@@ -240,6 +273,27 @@ export default async function AdminPage() {
         },
       },
     }),
+    prisma.inquiry.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+      select: {
+        id: true,
+        fullName: true,
+        phone: true,
+        dateFrom: true,
+        dateTo: true,
+        status: true,
+        cabinName: true,
+        createdAt: true,
+        cabin: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
   ]);
 
   const totalRevenue = toNumber(revenueSummary._sum.totalPrice);
@@ -302,7 +356,8 @@ export default async function AdminPage() {
     {
       title: "Zatwierdzone zapytania",
       value: approvedInquiriesCount,
-      description: "Zapytania po utworzeniu rezerwacji lub ręcznym zatwierdzeniu",
+      description:
+        "Zapytania po utworzeniu rezerwacji lub ręcznym zatwierdzeniu",
       icon: CheckCircle2,
       href: "/admin/zapytania?status=APPROVED",
     },
@@ -564,88 +619,176 @@ export default async function AdminPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-        <div className="rounded-xl border bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b px-6 py-4">
-            <div>
-              <h2 className="text-xl font-semibold text-zinc-900">
-                Najbliższe rezerwacje
-              </h2>
+        <div className="space-y-6">
+          <div className="rounded-xl border bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold text-zinc-900">
+                  Najbliższe rezerwacje
+                </h2>
 
-              <p className="mt-1 text-sm text-zinc-500">
-                Pierwsze 5 nadchodzących rezerwacji.
-              </p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Pierwsze 5 nadchodzących rezerwacji.
+                </p>
+              </div>
+
+              <Link
+                href="/admin/rezerwacje"
+                className="inline-flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-800"
+              >
+                Wszystkie
+                <ArrowRight size={16} />
+              </Link>
             </div>
 
-            <Link
-              href="/admin/rezerwacje"
-              className="inline-flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-800"
-            >
-              Wszystkie
-              <ArrowRight size={16} />
-            </Link>
-          </div>
+            <div className="divide-y">
+              {upcomingReservations.length === 0 ? (
+                <div className="p-6 text-sm text-zinc-500">
+                  Brak nadchodzących rezerwacji.
+                </div>
+              ) : (
+                upcomingReservations.map((reservation) => {
+                  const totalPrice = toNumber(reservation.totalPrice);
+                  const paidAmount = toNumber(reservation.paidAmount);
+                  const amountLeft = Math.max(totalPrice - paidAmount, 0);
 
-          <div className="divide-y">
-            {upcomingReservations.length === 0 ? (
-              <div className="p-6 text-sm text-zinc-500">
-                Brak nadchodzących rezerwacji.
-              </div>
-            ) : (
-              upcomingReservations.map((reservation) => {
-                const totalPrice = toNumber(reservation.totalPrice);
-                const paidAmount = toNumber(reservation.paidAmount);
-                const amountLeft = Math.max(totalPrice - paidAmount, 0);
+                  return (
+                    <Link
+                      key={reservation.id}
+                      href={`/admin/rezerwacje/${reservation.id}`}
+                      className="block p-6 transition hover:bg-zinc-50"
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold text-zinc-900">
+                              {reservation.guestName}
+                            </h3>
 
-                return (
-                  <Link
-                    key={reservation.id}
-                    href={`/admin/rezerwacje/${reservation.id}`}
-                    className="block p-6 transition hover:bg-zinc-50"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-semibold text-zinc-900">
-                            {reservation.guestName}
-                          </h3>
+                            <span
+                              className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClassName(
+                                reservation.status,
+                              )}`}
+                            >
+                              {getStatusLabel(reservation.status)}
+                            </span>
+                          </div>
 
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClassName(
-                              reservation.status,
-                            )}`}
-                          >
-                            {getStatusLabel(reservation.status)}
-                          </span>
+                          <p className="mt-1 text-sm text-zinc-500">
+                            {reservation.cabin.name}
+                          </p>
+
+                          <p className="mt-1 text-sm text-zinc-500">
+                            {formatDate(reservation.startDate)} -{" "}
+                            {formatDate(reservation.endDate)}
+                          </p>
                         </div>
 
-                        <p className="mt-1 text-sm text-zinc-500">
-                          {reservation.cabin.name}
-                        </p>
+                        <div className="text-left lg:text-right">
+                          <p className="text-sm text-zinc-500">
+                            Wartość
+                          </p>
 
-                        <p className="mt-1 text-sm text-zinc-500">
-                          {formatDate(reservation.startDate)} -{" "}
-                          {formatDate(reservation.endDate)}
-                        </p>
+                          <p className="font-semibold text-zinc-900">
+                            {formatCurrency(totalPrice)}
+                          </p>
+
+                          <p className="mt-1 text-sm text-zinc-500">
+                            Pozostało: {formatCurrency(amountLeft)}
+                          </p>
+                        </div>
                       </div>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          </div>
 
-                      <div className="text-left lg:text-right">
-                        <p className="text-sm text-zinc-500">
-                          Wartość
-                        </p>
+          <div className="rounded-xl border bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold text-zinc-900">
+                  Ostatnie zapytania WWW
+                </h2>
 
-                        <p className="font-semibold text-zinc-900">
-                          {formatCurrency(totalPrice)}
-                        </p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Ostatnie 5 zapytań wysłanych przez formularz publiczny.
+                </p>
+              </div>
 
-                        <p className="mt-1 text-sm text-zinc-500">
-                          Pozostało: {formatCurrency(amountLeft)}
-                        </p>
+              <Link
+                href="/admin/zapytania"
+                className="inline-flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-800"
+              >
+                Wszystkie
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+
+            <div className="divide-y">
+              {latestInquiries.length === 0 ? (
+                <div className="p-6 text-sm text-zinc-500">
+                  Brak zapytań ze strony publicznej.
+                </div>
+              ) : (
+                latestInquiries.map((inquiry) => {
+                  const selectedCabinName =
+                    inquiry.cabin?.name ||
+                    inquiry.cabinName ||
+                    "Dowolny / do ustalenia";
+
+                  return (
+                    <Link
+                      key={inquiry.id}
+                      href={`/admin/zapytania/${inquiry.id}`}
+                      className="block p-6 transition hover:bg-zinc-50"
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold text-zinc-900">
+                              {inquiry.fullName}
+                            </h3>
+
+                            <span
+                              className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getInquiryStatusClassName(
+                                inquiry.status,
+                              )}`}
+                            >
+                              {getInquiryStatusLabel(inquiry.status)}
+                            </span>
+                          </div>
+
+                          <p className="mt-1 text-sm text-zinc-500">
+                            {selectedCabinName}
+                          </p>
+
+                          <p className="mt-1 text-sm text-zinc-500">
+                            {formatDate(inquiry.dateFrom)} -{" "}
+                            {formatDate(inquiry.dateTo)}
+                          </p>
+                        </div>
+
+                        <div className="text-left lg:text-right">
+                          <p className="text-sm text-zinc-500">
+                            Telefon
+                          </p>
+
+                          <p className="font-semibold text-zinc-900">
+                            {inquiry.phone}
+                          </p>
+
+                          <p className="mt-1 text-sm text-zinc-500">
+                            Wysłano: {formatDate(inquiry.createdAt)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                );
-              })
-            )}
+                    </Link>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
 
