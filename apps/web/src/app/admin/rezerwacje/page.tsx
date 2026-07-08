@@ -51,6 +51,33 @@ const quickStatusFilters = [
   },
 ];
 
+const quickSourceFilters = [
+  {
+    label: "Wszystkie źródła",
+    source: "ALL",
+  },
+  {
+    label: "Ręcznie",
+    source: "MANUAL",
+  },
+  {
+    label: "Telefon",
+    source: "PHONE",
+  },
+  {
+    label: "WWW",
+    source: "WEBSITE",
+  },
+  {
+    label: "Booking",
+    source: "BOOKING",
+  },
+  {
+    label: "Airbnb",
+    source: "AIRBNB",
+  },
+];
+
 function getStatusFilter(value: string | undefined) {
   if (!value) {
     return "ALL";
@@ -246,6 +273,14 @@ function getPaymentLabel(remainingAmount: number | null) {
 function getQuickStatusFilterClassName(isActive: boolean) {
   if (isActive) {
     return "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800";
+  }
+
+  return "rounded-full border bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900";
+}
+
+function getQuickSourceFilterClassName(isActive: boolean) {
+  if (isActive) {
+    return "rounded-full bg-green-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800";
   }
 
   return "rounded-full border bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900";
@@ -632,26 +667,62 @@ export default async function ReservationsPage({ searchParams }: Props) {
       </section>
 
       <section className="rounded-xl border bg-white p-5 shadow-sm">
-        <div className="mb-5 flex flex-wrap gap-2">
-          {quickStatusFilters.map((filter) => {
-            const isActive = filter.status === statusFilter;
+        <div className="mb-5 space-y-4">
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Szybki filtr statusu
+            </div>
 
-            return (
-              <Link
-                key={filter.status}
-                href={buildReservationsUrl({
-                  searchQuery,
-                  statusFilter: filter.status,
-                  sourceFilter,
-                  dateFrom,
-                  dateTo,
-                })}
-                className={getQuickStatusFilterClassName(isActive)}
-              >
-                {filter.label}
-              </Link>
-            );
-          })}
+            <div className="flex flex-wrap gap-2">
+              {quickStatusFilters.map((filter) => {
+                const isActive = filter.status === statusFilter;
+
+                return (
+                  <Link
+                    key={filter.status}
+                    href={buildReservationsUrl({
+                      searchQuery,
+                      statusFilter: filter.status,
+                      sourceFilter,
+                      dateFrom,
+                      dateTo,
+                    })}
+                    className={getQuickStatusFilterClassName(isActive)}
+                  >
+                    {filter.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Szybki filtr źródła
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {quickSourceFilters.map((filter) => {
+                const isActive = filter.source === sourceFilter;
+
+                return (
+                  <Link
+                    key={filter.source}
+                    href={buildReservationsUrl({
+                      searchQuery,
+                      statusFilter,
+                      sourceFilter: filter.source,
+                      dateFrom,
+                      dateTo,
+                    })}
+                    className={getQuickSourceFilterClassName(isActive)}
+                  >
+                    {filter.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <form className="grid gap-4 xl:grid-cols-[1fr_auto_auto_auto_auto_auto_auto] xl:items-end">
