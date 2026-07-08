@@ -159,6 +159,13 @@ model Guest {
   city        String?
   fullAddress String?
 
+  pesel           String?
+  documentNumber  String?
+  nationality     String?
+  birthDate       DateTime?
+  isVip           Boolean   @default(false)
+  externalGuestId String?
+
   notes  String?
   source String  @default("MANUAL")
 
@@ -166,6 +173,11 @@ model Guest {
   updatedAt DateTime @default(now()) @updatedAt
 
   reservations Reservation[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([externalGuestId])
+  @@index([source])
 }
 
 model SystemSettings {
