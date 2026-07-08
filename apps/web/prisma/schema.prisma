@@ -67,6 +67,19 @@ model Reservation {
   status String @default("PENDING")
   source String @default("MANUAL")
 
+  externalReservationId String?   @unique
+  externalRoomId        String?
+  externalGuestId       String?
+  externalCreatedAt     DateTime?
+  externalUpdatedAt     DateTime?
+  externalCreatedById   String?
+  externalCreatedBy     String?
+  externalIsSample      Boolean   @default(false)
+
+  paymentStatus   String?
+  specialRequests String?
+  orderedBy       String?
+
   totalPrice Decimal? @db.Decimal(10, 2)
   paidAmount Decimal? @db.Decimal(10, 2)
 
@@ -83,6 +96,16 @@ model Reservation {
   cabin Cabin @relation(fields: [cabinId], references: [id])
 
   guest Guest? @relation(fields: [guestId], references: [id])
+
+  @@index([guestId])
+  @@index([cabinId])
+  @@index([externalRoomId])
+  @@index([externalGuestId])
+  @@index([status])
+  @@index([source])
+  @@index([paymentStatus])
+  @@index([startDate])
+  @@index([endDate])
 }
 
 model Inquiry {
