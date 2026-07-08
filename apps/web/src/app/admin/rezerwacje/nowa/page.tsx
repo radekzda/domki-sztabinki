@@ -25,6 +25,10 @@ type Props = {
     city?: string;
     country?: string;
     notes?: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+    totalPrice?: string;
+    paidAmount?: string;
   }>;
 };
 
@@ -34,6 +38,14 @@ function isValidDateInputValue(value: string | undefined) {
   }
 
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isValidTimeInputValue(value: string | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return /^\d{2}:\d{2}$/.test(value);
 }
 
 function getNextDateInputValue(dateValue: string) {
@@ -89,6 +101,22 @@ function getNumberInputValue(value: string, fallback: string) {
   }
 
   return String(parsedValue);
+}
+
+function getMoneyInputValue(value: string) {
+  const normalizedValue = value.replace(",", ".");
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  const parsedValue = Number(normalizedValue);
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+    return "";
+  }
+
+  return normalizedValue;
 }
 
 function getReservationSource(value: string) {
@@ -176,6 +204,16 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
   const urlCity = getSearchParamValue(resolvedSearchParams?.city);
   const urlCountry = getSearchParamValue(resolvedSearchParams?.country);
   const urlNotes = getSearchParamValue(resolvedSearchParams?.notes);
+  const urlCheckInTime = getSearchParamValue(resolvedSearchParams?.checkInTime);
+  const urlCheckOutTime = getSearchParamValue(
+    resolvedSearchParams?.checkOutTime,
+  );
+  const urlTotalPrice = getMoneyInputValue(
+    getSearchParamValue(resolvedSearchParams?.totalPrice),
+  );
+  const urlPaidAmount = getMoneyInputValue(
+    getSearchParamValue(resolvedSearchParams?.paidAmount),
+  );
   const splitUrlGuestName = splitGuestName(urlGuestName);
 
   const initialStartDate = isValidDateInputValue(
@@ -234,6 +272,12 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
   const initialPhone = initialGuest?.phone ?? urlPhone;
   const initialCountry =
     initialGuest?.country ?? (urlCountry || settings.propertyCountry);
+  const initialCheckInTime = isValidTimeInputValue(urlCheckInTime)
+    ? urlCheckInTime
+    : settings.checkInTime;
+  const initialCheckOutTime = isValidTimeInputValue(urlCheckOutTime)
+    ? urlCheckOutTime
+    : settings.checkOutTime;
   const isFromInquiry = Boolean(inquiryId);
 
   return (
@@ -327,8 +371,10 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         initialCity={urlCity}
         initialCountry={initialCountry}
         initialNotes={urlNotes}
-        initialCheckInTime={settings.checkInTime}
-        initialCheckOutTime={settings.checkOutTime}
+        initialCheckInTime={initialCheckInTime}
+        initialCheckOutTime={initialCheckOutTime}
+        initialTotalPrice={urlTotalPrice}
+        initialPaidAmount={urlPaidAmount}
         initialInquiryId={inquiryId}
         minimumNights={settings.minimumNights}
       />

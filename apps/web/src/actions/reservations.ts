@@ -116,6 +116,16 @@ function getOptionalString(formData: FormData, key: string) {
   return trimmedValue === "" ? null : trimmedValue;
 }
 
+function getStringForRedirect(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim();
+}
+
 function getNumber(formData: FormData, key: string, defaultValue: number) {
   const value = formData.get(key);
 
@@ -130,6 +140,55 @@ function getNumber(formData: FormData, key: string, defaultValue: number) {
   }
 
   return parsedValue;
+}
+
+function buildNewReservationErrorHref(formData: FormData, message: string) {
+  const params = new URLSearchParams();
+
+  params.set("error", message);
+
+  const keysToPreserve = [
+    "cabinId",
+    "startDate",
+    "endDate",
+    "guestId",
+    "inquiryId",
+    "guestName",
+    "firstName",
+    "lastName",
+    "email",
+    "phone",
+    "guests",
+    "adults",
+    "children",
+    "source",
+    "street",
+    "postalCode",
+    "city",
+    "country",
+    "notes",
+    "checkInTime",
+    "checkOutTime",
+    "totalPrice",
+    "paidAmount",
+  ];
+
+  for (const key of keysToPreserve) {
+    const value = getStringForRedirect(formData, key);
+
+    if (value) {
+      params.set(key, value);
+    }
+  }
+
+  return `/admin/rezerwacje/nowa?${params.toString()}`;
+}
+
+function redirectWithNewReservationFormError(
+  formData: FormData,
+  message: string,
+): never {
+  redirect(buildNewReservationErrorHref(formData, message));
 }
 
 function parseDateTime(dateValue: string, timeValue: string) {
@@ -464,21 +523,18 @@ async function saveGuestForReservation({
 export async function createReservation(formData: FormData) {
   const inquiryId = getOptionalString(formData, "inquiryId");
 
-  const values = parseReservationForm(
-    formData,
-    redirectWithNewReservationError,
-  );
+  const onError = (message: string): never => {
+    redirectWithNewReservationFormError(formData, message);
+  };
+
+  const values = parseReservationForm(formData, onError);
 
   const cabin = await validateReservationData({
     values,
-    onError: redirectWithNewReservationError,
+    onError,
   });
 
-  const valuesWithPricing = completeReservationPricing(
-    values,
-    cabin,
-    redirectWithNewReservationError,
-  );
+  const valuesWithPricing = completeReservationPricing(values, cabin, onError);
 
   const guest = await saveGuestForReservation({
     values: valuesWithPricing,

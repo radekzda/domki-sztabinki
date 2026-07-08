@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createReservation } from "@/actions/reservations";
 import {
@@ -45,6 +45,8 @@ type ReservationFormProps = {
   initialInquiryId?: string;
   initialCheckInTime?: string;
   initialCheckOutTime?: string;
+  initialTotalPrice?: string;
+  initialPaidAmount?: string;
   minimumNights?: number;
 };
 
@@ -92,13 +94,21 @@ export default function ReservationForm({
   initialInquiryId = "",
   initialCheckInTime = "15:00",
   initialCheckOutTime = "11:00",
+  initialTotalPrice = "",
+  initialPaidAmount = "",
   minimumNights = 4,
 }: ReservationFormProps) {
   const [selectedCabinId, setSelectedCabinId] = useState(initialCabinId);
   const [startDateValue, setStartDateValue] = useState(initialStartDate);
   const [endDateValue, setEndDateValue] = useState(initialEndDate);
-  const [totalPriceValue, setTotalPriceValue] = useState("");
-  const [paidAmountValue, setPaidAmountValue] = useState("0");
+  const [totalPriceValue, setTotalPriceValue] = useState(initialTotalPrice);
+  const [paidAmountValue, setPaidAmountValue] = useState(
+    initialPaidAmount || "0",
+  );
+
+  const shouldSkipFirstAutomaticPriceUpdate = useRef(
+    initialTotalPrice.trim() !== "",
+  );
 
   const selectedCabin = useMemo(
     () => cabins.find((cabin) => cabin.id === selectedCabinId) ?? null,
@@ -135,6 +145,11 @@ export default function ReservationForm({
 
   useEffect(() => {
     if (defaultTotalPrice === null) {
+      return;
+    }
+
+    if (shouldSkipFirstAutomaticPriceUpdate.current) {
+      shouldSkipFirstAutomaticPriceUpdate.current = false;
       return;
     }
 
