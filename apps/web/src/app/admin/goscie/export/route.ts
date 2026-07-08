@@ -1,11 +1,25 @@
 import { prisma } from "@/lib/prisma";
 
+type ReservationFilter = "ALL" | "WITH_RESERVATIONS" | "WITHOUT_RESERVATIONS";
+
 function getSearchQuery(value: string | null) {
   if (!value) {
     return "";
   }
 
   return value.trim();
+}
+
+function getReservationFilter(value: string | null): ReservationFilter {
+  if (value === "WITH_RESERVATIONS") {
+    return "WITH_RESERVATIONS";
+  }
+
+  if (value === "WITHOUT_RESERVATIONS") {
+    return "WITHOUT_RESERVATIONS";
+  }
+
+  return "ALL";
 }
 
 function decimalToNumber(value: { toString: () => string } | null) {
@@ -70,6 +84,21 @@ function getLastReservationDate(
     .sort((a, b) => b.getTime() - a.getTime())[0];
 }
 
+function guestMatchesReservationFilter(
+  reservationsCount: number,
+  reservationFilter: ReservationFilter
+) {
+  if (reservationFilter === "WITH_RESERVATIONS") {
+    return reservationsCount > 0;
+  }
+
+  if (reservationFilter === "WITHOUT_RESERVATIONS") {
+    return reservationsCount === 0;
+  }
+
+  return true;
+}
+
 function createExportFileName() {
   const now = new Date();
 
@@ -85,8 +114,9 @@ function createExportFileName() {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const searchQuery = getSearchQuery(url.searchParams.get("q"));
+  const reservationFilter = getReservationFilter(url.searchParams.get("filter"));
 
-  const guests = await prisma.guest.findMany({
+  const allGuests = await prisma.guest.findMany({
     where: {
       ...(searchQuery
         ? {
@@ -147,6 +177,10 @@ export async function GET(request: Request) {
       },
     },
   });
+
+  const guests = allGuests.filter((guest) =>
+    guestMatchesReservationFilter(guest.reservations.length, reservationFilter)
+  );
 
   const header = createCsvRow([
     "Gość",

@@ -119,7 +119,10 @@ function getQuickFilterClassName(isActive: boolean) {
   return "rounded-full border bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900";
 }
 
-function buildGuestsUrl(searchQuery: string, reservationFilter: ReservationFilter) {
+function buildGuestsUrl(
+  searchQuery: string,
+  reservationFilter: ReservationFilter
+) {
   const params = new URLSearchParams();
 
   if (searchQuery) {
@@ -135,11 +138,18 @@ function buildGuestsUrl(searchQuery: string, reservationFilter: ReservationFilte
   return queryString ? `/admin/goscie?${queryString}` : "/admin/goscie";
 }
 
-function buildExportUrl(searchQuery: string) {
+function buildExportUrl(
+  searchQuery: string,
+  reservationFilter: ReservationFilter
+) {
   const params = new URLSearchParams();
 
   if (searchQuery) {
     params.set("q", searchQuery);
+  }
+
+  if (reservationFilter !== "ALL") {
+    params.set("filter", reservationFilter);
   }
 
   const queryString = params.toString();
@@ -291,7 +301,7 @@ export default async function GuestsPage({ searchParams }: Props) {
     0
   );
 
-  const exportUrl = buildExportUrl(searchQuery);
+  const exportUrl = buildExportUrl(searchQuery, reservationFilter);
 
   const syncReservations = getNumberFromSearchParam(
     resolvedSearchParams?.reservations
