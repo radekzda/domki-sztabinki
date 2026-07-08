@@ -12,6 +12,14 @@ type Props = {
   }>;
 };
 
+function formatDateInput(date: Date | null) {
+  if (!date) {
+    return "";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
 export default async function EditGuestPage({ params, searchParams }: Props) {
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
@@ -127,6 +135,84 @@ export default async function EditGuestPage({ params, searchParams }: Props) {
 
         <section className="space-y-4 border-t pt-6">
           <div>
+            <h2 className="text-xl font-semibold">Dane dokumentu i programu</h2>
+
+            <p className="mt-1 text-sm text-zinc-500">
+              Te pola pochodzą głównie z importu programu, ale można je też
+              uzupełnić ręcznie.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">PESEL</label>
+
+              <input
+                name="pesel"
+                defaultValue={guest.pesel ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="np. 80010112345"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Numer dokumentu</label>
+
+              <input
+                name="documentNumber"
+                defaultValue={guest.documentNumber ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="np. ABC123456"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Narodowość</label>
+
+              <input
+                name="nationality"
+                defaultValue={guest.nationality ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="np. Polska"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data urodzenia</label>
+
+              <input
+                type="date"
+                name="birthDate"
+                defaultValue={formatDateInput(guest.birthDate)}
+                className="w-full rounded-lg border p-3"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Zewnętrzne ID gościa</label>
+
+              <input
+                name="externalGuestId"
+                defaultValue={guest.externalGuestId ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="ID z innego programu"
+              />
+            </div>
+
+            <label className="flex items-center gap-3 rounded-xl border bg-zinc-50 p-4 text-sm font-semibold">
+              <input
+                type="checkbox"
+                name="isVip"
+                defaultChecked={guest.isVip}
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              Gość VIP
+            </label>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t pt-6">
+          <div>
             <h2 className="text-xl font-semibold">Adres</h2>
 
             <p className="mt-1 text-sm text-zinc-500">
@@ -181,7 +267,7 @@ export default async function EditGuestPage({ params, searchParams }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Źródło</label>
+              <label className="text-sm font-medium">Źródło techniczne</label>
 
               <select
                 name="source"

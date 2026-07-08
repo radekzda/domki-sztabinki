@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
@@ -29,6 +30,82 @@ function normalizePhone(value: string | null) {
   const normalizedPhone = value.replace(/[^\d+]/g, "");
 
   return normalizedPhone || null;
+}
+
+function normalizePesel(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedPesel = value.replace(/\D/g, "");
+
+  return normalizedPesel || null;
+}
+
+function createDateFromParts(year: number, month: number, day: number) {
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function isDateInFuture(date: Date) {
+  const now = new Date();
+  const today = new Date(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  );
+
+  return date.getTime() > today.getTime();
+}
+
+function parseBirthDate(value: string | null) {
+  if (!value) {
+    return {
+      date: null as Date | null,
+      error: null as string | null,
+    };
+  }
+
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!isoMatch) {
+    return {
+      date: null,
+      error: "invalid-birth-date",
+    };
+  }
+
+  const year = Number(isoMatch[1]);
+  const month = Number(isoMatch[2]);
+  const day = Number(isoMatch[3]);
+
+  const date = createDateFromParts(year, month, day);
+
+  if (!date) {
+    return {
+      date: null,
+      error: "invalid-birth-date",
+    };
+  }
+
+  if (isDateInFuture(date)) {
+    return {
+      date: null,
+      error: "future-birth-date",
+    };
+  }
+
+  return {
+    date,
+    error: null,
+  };
 }
 
 function buildFullAddress({
@@ -81,6 +158,20 @@ export async function createGuest(formData: FormData) {
   const fullAddress = cleanNullableText(formData.get("fullAddress"));
   const notes = cleanNullableText(formData.get("notes"));
 
+  const pesel = normalizePesel(cleanNullableText(formData.get("pesel")));
+  const documentNumber = cleanNullableText(formData.get("documentNumber"));
+  const nationality = cleanNullableText(formData.get("nationality"));
+  const externalGuestId = cleanNullableText(formData.get("externalGuestId"));
+  const isVip = formData.get("isVip") === "on";
+
+  const birthDateResult = parseBirthDate(
+    cleanNullableText(formData.get("birthDate"))
+  );
+
+  if (birthDateResult.error) {
+    redirect(buildNewGuestUrl(birthDateResult.error));
+  }
+
   if (!firstName && !lastName) {
     redirect(buildNewGuestUrl("missing-name"));
   }
@@ -89,13 +180,13 @@ export async function createGuest(formData: FormData) {
     redirect(buildNewGuestUrl("missing-contact"));
   }
 
-  const duplicateConditions = [];
+  const duplicateConditions: Prisma.GuestWhereInput[] = [];
 
   if (email) {
     duplicateConditions.push({
       email: {
         equals: email,
-        mode: "insensitive" as const,
+        mode: "insensitive",
       },
     });
   }
@@ -103,6 +194,18 @@ export async function createGuest(formData: FormData) {
   if (phone) {
     duplicateConditions.push({
       phone,
+    });
+  }
+
+  if (pesel) {
+    duplicateConditions.push({
+      pesel,
+    });
+  }
+
+  if (externalGuestId) {
+    duplicateConditions.push({
+      externalGuestId,
     });
   }
 
@@ -138,6 +241,12 @@ export async function createGuest(formData: FormData) {
         country,
         fullAddress,
       }),
+      pesel,
+      documentNumber,
+      nationality,
+      birthDate: birthDateResult.date,
+      isVip,
+      externalGuestId,
       notes,
       source: "MANUAL",
     },

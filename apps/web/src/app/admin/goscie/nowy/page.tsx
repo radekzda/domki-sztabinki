@@ -16,6 +16,14 @@ function getErrorMessage(error: string | undefined) {
     return "Podaj przynajmniej telefon albo adres e-mail.";
   }
 
+  if (error === "invalid-birth-date") {
+    return "Podaj prawidłową datę urodzenia.";
+  }
+
+  if (error === "future-birth-date") {
+    return "Data urodzenia nie może być datą przyszłą.";
+  }
+
   if (error) {
     return "Nie udało się dodać gościa. Sprawdź dane i spróbuj ponownie.";
   }
@@ -118,6 +126,86 @@ export default async function NewGuestPage({ searchParams }: Props) {
                 placeholder="np. Polska"
               />
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-white p-5 shadow-sm">
+          <h2 className="text-xl font-semibold">Dane dokumentu i programu</h2>
+
+          <p className="mt-1 text-sm text-zinc-500">
+            Te pola są opcjonalne. Przydają się przy imporcie z innych
+            programów.
+          </p>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                PESEL
+              </label>
+
+              <input
+                name="pesel"
+                className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
+                placeholder="np. 80010112345"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Numer dokumentu
+              </label>
+
+              <input
+                name="documentNumber"
+                className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
+                placeholder="np. ABC123456"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Narodowość
+              </label>
+
+              <input
+                name="nationality"
+                className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
+                placeholder="np. Polska"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Data urodzenia
+              </label>
+
+              <input
+                type="date"
+                name="birthDate"
+                className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
+              />
+            </div>
+
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Zewnętrzne ID gościa
+              </label>
+
+              <input
+                name="externalGuestId"
+                className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
+                placeholder="ID z innego programu"
+              />
+            </div>
+
+            <label className="flex items-center gap-3 rounded-xl border bg-zinc-50 p-4 text-sm font-semibold">
+              <input
+                type="checkbox"
+                name="isVip"
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              Gość VIP
+            </label>
           </div>
         </section>
 

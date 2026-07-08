@@ -266,6 +266,12 @@ export default async function GuestDetailsPage({ params }: Props) {
               >
                 {getSourceLabel(guest.source)}
               </span>
+
+              {guest.isVip ? (
+                <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                  VIP
+                </span>
+              ) : null}
             </div>
 
             <p className="mt-2 text-zinc-500">
@@ -341,7 +347,7 @@ export default async function GuestDetailsPage({ params }: Props) {
             </div>
 
             <div>
-              <div className="text-sm text-zinc-500">Źródło</div>
+              <div className="text-sm text-zinc-500">Źródło techniczne</div>
               <div className="mt-1 font-semibold">
                 {getSourceLabel(guest.source)}
               </div>
@@ -412,6 +418,52 @@ export default async function GuestDetailsPage({ params }: Props) {
               {reservationsCount > 0
                 ? formatMoney(Math.round(totalValue / reservationsCount))
                 : formatMoney(0)}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold">Dane dokumentu i programu</h2>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div>
+            <div className="text-sm text-zinc-500">PESEL</div>
+            <div className="mt-1 font-semibold">{guest.pesel || "—"}</div>
+          </div>
+
+          <div>
+            <div className="text-sm text-zinc-500">Numer dokumentu</div>
+            <div className="mt-1 font-semibold">
+              {guest.documentNumber || "—"}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm text-zinc-500">Narodowość</div>
+            <div className="mt-1 font-semibold">
+              {guest.nationality || "—"}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm text-zinc-500">Data urodzenia</div>
+            <div className="mt-1 font-semibold">
+              {formatDate(guest.birthDate)}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm text-zinc-500">Status VIP</div>
+            <div className="mt-1 font-semibold">
+              {guest.isVip ? "Tak" : "Nie"}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm text-zinc-500">Zewnętrzne ID</div>
+            <div className="mt-1 font-semibold">
+              {guest.externalGuestId || "—"}
             </div>
           </div>
         </div>

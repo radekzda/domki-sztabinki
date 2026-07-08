@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +42,16 @@ function normalizePhone(phone: string | null) {
   return normalizedPhone || null;
 }
 
+function normalizePesel(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedPesel = value.replace(/\D/g, "");
+
+  return normalizedPesel || null;
+}
+
 function getRequiredString(formData: FormData, key: string) {
   const value = formData.get(key);
 
@@ -61,6 +72,72 @@ function getOptionalString(formData: FormData, key: string) {
   const trimmedValue = value.trim();
 
   return trimmedValue === "" ? null : trimmedValue;
+}
+
+function createDateFromParts(year: number, month: number, day: number) {
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function isDateInFuture(date: Date) {
+  const now = new Date();
+  const today = new Date(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  );
+
+  return date.getTime() > today.getTime();
+}
+
+function parseBirthDate(value: string | null) {
+  if (!value) {
+    return {
+      date: null as Date | null,
+      error: null as string | null,
+    };
+  }
+
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!isoMatch) {
+    return {
+      date: null,
+      error: "Podaj datę urodzenia w poprawnym formacie.",
+    };
+  }
+
+  const year = Number(isoMatch[1]);
+  const month = Number(isoMatch[2]);
+  const day = Number(isoMatch[3]);
+
+  const date = createDateFromParts(year, month, day);
+
+  if (!date) {
+    return {
+      date: null,
+      error: "Podaj prawidłową datę urodzenia.",
+    };
+  }
+
+  if (isDateInFuture(date)) {
+    return {
+      date: null,
+      error: "Data urodzenia nie może być datą przyszłą.",
+    };
+  }
+
+  return {
+    date,
+    error: null,
+  };
 }
 
 function buildFullAddress({
@@ -223,6 +300,20 @@ export async function updateGuest(formData: FormData) {
   const notes = getOptionalString(formData, "notes");
   const source = getRequiredString(formData, "source") || "MANUAL";
 
+  const pesel = normalizePesel(getOptionalString(formData, "pesel"));
+  const documentNumber = getOptionalString(formData, "documentNumber");
+  const nationality = getOptionalString(formData, "nationality");
+  const externalGuestId = getOptionalString(formData, "externalGuestId");
+  const isVip = formData.get("isVip") === "on";
+
+  const birthDateResult = parseBirthDate(
+    getOptionalString(formData, "birthDate")
+  );
+
+  if (birthDateResult.error) {
+    redirectWithEditGuestError(guestId, birthDateResult.error);
+  }
+
   if (!firstName && !lastName) {
     redirectWithEditGuestError(
       guestId,
@@ -247,13 +338,13 @@ export async function updateGuest(formData: FormData) {
     redirect("/admin/goscie");
   }
 
-  const duplicateConditions = [];
+  const duplicateConditions: Prisma.GuestWhereInput[] = [];
 
   if (email) {
     duplicateConditions.push({
       email: {
         equals: email,
-        mode: "insensitive" as const,
+        mode: "insensitive",
       },
     });
   }
@@ -261,6 +352,18 @@ export async function updateGuest(formData: FormData) {
   if (phone) {
     duplicateConditions.push({
       phone,
+    });
+  }
+
+  if (pesel) {
+    duplicateConditions.push({
+      pesel,
+    });
+  }
+
+  if (externalGuestId) {
+    duplicateConditions.push({
+      externalGuestId,
     });
   }
 
@@ -280,7 +383,7 @@ export async function updateGuest(formData: FormData) {
     if (existingGuest) {
       redirectWithEditGuestError(
         guestId,
-        "Istnieje już inny gość z takim emailem albo telefonem."
+        "Istnieje już inny gość z takim emailem, telefonem, PESEL-em albo zewnętrznym ID."
       );
     }
   }
@@ -308,6 +411,12 @@ export async function updateGuest(formData: FormData) {
           country,
           fullAddress,
         }),
+        pesel,
+        documentNumber,
+        nationality,
+        birthDate: birthDateResult.date,
+        isVip,
+        externalGuestId,
         notes,
         source,
       },
