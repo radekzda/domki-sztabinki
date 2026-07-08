@@ -28,13 +28,15 @@ function formatMoney(value: number | null) {
 function getReservationStatusLabel(status: CalendarReservation["status"]) {
   switch (status) {
     case "PENDING":
-      return "Oczekująca";
+      return "Oczekuje na potwierdzenie";
     case "CONFIRMED":
       return "Potwierdzona";
+    case "CHECKED_IN":
+      return "Zameldowany";
+    case "CHECKED_OUT":
+      return "Wymeldowany";
     case "CANCELLED":
-      return "Anulowana";
-    case "COMPLETED":
-      return "Zakończona";
+      return "Anulowany";
     default:
       return status;
   }
@@ -80,7 +82,7 @@ function getPaymentInfo(reservation: CalendarReservation) {
   return {
     label: "Pozostało do zapłaty",
     value: formatMoney(remainingAmount),
-    className: "text-red-700",
+    className: "text-yellow-800",
   };
 }
 
@@ -138,7 +140,7 @@ export default function ReservationTooltip({
             <span className="text-zinc-500">Zameldowanie</span>
             <span className="text-right font-semibold">
               {formatCalendarDateTime(
-                reservation.checkInAt ?? reservation.startDate
+                reservation.checkInAt ?? reservation.startDate,
               )}
             </span>
           </div>
@@ -147,7 +149,7 @@ export default function ReservationTooltip({
             <span className="text-zinc-500">Wymeldowanie</span>
             <span className="text-right font-semibold">
               {formatCalendarDateTime(
-                reservation.checkOutAt ?? reservation.endDate
+                reservation.checkOutAt ?? reservation.endDate,
               )}
             </span>
           </div>

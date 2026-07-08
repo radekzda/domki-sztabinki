@@ -41,40 +41,18 @@ function getReservationBarColor(status: CalendarReservation["status"]) {
   }
 }
 
-function getReservationSourceBadge(source: CalendarReservation["source"]) {
-  switch (source) {
-    case "BOOKING":
-      return "B";
-    case "AIRBNB":
-      return "A";
-    case "WEBSITE":
-      return "W";
-    case "PHONE":
-      return "T";
-    case "MANUAL":
-      return "M";
-    default:
-      return "?";
-  }
-}
+function getReservationContinuationClassName(position: ReservationBarPosition) {
+  const classes = [];
 
-function getReservationSourceBadgeClassName(
-  source: CalendarReservation["source"],
-) {
-  switch (source) {
-    case "BOOKING":
-      return "bg-green-700 text-white";
-    case "AIRBNB":
-      return "bg-red-500 text-white";
-    case "WEBSITE":
-      return "bg-blue-600 text-white";
-    case "PHONE":
-      return "bg-yellow-500 text-zinc-950";
-    case "MANUAL":
-      return "bg-zinc-600 text-white";
-    default:
-      return "bg-zinc-400 text-white";
+  if (position.startsBeforeVisibleRange) {
+    classes.push("rounded-l-none");
   }
+
+  if (position.endsAfterVisibleRange) {
+    classes.push("rounded-r-none");
+  }
+
+  return classes.join(" ");
 }
 
 function getRemainingAmount(reservation: CalendarReservation) {
@@ -88,20 +66,8 @@ function formatPhone(phone: string | null) {
   return phone || "brak telefonu";
 }
 
-function formatMoneyShort(value: number | null) {
-  if (value === null) {
-    return "brak ceny";
-  }
-
-  return `${value} zł`;
-}
-
-function formatNights(nights: number) {
-  if (nights === 1) {
-    return "1 noc";
-  }
-
-  return `${nights} noce`;
+function formatGuests(reservation: CalendarReservation) {
+  return `Gości: ${reservation.guests}`;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -173,6 +139,16 @@ export default function ReservationBar({
   const remainingAmount = getRemainingAmount(reservation);
   const isPaid = reservation.totalPrice !== null && remainingAmount === 0;
 
+  const isOneDayContinuation =
+    position.startsBeforeVisibleRange && position.columnSpan <= 1.15;
+
+  const isVeryCompact = position.columnSpan < 1.4;
+  const isCompact = position.columnSpan < 2.4;
+
+  const barWidth = isOneDayContinuation
+    ? "16px"
+    : `calc(${position.columnSpan} * ${DAY_WIDTH}px - 4px)`;
+
   function openReservationDetails() {
     setTooltipPosition(null);
     router.push(`/admin/rezerwacje/${reservation.id}`);
@@ -181,12 +157,12 @@ export default function ReservationBar({
   return (
     <>
       <div
-        className={`pointer-events-auto absolute bottom-[5%] top-[5%] flex cursor-pointer overflow-hidden rounded-2xl px-4 py-3 text-[20px] leading-none shadow-sm transition-all hover:z-50 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-green-300 ${getReservationBarColor(
+        className={`pointer-events-auto absolute bottom-[5%] top-[5%] flex cursor-pointer overflow-hidden rounded-2xl text-white shadow-sm transition-all hover:z-50 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-green-300 ${getReservationBarColor(
           reservation.status,
-        )}`}
+        )} ${getReservationContinuationClassName(position)}`}
         style={{
           left: `calc(${position.startColumn - 1} * ${DAY_WIDTH}px)`,
-          width: `calc(${position.columnSpan} * ${DAY_WIDTH}px - 4px)`,
+          width: barWidth,
         }}
         onClick={openReservationDetails}
         onMouseEnter={(event) => {
@@ -213,42 +189,71 @@ export default function ReservationBar({
         role="button"
         tabIndex={0}
       >
-        <div className="flex min-w-0 flex-1 flex-col justify-evenly overflow-hidden">
-          <div className="flex min-w-0 items-center gap-2 font-bold">
-            <span
-              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded text-[14px] font-bold shadow-sm ${getReservationSourceBadgeClassName(
-                reservation.source,
-              )}`}
-            >
-              {getReservationSourceBadge(reservation.source)}
-            </span>
+        {isOneDayContinuation ? (
+          <div className="h-full w-full rounded-r bg-white/20" />
+        ) : (
+          <>
+            {position.startsBeforeVisibleRange ? (
+              <div className="absolute bottom-2 left-0 top-2 w-1.5 rounded-r bg-white/60" />
+            ) : null}
 
-            <span className="truncate">{reservation.guestName}</span>
-          </div>
+            {position.endsAfterVisibleRange ? (
+              <div className="absolute bottom-2 right-0 top-2 w-1.5 rounded-l bg-white/60" />
+            ) : null}
 
-          <div className="truncate font-semibold opacity-95">
-            {formatPhone(reservation.phone)}
-          </div>
+            {isVeryCompact ? (
+              <div className="flex min-w-0 flex-1 items-center px-2">
+                <span className="truncate text-[12px] font-bold leading-none">
+                  {reservation.guestName}
+                </span>
+              </div>
+            ) : isCompact ? (
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 px-2 py-2">
+                <div className="truncate text-[13px] font-bold leading-tight">
+                  {reservation.guestName}
+                </div>
 
-          <div className="truncate font-semibold opacity-95">
-            {formatNights(reservation.nights)} •{" "}
-            {formatMoneyShort(reservation.totalPrice)}
-          </div>
+                <div className="truncate text-[12px] font-semibold leading-tight opacity-95">
+                  {formatGuests(reservation)}
+                </div>
 
-          <div className="truncate text-[17px] font-semibold opacity-95">
-            {isPaid ? "opłacono" : `do zapłaty ${remainingAmount} zł`}
-          </div>
-        </div>
+                {!isPaid ? (
+                  <div className="truncate text-[11px] font-semibold leading-tight opacity-95">
+                    do zapłaty {remainingAmount} zł
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <div className="flex min-w-0 flex-1 flex-col justify-evenly overflow-hidden px-3 py-2">
+                  <div className="truncate text-[17px] font-bold leading-tight">
+                    {reservation.guestName}
+                  </div>
 
-        <div
-          className={`ml-3 flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full text-base font-bold ${
-            isPaid
-              ? "bg-green-100 text-green-700"
-              : "bg-yellow-100 text-yellow-800"
-          }`}
-        >
-          {isPaid ? "✓" : "!"}
-        </div>
+                  <div className="truncate text-[16px] font-semibold leading-tight opacity-95">
+                    {formatPhone(reservation.phone)}
+                  </div>
+
+                  <div className="truncate text-[16px] font-semibold leading-tight opacity-95">
+                    {formatGuests(reservation)}
+                  </div>
+
+                  {!isPaid ? (
+                    <div className="truncate text-[14px] font-semibold leading-tight opacity-95">
+                      do zapłaty {remainingAmount} zł
+                    </div>
+                  ) : null}
+                </div>
+
+                {!isPaid ? (
+                  <div className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full bg-yellow-100 text-sm font-bold text-yellow-800">
+                    !
+                  </div>
+                ) : null}
+              </>
+            )}
+          </>
+        )}
       </div>
 
       <ReservationTooltip reservation={reservation} position={tooltipPosition} />

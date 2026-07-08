@@ -10,6 +10,8 @@ import type {
 import {
   createCalendarMonth,
   getCalendarMonthEnd,
+  getCalendarMonthQueryEnd,
+  getCalendarMonthQueryStart,
   getCalendarMonthStart,
 } from "@/modules/calendar/calendar.utils";
 
@@ -93,6 +95,8 @@ export default async function KalendarzPage({ searchParams }: Props) {
   const calendarMonth = createCalendarMonth(year, month);
   const rangeStart = getCalendarMonthStart(year, month);
   const rangeEnd = getCalendarMonthEnd(year, month);
+  const queryRangeStart = getCalendarMonthQueryStart(year, month);
+  const queryRangeEnd = getCalendarMonthQueryEnd(year, month);
 
   const cabins = await prisma.cabin.findMany({
     where: {
@@ -105,10 +109,10 @@ export default async function KalendarzPage({ searchParams }: Props) {
       reservations: {
         where: {
           startDate: {
-            lt: rangeEnd,
+            lt: queryRangeEnd,
           },
           endDate: {
-            gt: rangeStart,
+            gte: queryRangeStart,
           },
         },
         orderBy: {

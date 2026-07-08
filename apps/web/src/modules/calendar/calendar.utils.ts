@@ -25,7 +25,7 @@ const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
 export function createCalendarDate(
   year: number,
   month: number,
-  day: number
+  day: number,
 ): Date {
   return new Date(Date.UTC(year, month, day, 12, 0, 0));
 }
@@ -38,7 +38,7 @@ function createLocalDayStartFromCalendarDate(date: Date): Date {
     0,
     0,
     0,
-    0
+    0,
   );
 }
 
@@ -62,7 +62,7 @@ export function isCalendarToday(date: Date): boolean {
 
 export function generateCalendarDays(
   year: number,
-  month: number
+  month: number,
 ): CalendarDay[] {
   const numberOfDays = new Date(year, month + 1, 0).getDate();
 
@@ -83,7 +83,7 @@ export function generateCalendarDays(
 
 export function createCalendarMonth(
   year: number,
-  month: number
+  month: number,
 ): CalendarMonth {
   return {
     year,
@@ -99,6 +99,14 @@ export function getCalendarMonthStart(year: number, month: number): Date {
 
 export function getCalendarMonthEnd(year: number, month: number): Date {
   return createCalendarDate(year, month + 1, 1);
+}
+
+export function getCalendarMonthQueryStart(year: number, month: number): Date {
+  return new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+}
+
+export function getCalendarMonthQueryEnd(year: number, month: number): Date {
+  return new Date(Date.UTC(year, month + 1, 1, 0, 0, 0, 0));
 }
 
 export function formatCalendarDate(date: Date): string {
@@ -132,7 +140,7 @@ export function formatCalendarShortDate(date: Date): string {
 
 export function isDateInsideReservation(
   date: Date,
-  reservation: CalendarReservation
+  reservation: CalendarReservation,
 ): boolean {
   const dayStart = createLocalDayStartFromCalendarDate(date);
 
@@ -141,14 +149,14 @@ export function isDateInsideReservation(
 
   return (
     getCalendarReservationStart(reservation) < dayEnd &&
-    getCalendarReservationEnd(reservation) > dayStart
+    getCalendarReservationEnd(reservation) >= dayStart
   );
 }
 
 export function calculateReservationBarPosition(
   reservation: CalendarReservation,
   visibleRangeStart: Date,
-  visibleRangeEnd: Date
+  visibleRangeEnd: Date,
 ): ReservationBarPosition {
   const rangeStart = createLocalDayStartFromCalendarDate(visibleRangeStart);
   const rangeEnd = createLocalDayStartFromCalendarDate(visibleRangeEnd);
@@ -175,8 +183,8 @@ export function calculateReservationBarPosition(
   return {
     startColumn: startOffset + 1,
     endColumn: endOffset + 1,
-    columnSpan: Math.max(0.15, durationInDays),
+    columnSpan: Math.max(0.8, durationInDays),
     startsBeforeVisibleRange: reservationStart < rangeStart,
-    endsAfterVisibleRange: reservationEnd > rangeEnd,
+    endsAfterVisibleRange: reservationEnd >= rangeEnd,
   };
 }
