@@ -45,6 +45,7 @@ type EditableReservation = {
 
   status: string;
   source: string;
+  paymentStatus: string;
 
   totalPrice: number | null;
   paidAmount: number | null;
@@ -64,10 +65,18 @@ type ReservationEditFormProps = {
 };
 
 const statuses = [
-  { value: "PENDING", label: "Oczekująca" },
+  { value: "PENDING", label: "Oczekuje na potwierdzenie" },
   { value: "CONFIRMED", label: "Potwierdzona" },
-  { value: "CANCELLED", label: "Anulowana" },
-  { value: "COMPLETED", label: "Zakończona" },
+  { value: "CHECKED_IN", label: "Zameldowany" },
+  { value: "CHECKED_OUT", label: "Wymeldowany" },
+  { value: "CANCELLED", label: "Anulowany" },
+];
+
+const paymentStatuses = [
+  { value: "PENDING", label: "Oczekuje" },
+  { value: "PAID", label: "Opłacona" },
+  { value: "PARTIAL", label: "Częściowa" },
+  { value: "REFUNDED", label: "Zwrócona" },
 ];
 
 const sources = [
@@ -92,6 +101,18 @@ function formatMoneyInputValue(value: number | null) {
   }
 
   return String(value);
+}
+
+function getRemainingAmountClassName(value: number | null) {
+  if (value === null) {
+    return "text-zinc-700";
+  }
+
+  if (value === 0) {
+    return "text-green-700";
+  }
+
+  return "text-yellow-700";
 }
 
 export default function ReservationEditForm({
@@ -123,6 +144,9 @@ export default function ReservationEditForm({
 
   const [statusValue, setStatusValue] = useState(reservation.status);
   const [sourceValue, setSourceValue] = useState(reservation.source);
+  const [paymentStatusValue, setPaymentStatusValue] = useState(
+    reservation.paymentStatus,
+  );
 
   const [totalPriceValue, setTotalPriceValue] = useState(
     formatMoneyInputValue(reservation.totalPrice),
@@ -409,7 +433,7 @@ export default function ReservationEditForm({
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Cena pobytu</label>
             <input
@@ -446,9 +470,30 @@ export default function ReservationEditForm({
             />
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status płatności</label>
+            <select
+              name="paymentStatus"
+              value={paymentStatusValue}
+              onChange={(event) => setPaymentStatusValue(event.target.value)}
+              required
+              className="w-full rounded-lg border bg-white p-3"
+            >
+              {paymentStatuses.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="rounded-lg border bg-zinc-50 p-4">
             <div className="text-sm text-zinc-500">Pozostało do zapłaty</div>
-            <div className="mt-1 text-2xl font-bold text-red-700">
+            <div
+              className={`mt-1 text-2xl font-bold ${getRemainingAmountClassName(
+                remainingAmount,
+              )}`}
+            >
               {formatPrice(remainingAmount)}
             </div>
           </div>
@@ -462,13 +507,13 @@ export default function ReservationEditForm({
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
+            <label className="text-sm font-medium">Status rezerwacji</label>
             <select
               name="status"
               value={statusValue}
               onChange={(event) => setStatusValue(event.target.value)}
               required
-              className="w-full rounded-lg border p-3"
+              className="w-full rounded-lg border bg-white p-3"
             >
               {statuses.map((status) => (
                 <option key={status.value} value={status.value}>

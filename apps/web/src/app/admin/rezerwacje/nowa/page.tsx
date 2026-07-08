@@ -19,7 +19,9 @@ type Props = {
     guests?: string;
     adults?: string;
     children?: string;
+    status?: string;
     source?: string;
+    paymentStatus?: string;
     street?: string;
     postalCode?: string;
     city?: string;
@@ -119,6 +121,42 @@ function getMoneyInputValue(value: string) {
   return normalizedValue;
 }
 
+function getReservationStatus(value: string) {
+  if (value === "CONFIRMED") {
+    return "CONFIRMED";
+  }
+
+  if (value === "CHECKED_IN") {
+    return "CHECKED_IN";
+  }
+
+  if (value === "CHECKED_OUT" || value === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (value === "CANCELLED") {
+    return "CANCELLED";
+  }
+
+  return "PENDING";
+}
+
+function getReservationPaymentStatus(value: string) {
+  if (value === "PAID") {
+    return "PAID";
+  }
+
+  if (value === "PARTIAL") {
+    return "PARTIAL";
+  }
+
+  if (value === "REFUNDED") {
+    return "REFUNDED";
+  }
+
+  return "PENDING";
+}
+
 function getReservationSource(value: string) {
   if (value === "WWW" || value === "WEBSITE") {
     return "WEBSITE";
@@ -196,8 +234,14 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
     getSearchParamValue(resolvedSearchParams?.children),
     "0",
   );
+  const urlStatus = getReservationStatus(
+    getSearchParamValue(resolvedSearchParams?.status),
+  );
   const urlSource = getReservationSource(
     getSearchParamValue(resolvedSearchParams?.source),
+  );
+  const urlPaymentStatus = getReservationPaymentStatus(
+    getSearchParamValue(resolvedSearchParams?.paymentStatus),
   );
   const urlStreet = getSearchParamValue(resolvedSearchParams?.street);
   const urlPostalCode = getSearchParamValue(resolvedSearchParams?.postalCode);
@@ -365,7 +409,9 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         initialPhone={initialPhone}
         initialAdults={urlAdults}
         initialChildren={urlChildren}
+        initialStatus={urlStatus}
         initialSource={urlSource}
+        initialPaymentStatus={urlPaymentStatus}
         initialStreet={urlStreet}
         initialPostalCode={urlPostalCode}
         initialCity={urlCity}

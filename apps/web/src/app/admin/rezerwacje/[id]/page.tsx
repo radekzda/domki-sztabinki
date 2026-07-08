@@ -15,6 +15,8 @@ type Props = {
   }>;
 };
 
+type ReservationPaymentStatus = "PENDING" | "PAID" | "PARTIAL" | "REFUNDED";
+
 function formatDateTime(date: Date | null) {
   if (!date) {
     return "—";
@@ -78,13 +80,17 @@ function formatMoneyInputValue(value: { toString: () => string } | null) {
 function getStatusLabel(status: string) {
   switch (status) {
     case "PENDING":
-      return "Oczekująca";
+      return "Oczekuje na potwierdzenie";
     case "CONFIRMED":
       return "Potwierdzona";
-    case "CANCELLED":
-      return "Anulowana";
+    case "CHECKED_IN":
+      return "Zameldowany";
+    case "CHECKED_OUT":
+      return "Wymeldowany";
     case "COMPLETED":
-      return "Zakończona";
+      return "Wymeldowany";
+    case "CANCELLED":
+      return "Anulowany";
     default:
       return status;
   }
@@ -109,14 +115,18 @@ function getSourceLabel(source: string) {
 
 function getStatusClassName(status: string) {
   switch (status) {
+    case "PENDING":
+      return "bg-orange-100 text-orange-800";
     case "CONFIRMED":
       return "bg-blue-100 text-blue-700";
-    case "PENDING":
-      return "bg-yellow-100 text-yellow-800";
-    case "CANCELLED":
-      return "bg-red-100 text-red-700";
+    case "CHECKED_IN":
+      return "bg-green-100 text-green-700";
+    case "CHECKED_OUT":
+      return "bg-zinc-100 text-zinc-700";
     case "COMPLETED":
       return "bg-zinc-100 text-zinc-700";
+    case "CANCELLED":
+      return "bg-red-100 text-red-700";
     default:
       return "bg-zinc-100 text-zinc-700";
   }
@@ -140,18 +150,23 @@ function getSourceClassName(source: string) {
 }
 
 function getStatusButtonClassName(status: string, activeStatus: string) {
-  const isActive = status === activeStatus;
+  const normalizedActiveStatus =
+    activeStatus === "COMPLETED" ? "CHECKED_OUT" : activeStatus;
+
+  const isActive = status === normalizedActiveStatus;
 
   if (isActive) {
     switch (status) {
+      case "PENDING":
+        return "border-orange-600 bg-orange-500 text-white";
       case "CONFIRMED":
         return "border-blue-600 bg-blue-600 text-white";
-      case "PENDING":
-        return "border-yellow-500 bg-yellow-400 text-zinc-950";
+      case "CHECKED_IN":
+        return "border-green-700 bg-green-700 text-white";
+      case "CHECKED_OUT":
+        return "border-zinc-600 bg-zinc-600 text-white";
       case "CANCELLED":
         return "border-red-600 bg-red-600 text-white";
-      case "COMPLETED":
-        return "border-zinc-600 bg-zinc-600 text-white";
       default:
         return "border-zinc-600 bg-zinc-600 text-white";
     }
@@ -184,6 +199,84 @@ function getAddress({
   return parts.join(", ");
 }
 
+function getPaymentStatus({
+  paymentStatus,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentStatus: string | null;
+  totalPrice: number | null;
+  paidAmount: number | null;
+}): ReservationPaymentStatus {
+  if (paymentStatus === "REFUNDED") {
+    return "REFUNDED";
+  }
+
+  if (paymentStatus === "PAID") {
+    return "PAID";
+  }
+
+  if (paymentStatus === "PARTIAL") {
+    return "PARTIAL";
+  }
+
+  if (paymentStatus === "PENDING") {
+    return "PENDING";
+  }
+
+  if (totalPrice === null) {
+    return "PENDING";
+  }
+
+  if (paidAmount === null || paidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
+}
+
+function getPaymentStatusLabel(status: ReservationPaymentStatus) {
+  switch (status) {
+    case "PENDING":
+      return "Oczekuje";
+    case "PAID":
+      return "Opłacona";
+    case "PARTIAL":
+      return "Częściowa";
+    case "REFUNDED":
+      return "Zwrócona";
+    default:
+      return status;
+  }
+}
+
+function getPaymentStatusClassName(status: ReservationPaymentStatus) {
+  switch (status) {
+    case "PENDING":
+      return "bg-orange-100 text-orange-800";
+    case "PAID":
+      return "bg-green-100 text-green-700";
+    case "PARTIAL":
+      return "bg-yellow-100 text-yellow-800";
+    case "REFUNDED":
+      return "bg-zinc-100 text-zinc-700";
+    default:
+      return "bg-zinc-100 text-zinc-700";
+  }
+}
+
+function getRemainingAmountClassName(value: number) {
+  if (value === 0) {
+    return "text-green-700";
+  }
+
+  return "text-yellow-700";
+}
+
 export default async function ReservationDetailsPage({
   params,
   searchParams,
@@ -205,11 +298,19 @@ export default async function ReservationDetailsPage({
   }
 
   const totalPrice = decimalToNumber(reservation.totalPrice);
+  const nullableTotalPrice = decimalToNullableNumber(reservation.totalPrice);
   const paidAmount = decimalToNumber(reservation.paidAmount);
+  const nullablePaidAmount = decimalToNullableNumber(reservation.paidAmount);
   const pricePerNight = decimalToNullableNumber(reservation.pricePerNight);
   const remainingAmount = Math.max(0, totalPrice - paidAmount);
 
-  const isPaid = reservation.totalPrice !== null && remainingAmount === 0;
+  const paymentStatus = getPaymentStatus({
+    paymentStatus: reservation.paymentStatus,
+    totalPrice: nullableTotalPrice,
+    paidAmount: nullablePaidAmount,
+  });
+
+  const isPaid = paymentStatus === "PAID";
 
   return (
     <div className="max-w-6xl space-y-8">
@@ -253,6 +354,14 @@ export default async function ReservationDetailsPage({
           </span>
 
           <span
+            className={`rounded-full px-4 py-2 text-sm font-semibold ${getPaymentStatusClassName(
+              paymentStatus,
+            )}`}
+          >
+            {getPaymentStatusLabel(paymentStatus)}
+          </span>
+
+          <span
             className={`rounded-full px-4 py-2 text-sm font-semibold ${getSourceClassName(
               reservation.source
             )}`}
@@ -286,10 +395,10 @@ export default async function ReservationDetailsPage({
               value="PENDING"
               className={`rounded-lg border px-4 py-2 text-sm font-semibold ${getStatusButtonClassName(
                 "PENDING",
-                reservation.status
+                reservation.status,
               )}`}
             >
-              Oczekująca
+              Oczekuje na potwierdzenie
             </button>
 
             <button
@@ -298,7 +407,7 @@ export default async function ReservationDetailsPage({
               value="CONFIRMED"
               className={`rounded-lg border px-4 py-2 text-sm font-semibold ${getStatusButtonClassName(
                 "CONFIRMED",
-                reservation.status
+                reservation.status,
               )}`}
             >
               Potwierdzona
@@ -307,25 +416,37 @@ export default async function ReservationDetailsPage({
             <button
               type="submit"
               name="status"
-              value="CANCELLED"
+              value="CHECKED_IN"
               className={`rounded-lg border px-4 py-2 text-sm font-semibold ${getStatusButtonClassName(
-                "CANCELLED",
-                reservation.status
+                "CHECKED_IN",
+                reservation.status,
               )}`}
             >
-              Anulowana
+              Zameldowany
             </button>
 
             <button
               type="submit"
               name="status"
-              value="COMPLETED"
+              value="CHECKED_OUT"
               className={`rounded-lg border px-4 py-2 text-sm font-semibold ${getStatusButtonClassName(
-                "COMPLETED",
-                reservation.status
+                "CHECKED_OUT",
+                reservation.status,
               )}`}
             >
-              Zakończona
+              Wymeldowany
+            </button>
+
+            <button
+              type="submit"
+              name="status"
+              value="CANCELLED"
+              className={`rounded-lg border px-4 py-2 text-sm font-semibold ${getStatusButtonClassName(
+                "CANCELLED",
+                reservation.status,
+              )}`}
+            >
+              Anulowany
             </button>
           </form>
         </div>
@@ -336,7 +457,8 @@ export default async function ReservationDetailsPage({
           <div>
             <h2 className="text-xl font-semibold">Szybka płatność</h2>
             <p className="mt-1 text-sm text-zinc-500">
-              Zaktualizuj kwotę wpłaconą bez pełnej edycji rezerwacji.
+              Zaktualizuj kwotę wpłaconą i status płatności bez pełnej edycji
+              rezerwacji.
             </p>
           </div>
 
@@ -362,11 +484,28 @@ export default async function ReservationDetailsPage({
               />
             </div>
 
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Status płatności
+              </label>
+
+              <select
+                name="paymentStatus"
+                defaultValue={paymentStatus}
+                className="h-10 rounded-lg border bg-white px-3 text-sm font-medium"
+              >
+                <option value="PENDING">Oczekuje</option>
+                <option value="PAID">Opłacona</option>
+                <option value="PARTIAL">Częściowa</option>
+                <option value="REFUNDED">Zwrócona</option>
+              </select>
+            </div>
+
             <button
               type="submit"
               className="h-10 rounded-lg bg-green-700 px-4 text-sm font-semibold text-white hover:bg-green-800"
             >
-              Zapisz wpłatę
+              Zapisz płatność
             </button>
 
             <button
@@ -412,10 +551,10 @@ export default async function ReservationDetailsPage({
           <div className="text-sm text-zinc-500">Płatność</div>
           <div
             className={`mt-1 text-2xl font-bold ${
-              isPaid ? "text-green-700" : "text-red-700"
+              isPaid ? "text-green-700" : "text-yellow-700"
             }`}
           >
-            {isPaid ? "Opłacona" : `Do zapłaty ${remainingAmount} zł`}
+            {getPaymentStatusLabel(paymentStatus)}
           </div>
           <div className="mt-2 text-sm text-zinc-500">
             Cena: {formatMoney(reservation.totalPrice)}
@@ -497,6 +636,17 @@ export default async function ReservationDetailsPage({
 
           <div className="mt-5 space-y-4">
             <div className="flex justify-between gap-4 border-b pb-3">
+              <span className="text-zinc-500">Status płatności</span>
+              <span
+                className={`rounded-full px-3 py-1 text-sm font-semibold ${getPaymentStatusClassName(
+                  paymentStatus,
+                )}`}
+              >
+                {getPaymentStatusLabel(paymentStatus)}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4 border-b pb-3">
               <span className="text-zinc-500">Cena za noc</span>
               <span className="text-right font-semibold">
                 {formatMoneyFromNumber(pricePerNight)}
@@ -527,9 +677,9 @@ export default async function ReservationDetailsPage({
             <div className="flex justify-between gap-4">
               <span className="text-zinc-500">Pozostało</span>
               <span
-                className={`text-right font-bold ${
-                  remainingAmount === 0 ? "text-green-700" : "text-red-700"
-                }`}
+                className={`text-right font-bold ${getRemainingAmountClassName(
+                  remainingAmount,
+                )}`}
               >
                 {remainingAmount} zł
               </span>

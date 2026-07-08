@@ -36,7 +36,9 @@ type ReservationFormProps = {
   initialPhone?: string;
   initialAdults?: string;
   initialChildren?: string;
+  initialStatus?: string;
   initialSource?: string;
+  initialPaymentStatus?: string;
   initialStreet?: string;
   initialPostalCode?: string;
   initialCity?: string;
@@ -51,10 +53,18 @@ type ReservationFormProps = {
 };
 
 const statuses = [
-  { value: "PENDING", label: "Oczekująca" },
+  { value: "PENDING", label: "Oczekuje na potwierdzenie" },
   { value: "CONFIRMED", label: "Potwierdzona" },
-  { value: "CANCELLED", label: "Anulowana" },
-  { value: "COMPLETED", label: "Zakończona" },
+  { value: "CHECKED_IN", label: "Zameldowany" },
+  { value: "CHECKED_OUT", label: "Wymeldowany" },
+  { value: "CANCELLED", label: "Anulowany" },
+];
+
+const paymentStatuses = [
+  { value: "PENDING", label: "Oczekuje" },
+  { value: "PAID", label: "Opłacona" },
+  { value: "PARTIAL", label: "Częściowa" },
+  { value: "REFUNDED", label: "Zwrócona" },
 ];
 
 const sources = [
@@ -73,6 +83,18 @@ function formatPrice(value: number | null) {
   return `${value} zł`;
 }
 
+function getRemainingAmountClassName(value: number | null) {
+  if (value === null) {
+    return "text-zinc-700";
+  }
+
+  if (value === 0) {
+    return "text-green-700";
+  }
+
+  return "text-yellow-700";
+}
+
 export default function ReservationForm({
   cabins,
   initialGuestId = "",
@@ -85,7 +107,9 @@ export default function ReservationForm({
   initialPhone = "",
   initialAdults = "2",
   initialChildren = "0",
+  initialStatus = "PENDING",
   initialSource = "MANUAL",
+  initialPaymentStatus = "PENDING",
   initialStreet = "",
   initialPostalCode = "",
   initialCity = "",
@@ -101,6 +125,9 @@ export default function ReservationForm({
   const [selectedCabinId, setSelectedCabinId] = useState(initialCabinId);
   const [startDateValue, setStartDateValue] = useState(initialStartDate);
   const [endDateValue, setEndDateValue] = useState(initialEndDate);
+  const [statusValue, setStatusValue] = useState(initialStatus);
+  const [paymentStatusValue, setPaymentStatusValue] =
+    useState(initialPaymentStatus);
   const [totalPriceValue, setTotalPriceValue] = useState(initialTotalPrice);
   const [paidAmountValue, setPaidAmountValue] = useState(
     initialPaidAmount || "0",
@@ -376,7 +403,7 @@ export default function ReservationForm({
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Cena pobytu</label>
             <input
@@ -405,9 +432,30 @@ export default function ReservationForm({
             />
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status płatności</label>
+            <select
+              name="paymentStatus"
+              value={paymentStatusValue}
+              onChange={(event) => setPaymentStatusValue(event.target.value)}
+              required
+              className="w-full rounded-lg border bg-white p-3"
+            >
+              {paymentStatuses.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="rounded-lg border bg-zinc-50 p-4">
             <div className="text-sm text-zinc-500">Pozostało do zapłaty</div>
-            <div className="mt-1 text-2xl font-bold text-red-700">
+            <div
+              className={`mt-1 text-2xl font-bold ${getRemainingAmountClassName(
+                remainingAmount ?? null,
+              )}`}
+            >
               {formatPrice(remainingAmount ?? null)}
             </div>
           </div>
@@ -421,12 +469,13 @@ export default function ReservationForm({
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
+            <label className="text-sm font-medium">Status rezerwacji</label>
             <select
               name="status"
-              defaultValue="PENDING"
+              value={statusValue}
+              onChange={(event) => setStatusValue(event.target.value)}
               required
-              className="w-full rounded-lg border p-3"
+              className="w-full rounded-lg border bg-white p-3"
             >
               {statuses.map((status) => (
                 <option key={status.value} value={status.value}>

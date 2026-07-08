@@ -9,8 +9,17 @@ import {
   calculateReservationNights,
 } from "@/modules/pricing/pricing.utils";
 
-const allowedStatuses = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
+const allowedStatuses = [
+  "PENDING",
+  "CONFIRMED",
+  "CHECKED_IN",
+  "CHECKED_OUT",
+  "CANCELLED",
+];
+
 const allowedSources = ["MANUAL", "PHONE", "WEBSITE", "BOOKING", "AIRBNB"];
+
+const allowedPaymentStatuses = ["PENDING", "PAID", "PARTIAL", "REFUNDED"];
 
 type ErrorRedirect = (message: string) => never;
 
@@ -54,6 +63,7 @@ type ReservationFormValues = {
 
   status: string;
   source: string;
+  paymentStatus: string | null;
 
   totalPrice: number | null;
   paidAmount: number | null;
@@ -161,7 +171,9 @@ function buildNewReservationErrorHref(formData: FormData, message: string) {
     "guests",
     "adults",
     "children",
+    "status",
     "source",
+    "paymentStatus",
     "street",
     "postalCode",
     "city",
@@ -235,6 +247,76 @@ function decimalToNumber(value: { toString: () => string } | null) {
   }
 
   return Number(value.toString());
+}
+
+function normalizeReservationStatus(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const status = value.trim().toUpperCase();
+
+  if (status === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (allowedStatuses.includes(status)) {
+    return status;
+  }
+
+  return null;
+}
+
+function normalizePaymentStatus(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const status = value.trim().toUpperCase();
+
+  if (status === "OPLACONA" || status === "OPŁACONA") {
+    return "PAID";
+  }
+
+  if (status === "CZESCIOWA" || status === "CZĘŚCIOWA") {
+    return "PARTIAL";
+  }
+
+  if (status === "ZWROCONA" || status === "ZWRÓCONA") {
+    return "REFUNDED";
+  }
+
+  if (status === "OCZEKUJE") {
+    return "PENDING";
+  }
+
+  if (allowedPaymentStatuses.includes(status)) {
+    return status;
+  }
+
+  return null;
+}
+
+function inferPaymentStatus({
+  totalPrice,
+  paidAmount,
+}: {
+  totalPrice: number | null;
+  paidAmount: number | null;
+}) {
+  if (totalPrice === null) {
+    return "PENDING";
+  }
+
+  if (paidAmount === null || paidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
 }
 
 async function getSystemSettingsForReservationValidation() {
@@ -321,9 +403,11 @@ function parseReservationForm(
     onError("Liczba gości musi być większa od zera.");
   }
 
-  const status = getRequiredString(formData, "status", onError);
+  const normalizedStatus = normalizeReservationStatus(
+    getRequiredString(formData, "status", onError),
+  );
 
-  if (!allowedStatuses.includes(status)) {
+  if (!normalizedStatus) {
     onError("Nieprawidłowy status rezerwacji.");
   }
 
@@ -344,6 +428,14 @@ function parseReservationForm(
     "wpłacono",
     onError,
   );
+
+  const paymentStatus = normalizePaymentStatus(
+    getOptionalString(formData, "paymentStatus"),
+  );
+
+  if (getOptionalString(formData, "paymentStatus") && !paymentStatus) {
+    onError("Nieprawidłowy status płatności.");
+  }
 
   return {
     guestId,
@@ -370,8 +462,9 @@ function parseReservationForm(
     adults,
     children,
 
-    status,
+    status: normalizedStatus,
     source,
+    paymentStatus,
 
     totalPrice,
     paidAmount,
@@ -428,7 +521,11 @@ async function validateReservationData({
     return onError(`Ten domek mieści maksymalnie ${cabin.maxGuests} osób.`);
   }
 
-  if (values.status === "PENDING" || values.status === "CONFIRMED") {
+  if (
+    values.status === "PENDING" ||
+    values.status === "CONFIRMED" ||
+    values.status === "CHECKED_IN"
+  ) {
     const availability = await checkCabinAvailability({
       cabinId: values.cabinId,
       startDate: values.startDate,
@@ -464,6 +561,12 @@ function completeReservationPricing(
     ...values,
     totalPrice,
     paidAmount,
+    paymentStatus:
+      values.paymentStatus ??
+      inferPaymentStatus({
+        totalPrice,
+        paidAmount,
+      }),
     pricePerNight: Number((totalPrice / values.nights).toFixed(2)),
   };
 }
@@ -657,9 +760,9 @@ export async function updateReservationStatus(formData: FormData) {
     );
   }
 
-  const status = statusValue.trim();
+  const status = normalizeReservationStatus(statusValue);
 
-  if (!allowedStatuses.includes(status)) {
+  if (!status) {
     redirectWithReservationDetailsError(
       reservationId,
       "Nieprawidłowy status rezerwacji.",
@@ -676,7 +779,7 @@ export async function updateReservationStatus(formData: FormData) {
     redirect("/admin/rezerwacje");
   }
 
-  if (status === "PENDING" || status === "CONFIRMED") {
+  if (status === "PENDING" || status === "CONFIRMED" || status === "CHECKED_IN") {
     const availability = await checkCabinAvailability({
       cabinId: reservation.cabinId,
       startDate: reservation.checkInAt ?? reservation.startDate,
@@ -713,6 +816,7 @@ export async function updateReservationPayment(formData: FormData) {
   const reservationIdValue = formData.get("reservationId");
   const paidAmountValue = formData.get("paidAmount");
   const actionValue = formData.get("paymentAction");
+  const paymentStatusValue = formData.get("paymentStatus");
 
   if (
     typeof reservationIdValue !== "string" ||
@@ -736,6 +840,7 @@ export async function updateReservationPayment(formData: FormData) {
   const totalPrice = decimalToNumber(reservation.totalPrice);
 
   let paidAmount: number | null = null;
+  let paymentStatus: string | null = null;
 
   if (actionValue === "MARK_AS_PAID") {
     if (totalPrice === null) {
@@ -746,6 +851,7 @@ export async function updateReservationPayment(formData: FormData) {
     }
 
     paidAmount = totalPrice;
+    paymentStatus = "PAID";
   } else {
     if (typeof paidAmountValue !== "string" || paidAmountValue.trim() === "") {
       paidAmount = null;
@@ -760,6 +866,25 @@ export async function updateReservationPayment(formData: FormData) {
       }
 
       paidAmount = parsedPaidAmount;
+    }
+
+    if (
+      typeof paymentStatusValue === "string" &&
+      paymentStatusValue.trim() !== ""
+    ) {
+      paymentStatus = normalizePaymentStatus(paymentStatusValue);
+
+      if (!paymentStatus) {
+        redirectWithReservationDetailsError(
+          reservationId,
+          "Nieprawidłowy status płatności.",
+        );
+      }
+    } else {
+      paymentStatus = inferPaymentStatus({
+        totalPrice,
+        paidAmount,
+      });
     }
   }
 
@@ -776,6 +901,7 @@ export async function updateReservationPayment(formData: FormData) {
     },
     data: {
       paidAmount,
+      paymentStatus,
     },
   });
 

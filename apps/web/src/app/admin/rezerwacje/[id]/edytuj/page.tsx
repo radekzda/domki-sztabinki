@@ -65,6 +65,57 @@ function splitGuestName(guestName: string) {
   };
 }
 
+function normalizeReservationStatus(status: string) {
+  if (status === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (
+    status === "PENDING" ||
+    status === "CONFIRMED" ||
+    status === "CHECKED_IN" ||
+    status === "CHECKED_OUT" ||
+    status === "CANCELLED"
+  ) {
+    return status;
+  }
+
+  return "PENDING";
+}
+
+function getPaymentStatus({
+  paymentStatus,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentStatus: string | null;
+  totalPrice: number | null;
+  paidAmount: number | null;
+}) {
+  if (
+    paymentStatus === "PENDING" ||
+    paymentStatus === "PAID" ||
+    paymentStatus === "PARTIAL" ||
+    paymentStatus === "REFUNDED"
+  ) {
+    return paymentStatus;
+  }
+
+  if (totalPrice === null) {
+    return "PENDING";
+  }
+
+  if (paidAmount === null || paidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
+}
+
 async function getSystemSettings() {
   return prisma.systemSettings.upsert({
     where: {
@@ -130,6 +181,9 @@ export default async function EditReservationPage({
   const firstName = reservation.firstName ?? splitName.firstName;
   const lastName = reservation.lastName ?? splitName.lastName;
 
+  const totalPrice = decimalToNumber(reservation.totalPrice);
+  const paidAmount = decimalToNumber(reservation.paidAmount);
+
   return (
     <div className="max-w-5xl space-y-8">
       <div>
@@ -184,11 +238,16 @@ export default async function EditReservationPage({
           adults: reservation.adults,
           children: reservation.children,
 
-          status: reservation.status,
+          status: normalizeReservationStatus(reservation.status),
           source: reservation.source,
+          paymentStatus: getPaymentStatus({
+            paymentStatus: reservation.paymentStatus,
+            totalPrice,
+            paidAmount,
+          }),
 
-          totalPrice: decimalToNumber(reservation.totalPrice),
-          paidAmount: decimalToNumber(reservation.paidAmount),
+          totalPrice,
+          paidAmount,
 
           street: reservation.street ?? "",
           postalCode: reservation.postalCode ?? "",
