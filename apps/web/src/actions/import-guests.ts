@@ -16,6 +16,12 @@ type ImportedGuest = {
   postalCode: string | null;
   city: string | null;
   fullAddress: string | null;
+  pesel: string | null;
+  documentNumber: string | null;
+  nationality: string | null;
+  birthDate: Date | null;
+  isVip: boolean;
+  externalGuestId: string | null;
   notes: string | null;
   source: string;
 };
@@ -31,35 +37,42 @@ type ExistingGuest = {
   postalCode: string | null;
   city: string | null;
   fullAddress: string | null;
+  pesel: string | null;
+  documentNumber: string | null;
+  nationality: string | null;
+  birthDate: Date | null;
+  isVip: boolean;
+  externalGuestId: string | null;
   notes: string | null;
   source: string;
 };
-
-const requiredHeaders = [
-  "firstName",
-  "lastName",
-  "fullName",
-  "email",
-  "phone",
-  "country",
-  "street",
-  "postalCode",
-  "city",
-  "fullAddress",
-  "notes",
-  "source",
-];
 
 function cleanText(value: string | undefined | null) {
   if (!value) {
     return "";
   }
 
-  return value.trim();
+  return value.replace(/^\uFEFF/, "").trim();
 }
 
 function cleanNullableText(value: string | undefined | null) {
   const cleanedValue = cleanText(value);
+
+  return cleanedValue ? cleanedValue : null;
+}
+
+function cleanExcelText(value: string | undefined | null) {
+  const cleanedValue = cleanText(value);
+
+  if (cleanedValue.startsWith("'")) {
+    return cleanedValue.slice(1).trim();
+  }
+
+  return cleanedValue;
+}
+
+function cleanNullableExcelText(value: string | undefined | null) {
+  const cleanedValue = cleanExcelText(value);
 
   return cleanedValue ? cleanedValue : null;
 }
@@ -77,7 +90,34 @@ function normalizePhone(value: string | null) {
     return "";
   }
 
-  return value.replace(/[^\d+]/g, "");
+  const withoutExcelApostrophe = value.trim().replace(/^'+/, "");
+  const onlyPhoneCharacters = withoutExcelApostrophe.replace(/[^\d+]/g, "");
+
+  if (!onlyPhoneCharacters) {
+    return "";
+  }
+
+  if (onlyPhoneCharacters.startsWith("+")) {
+    return `+${onlyPhoneCharacters.slice(1).replace(/\+/g, "")}`;
+  }
+
+  return onlyPhoneCharacters.replace(/\+/g, "");
+}
+
+function normalizeNullablePhone(value: string | null) {
+  const normalizedPhone = normalizePhone(value);
+
+  return normalizedPhone ? normalizedPhone : null;
+}
+
+function normalizePesel(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedPesel = value.replace(/\D/g, "");
+
+  return normalizedPesel || null;
 }
 
 function splitFullName(fullName: string) {
@@ -103,7 +143,47 @@ function splitFullName(fullName: string) {
   };
 }
 
-function parseCsv(content: string) {
+function countDelimiterOutsideQuotes(line: string, delimiter: "," | ";") {
+  let count = 0;
+  let insideQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    const nextCharacter = line[index + 1];
+
+    if (insideQuotes) {
+      if (character === '"' && nextCharacter === '"') {
+        index += 1;
+      } else if (character === '"') {
+        insideQuotes = false;
+      }
+
+      continue;
+    }
+
+    if (character === '"') {
+      insideQuotes = true;
+      continue;
+    }
+
+    if (character === delimiter) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function detectDelimiter(content: string): "," | ";" {
+  const firstLine = content.replace(/^\uFEFF/, "").split(/\r?\n/)[0] ?? "";
+
+  const commaCount = countDelimiterOutsideQuotes(firstLine, ",");
+  const semicolonCount = countDelimiterOutsideQuotes(firstLine, ";");
+
+  return commaCount > semicolonCount ? "," : ";";
+}
+
+function parseCsv(content: string, delimiter: "," | ";") {
   const normalizedContent = content.replace(/^\uFEFF/, "");
   const rows: string[][] = [];
 
@@ -133,7 +213,7 @@ function parseCsv(content: string) {
       continue;
     }
 
-    if (character === ";") {
+    if (character === delimiter) {
       currentRow.push(currentValue);
       currentValue = "";
       continue;
@@ -165,10 +245,12 @@ function parseCsv(content: string) {
 }
 
 function createRowsFromCsv(content: string) {
-  const parsedRows = parseCsv(content);
+  const delimiter = detectDelimiter(content);
+  const parsedRows = parseCsv(content, delimiter);
 
   if (parsedRows.length === 0) {
     return {
+      delimiter,
       headers: [] as string[],
       rows: [] as CsvRow[],
     };
@@ -187,28 +269,189 @@ function createRowsFromCsv(content: string) {
   });
 
   return {
+    delimiter,
     headers,
     rows,
   };
 }
 
-function hasRequiredHeaders(headers: string[]) {
-  return requiredHeaders.every((requiredHeader) =>
-    headers.includes(requiredHeader)
+function hasSupportedHeaders(headers: string[]) {
+  const headerSet = new Set(headers);
+
+  const hasProgramExportHeaders =
+    headerSet.has("first_name") &&
+    headerSet.has("last_name") &&
+    headerSet.has("email") &&
+    headerSet.has("phone");
+
+  const hasPmsExportHeaders =
+    (headerSet.has("firstName") || headerSet.has("fullName")) &&
+    (headerSet.has("lastName") || headerSet.has("fullName")) &&
+    (headerSet.has("email") || headerSet.has("phone"));
+
+  return hasProgramExportHeaders || hasPmsExportHeaders;
+}
+
+function getRowValue(row: CsvRow, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key];
+
+    if (typeof value === "string" && value.trim() !== "") {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function parseBoolean(value: string | undefined | null) {
+  const cleanedValue = cleanText(value).toLowerCase();
+
+  return (
+    cleanedValue === "true" ||
+    cleanedValue === "1" ||
+    cleanedValue === "tak" ||
+    cleanedValue === "yes" ||
+    cleanedValue === "vip"
   );
 }
 
+function createDateFromParts(year: number, month: number, day: number) {
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function parseBirthDate(value: string | undefined | null) {
+  const cleanedValue = cleanText(value);
+
+  if (!cleanedValue) {
+    return null;
+  }
+
+  const isoMatch = cleanedValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+
+    const date = createDateFromParts(year, month, day);
+
+    if (!date) {
+      return null;
+    }
+
+    return isDateInFuture(date) ? null : date;
+  }
+
+  const polishMatch = cleanedValue.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+
+  if (polishMatch) {
+    const day = Number(polishMatch[1]);
+    const month = Number(polishMatch[2]);
+    const year = Number(polishMatch[3]);
+
+    const date = createDateFromParts(year, month, day);
+
+    if (!date) {
+      return null;
+    }
+
+    return isDateInFuture(date) ? null : date;
+  }
+
+  const slashMatch = cleanedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (slashMatch) {
+    const day = Number(slashMatch[1]);
+    const month = Number(slashMatch[2]);
+    const year = Number(slashMatch[3]);
+
+    const date = createDateFromParts(year, month, day);
+
+    if (!date) {
+      return null;
+    }
+
+    return isDateInFuture(date) ? null : date;
+  }
+
+  return null;
+}
+
+function isDateInFuture(date: Date) {
+  const now = new Date();
+  const today = new Date(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  );
+
+  return date.getTime() > today.getTime();
+}
+
+function getImportedSource(row: CsvRow) {
+  const source = cleanText(row.source).toUpperCase();
+
+  if (
+    source === "MANUAL" ||
+    source === "BASE44" ||
+    source === "CSV_IMPORT" ||
+    source === "RESERVATION_SYNC"
+  ) {
+    return source;
+  }
+
+  return "CSV_IMPORT";
+}
+
 function createImportedGuest(row: CsvRow): ImportedGuest | null {
-  const fullName = cleanText(row.fullName);
+  const fullName = cleanText(getRowValue(row, ["fullName", "full_name"]));
   const splitName = splitFullName(fullName);
 
-  const firstName = cleanText(row.firstName) || splitName.firstName;
-  const lastName = cleanText(row.lastName) || splitName.lastName;
+  const firstName =
+    cleanText(getRowValue(row, ["firstName", "first_name"])) ||
+    splitName.firstName;
 
-  const email = cleanText(row.email);
-  const phone = cleanNullableText(row.phone);
+  const lastName =
+    cleanText(getRowValue(row, ["lastName", "last_name"])) ||
+    splitName.lastName;
 
-  if (!firstName && !lastName && !email && !phone) {
+  const email = normalizeEmail(cleanText(getRowValue(row, ["email"])));
+
+  const phone = normalizeNullablePhone(
+    cleanNullableExcelText(getRowValue(row, ["phone", "phoneNumber"]))
+  );
+
+  const fullAddress = cleanNullableText(
+    getRowValue(row, ["fullAddress", "full_address", "address"])
+  );
+
+  const pesel = normalizePesel(cleanNullableText(getRowValue(row, ["pesel"])));
+
+  const documentNumber = cleanNullableExcelText(
+    getRowValue(row, ["documentNumber", "document_number", "id_document"])
+  );
+
+  const externalGuestId = cleanNullableText(
+    getRowValue(row, ["externalGuestId", "external_guest_id", "id"])
+  );
+
+  if (
+    !firstName &&
+    !lastName &&
+    !email &&
+    !phone &&
+    !pesel &&
+    !externalGuestId
+  ) {
     return null;
   }
 
@@ -218,13 +461,19 @@ function createImportedGuest(row: CsvRow): ImportedGuest | null {
     fullName,
     email,
     phone,
-    country: cleanNullableText(row.country),
-    street: cleanNullableText(row.street),
-    postalCode: cleanNullableText(row.postalCode),
-    city: cleanNullableText(row.city),
-    fullAddress: cleanNullableText(row.fullAddress),
-    notes: cleanNullableText(row.notes),
-    source: cleanText(row.source) || "CSV_IMPORT",
+    country: cleanNullableText(getRowValue(row, ["country"])),
+    street: cleanNullableText(getRowValue(row, ["street"])),
+    postalCode: cleanNullableText(getRowValue(row, ["postalCode", "postal_code"])),
+    city: cleanNullableText(getRowValue(row, ["city"])),
+    fullAddress,
+    pesel,
+    documentNumber,
+    nationality: cleanNullableText(getRowValue(row, ["nationality"])),
+    birthDate: parseBirthDate(getRowValue(row, ["birthDate", "birth_date", "date_of_birth"])),
+    isVip: parseBoolean(getRowValue(row, ["isVip", "is_vip", "vip_status"])),
+    externalGuestId,
+    notes: cleanNullableText(getRowValue(row, ["notes"])),
+    source: getImportedSource(row),
   };
 }
 
@@ -232,8 +481,20 @@ function findExistingGuest(
   importedGuest: ImportedGuest,
   existingGuests: ExistingGuest[]
 ) {
+  const importedExternalGuestId = cleanText(importedGuest.externalGuestId);
   const importedEmail = normalizeEmail(importedGuest.email);
   const importedPhone = normalizePhone(importedGuest.phone);
+  const importedPesel = normalizePesel(importedGuest.pesel);
+
+  if (importedExternalGuestId) {
+    const foundByExternalGuestId = existingGuests.find(
+      (guest) => cleanText(guest.externalGuestId) === importedExternalGuestId
+    );
+
+    if (foundByExternalGuestId) {
+      return foundByExternalGuestId;
+    }
+  }
 
   if (importedEmail) {
     const foundByEmail = existingGuests.find(
@@ -255,6 +516,16 @@ function findExistingGuest(
     }
   }
 
+  if (importedPesel) {
+    const foundByPesel = existingGuests.find(
+      (guest) => normalizePesel(guest.pesel) === importedPesel
+    );
+
+    if (foundByPesel) {
+      return foundByPesel;
+    }
+  }
+
   return null;
 }
 
@@ -267,6 +538,18 @@ function keepExistingOrUseImported(
   }
 
   return importedValue;
+}
+
+function keepExistingName(existingValue: string, importedValue: string) {
+  if (existingValue && existingValue.trim() && existingValue !== "Gość") {
+    return existingValue;
+  }
+
+  if (importedValue && importedValue.trim()) {
+    return importedValue;
+  }
+
+  return existingValue || "Gość";
 }
 
 function mergeImportedNotes(existingNotes: string | null, importedNotes: string | null) {
@@ -347,7 +630,7 @@ export async function importGuestsFromCsv(formData: FormData) {
   const content = Buffer.from(await file.arrayBuffer()).toString("utf-8");
   const { headers, rows } = createRowsFromCsv(content);
 
-  if (!hasRequiredHeaders(headers)) {
+  if (!hasSupportedHeaders(headers)) {
     redirect(buildRedirectUrl({ error: "wrong-headers" }));
   }
 
@@ -363,6 +646,12 @@ export async function importGuestsFromCsv(formData: FormData) {
       postalCode: true,
       city: true,
       fullAddress: true,
+      pesel: true,
+      documentNumber: true,
+      nationality: true,
+      birthDate: true,
+      isVip: true,
+      externalGuestId: true,
       notes: true,
       source: true,
     },
@@ -388,9 +677,14 @@ export async function importGuestsFromCsv(formData: FormData) {
           id: existingGuest.id,
         },
         data: {
-          firstName:
-            existingGuest.firstName || importedGuest.firstName || "Gość",
-          lastName: existingGuest.lastName || importedGuest.lastName,
+          firstName: keepExistingName(
+            existingGuest.firstName,
+            importedGuest.firstName
+          ),
+          lastName: keepExistingOrUseImported(
+            existingGuest.lastName,
+            importedGuest.lastName
+          ) || "",
           email: existingGuest.email || importedGuest.email,
           phone: keepExistingOrUseImported(
             existingGuest.phone,
@@ -416,6 +710,24 @@ export async function importGuestsFromCsv(formData: FormData) {
             existingGuest.fullAddress,
             importedGuest.fullAddress
           ),
+          pesel: keepExistingOrUseImported(
+            existingGuest.pesel,
+            importedGuest.pesel
+          ),
+          documentNumber: keepExistingOrUseImported(
+            existingGuest.documentNumber,
+            importedGuest.documentNumber
+          ),
+          nationality: keepExistingOrUseImported(
+            existingGuest.nationality,
+            importedGuest.nationality
+          ),
+          birthDate: existingGuest.birthDate ?? importedGuest.birthDate,
+          isVip: existingGuest.isVip || importedGuest.isVip,
+          externalGuestId: keepExistingOrUseImported(
+            existingGuest.externalGuestId,
+            importedGuest.externalGuestId
+          ),
           notes: mergeImportedNotes(existingGuest.notes, importedGuest.notes),
           source: existingGuest.source || importedGuest.source,
         },
@@ -430,6 +742,12 @@ export async function importGuestsFromCsv(formData: FormData) {
           postalCode: true,
           city: true,
           fullAddress: true,
+          pesel: true,
+          documentNumber: true,
+          nationality: true,
+          birthDate: true,
+          isVip: true,
+          externalGuestId: true,
           notes: true,
           source: true,
         },
@@ -458,6 +776,12 @@ export async function importGuestsFromCsv(formData: FormData) {
         postalCode: importedGuest.postalCode,
         city: importedGuest.city,
         fullAddress: importedGuest.fullAddress,
+        pesel: importedGuest.pesel,
+        documentNumber: importedGuest.documentNumber,
+        nationality: importedGuest.nationality,
+        birthDate: importedGuest.birthDate,
+        isVip: importedGuest.isVip,
+        externalGuestId: importedGuest.externalGuestId,
         notes: importedGuest.notes,
         source: importedGuest.source,
       },
@@ -472,6 +796,12 @@ export async function importGuestsFromCsv(formData: FormData) {
         postalCode: true,
         city: true,
         fullAddress: true,
+        pesel: true,
+        documentNumber: true,
+        nationality: true,
+        birthDate: true,
+        isVip: true,
+        externalGuestId: true,
         notes: true,
         source: true,
       },

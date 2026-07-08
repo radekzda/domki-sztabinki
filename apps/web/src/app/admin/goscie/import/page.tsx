@@ -66,7 +66,7 @@ export default async function ImportGuestsPage({ searchParams }: Props) {
           <h1 className="text-3xl font-bold">Import gości CSV</h1>
 
           <p className="mt-2 text-zinc-500">
-            Zaimportuj bazę gości z Base44 albo innego programu.
+            Zaimportuj bazę gości z programu, Base44 albo innego pliku CSV.
           </p>
         </div>
 
@@ -120,7 +120,8 @@ export default async function ImportGuestsPage({ searchParams }: Props) {
         <h2 className="text-xl font-semibold">Wybierz plik CSV</h2>
 
         <p className="mt-2 text-sm text-zinc-500">
-          Plik powinien być zapisany jako CSV UTF-8, z separatorem średnik.
+          Import obsługuje CSV z separatorem przecinek albo średnik. Pole
+          source nie jest wymagane.
         </p>
 
         <form action={importGuestsFromCsv} className="mt-5 space-y-5">
@@ -147,14 +148,47 @@ export default async function ImportGuestsPage({ searchParams }: Props) {
       </section>
 
       <section className="rounded-xl border bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-semibold">Wymagany format CSV</h2>
+        <h2 className="text-xl font-semibold">Obsługiwany format programu</h2>
 
         <p className="mt-2 text-sm text-zinc-500">
-          Pierwszy wiersz pliku musi zawierać dokładnie te nagłówki:
+          Ten format pasuje do pliku Guest_export.csv z programu.
         </p>
 
         <pre className="mt-4 overflow-x-auto rounded-xl bg-zinc-950 p-4 text-sm text-white">
-          firstName;lastName;fullName;email;phone;country;street;postalCode;city;fullAddress;notes;source
+          id_document,address,notes,nationality,phone,date_of_birth,last_name,vip_status,pesel,first_name,email,id,created_date,updated_date,created_by_id,created_by,is_sample
+        </pre>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl bg-zinc-50 p-4">
+            <h3 className="font-semibold">Co importujemy?</h3>
+
+            <p className="mt-2 text-sm leading-6 text-zinc-600">
+              Imię, nazwisko, email, telefon, adres, notatki, narodowość, datę
+              urodzenia, PESEL, numer dokumentu, VIP oraz zewnętrzne ID gościa.
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-zinc-50 p-4">
+            <h3 className="font-semibold">Co z telefonem?</h3>
+
+            <p className="mt-2 text-sm leading-6 text-zinc-600">
+              Jeśli telefon zaczyna się od apostrofu, na przykład &apos;+48,
+              system automatycznie go wyczyści i zachowa numer z plusem.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold">Obsługiwany format PMS</h2>
+
+        <p className="mt-2 text-sm text-zinc-500">
+          Ten format możesz wykorzystać w przyszłości przy własnym eksporcie z
+          innych systemów.
+        </p>
+
+        <pre className="mt-4 overflow-x-auto rounded-xl bg-zinc-950 p-4 text-sm text-white">
+          firstName;lastName;fullName;email;phone;pesel;documentNumber;nationality;birthDate;country;street;postalCode;city;fullAddress;isVip;notes
         </pre>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -162,18 +196,17 @@ export default async function ImportGuestsPage({ searchParams }: Props) {
             <h3 className="font-semibold">Jak wykrywamy duplikaty?</h3>
 
             <p className="mt-2 text-sm leading-6 text-zinc-600">
-              Najpierw po e-mailu, potem po numerze telefonu. Jeśli gość już
-              istnieje, system uzupełni tylko puste dane.
+              Najpierw po zewnętrznym ID, potem po e-mailu, telefonie i PESEL.
+              Jeśli gość już istnieje, system uzupełni tylko puste dane.
             </p>
           </div>
 
           <div className="rounded-xl bg-zinc-50 p-4">
-            <h3 className="font-semibold">Co z adresem?</h3>
+            <h3 className="font-semibold">Co z datą urodzenia?</h3>
 
             <p className="mt-2 text-sm leading-6 text-zinc-600">
-              Jeśli adres jest rozbity na ulicę, kod i miasto, zostanie zapisany
-              w tych polach. Jeśli jest tylko pełny adres, zostanie zapisany w
-              polu pełnego adresu.
+              Obsługiwany jest format YYYY-MM-DD, DD.MM.YYYY oraz DD/MM/YYYY.
+              Przyszłe daty urodzenia są pomijane.
             </p>
           </div>
         </div>
