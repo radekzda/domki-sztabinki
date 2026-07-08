@@ -28,6 +28,29 @@ const allowedSources = [
   "AIRBNB",
 ];
 
+const quickStatusFilters = [
+  {
+    label: "Wszystkie",
+    status: "ALL",
+  },
+  {
+    label: "Oczekujące",
+    status: "PENDING",
+  },
+  {
+    label: "Potwierdzone",
+    status: "CONFIRMED",
+  },
+  {
+    label: "Anulowane",
+    status: "CANCELLED",
+  },
+  {
+    label: "Zakończone",
+    status: "COMPLETED",
+  },
+];
+
 function getStatusFilter(value: string | undefined) {
   if (!value) {
     return "ALL";
@@ -220,6 +243,14 @@ function getPaymentLabel(remainingAmount: number | null) {
   return `Do zapłaty ${formatMoney(remainingAmount)}`;
 }
 
+function getQuickStatusFilterClassName(isActive: boolean) {
+  if (isActive) {
+    return "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800";
+  }
+
+  return "rounded-full border bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900";
+}
+
 function hasActiveFilters({
   searchQuery,
   statusFilter,
@@ -240,6 +271,46 @@ function hasActiveFilters({
     dateFrom !== "" ||
     dateTo !== ""
   );
+}
+
+function buildReservationsUrl({
+  searchQuery,
+  statusFilter,
+  sourceFilter,
+  dateFrom,
+  dateTo,
+}: {
+  searchQuery: string;
+  statusFilter: string;
+  sourceFilter: string;
+  dateFrom: string;
+  dateTo: string;
+}) {
+  const params = new URLSearchParams();
+
+  if (searchQuery) {
+    params.set("q", searchQuery);
+  }
+
+  if (dateFrom) {
+    params.set("dateFrom", dateFrom);
+  }
+
+  if (dateTo) {
+    params.set("dateTo", dateTo);
+  }
+
+  if (statusFilter !== "ALL") {
+    params.set("status", statusFilter);
+  }
+
+  if (sourceFilter !== "ALL") {
+    params.set("source", sourceFilter);
+  }
+
+  const queryString = params.toString();
+
+  return queryString ? `/admin/rezerwacje?${queryString}` : "/admin/rezerwacje";
 }
 
 function buildExportUrl({
@@ -317,73 +388,73 @@ export default async function ReservationsPage({ searchParams }: Props) {
     where: {
       ...(statusFilter !== "ALL"
         ? {
-          status: statusFilter,
-        }
+            status: statusFilter,
+          }
         : {}),
 
       ...(sourceFilter !== "ALL"
         ? {
-          source: sourceFilter,
-        }
+            source: sourceFilter,
+          }
         : {}),
 
       ...(dateConditions.length > 0
         ? {
-          AND: dateConditions,
-        }
+            AND: dateConditions,
+          }
         : {}),
 
       ...(searchQuery
         ? {
-          OR: [
-            {
-              guestName: {
-                contains: searchQuery,
-                mode: "insensitive",
-              },
-            },
-            {
-              firstName: {
-                contains: searchQuery,
-                mode: "insensitive",
-              },
-            },
-            {
-              lastName: {
-                contains: searchQuery,
-                mode: "insensitive",
-              },
-            },
-            {
-              email: {
-                contains: searchQuery,
-                mode: "insensitive",
-              },
-            },
-            {
-              phone: {
-                contains: searchQuery,
-                mode: "insensitive",
-              },
-            },
-            {
-              cabin: {
-                name: {
+            OR: [
+              {
+                guestName: {
                   contains: searchQuery,
                   mode: "insensitive",
                 },
               },
-            },
-            {
-              cabin: {
-                shortName: {
+              {
+                firstName: {
                   contains: searchQuery,
                   mode: "insensitive",
                 },
               },
-            },
-          ],
-        }
+              {
+                lastName: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                email: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                phone: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                cabin: {
+                  name: {
+                    contains: searchQuery,
+                    mode: "insensitive",
+                  },
+                },
+              },
+              {
+                cabin: {
+                  shortName: {
+                    contains: searchQuery,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            ],
+          }
         : {}),
     },
     orderBy: [
@@ -561,6 +632,28 @@ export default async function ReservationsPage({ searchParams }: Props) {
       </section>
 
       <section className="rounded-xl border bg-white p-5 shadow-sm">
+        <div className="mb-5 flex flex-wrap gap-2">
+          {quickStatusFilters.map((filter) => {
+            const isActive = filter.status === statusFilter;
+
+            return (
+              <Link
+                key={filter.status}
+                href={buildReservationsUrl({
+                  searchQuery,
+                  statusFilter: filter.status,
+                  sourceFilter,
+                  dateFrom,
+                  dateTo,
+                })}
+                className={getQuickStatusFilterClassName(isActive)}
+              >
+                {filter.label}
+              </Link>
+            );
+          })}
+        </div>
+
         <form className="grid gap-4 xl:grid-cols-[1fr_auto_auto_auto_auto_auto_auto] xl:items-end">
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
