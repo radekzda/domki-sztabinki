@@ -30,7 +30,7 @@ export default async function EditGuestPage({ params, searchParams }: Props) {
   }
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-4xl space-y-8">
       <div>
         <Link
           href={`/admin/goscie/${guest.id}`}
@@ -42,7 +42,7 @@ export default async function EditGuestPage({ params, searchParams }: Props) {
         <h1 className="mt-3 text-3xl font-bold">Edytuj gościa</h1>
 
         <p className="mt-2 text-zinc-500">
-          Zmień dane kontaktowe gościa. Po zapisaniu dane zostaną też
+          Zmień dane gościa. Po zapisaniu dane kontaktowe i adresowe zostaną też
           zaktualizowane w powiązanych rezerwacjach.
         </p>
       </div>
@@ -64,16 +64,17 @@ export default async function EditGuestPage({ params, searchParams }: Props) {
             <h2 className="text-xl font-semibold">Dane podstawowe</h2>
 
             <p className="mt-1 text-sm text-zinc-500">
-              Te dane są używane w bazie gości i na listach rezerwacji.
+              Wymagane jest przynajmniej imię albo nazwisko oraz przynajmniej
+              email albo telefon.
             </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">Imię</label>
+
               <input
                 name="firstName"
-                required
                 defaultValue={guest.firstName}
                 className="w-full rounded-lg border p-3"
                 placeholder="np. Jan"
@@ -82,9 +83,9 @@ export default async function EditGuestPage({ params, searchParams }: Props) {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Nazwisko</label>
+
               <input
                 name="lastName"
-                required
                 defaultValue={guest.lastName}
                 className="w-full rounded-lg border p-3"
                 placeholder="np. Kowalski"
@@ -101,10 +102,10 @@ export default async function EditGuestPage({ params, searchParams }: Props) {
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">Email</label>
+
               <input
                 type="email"
                 name="email"
-                required
                 defaultValue={guest.email}
                 className="w-full rounded-lg border p-3"
                 placeholder="np. jan@example.com"
@@ -113,33 +114,126 @@ export default async function EditGuestPage({ params, searchParams }: Props) {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Telefon</label>
+
               <input
                 name="phone"
                 defaultValue={guest.phone ?? ""}
                 className="w-full rounded-lg border p-3"
-                placeholder="np. 500 000 000"
+                placeholder="np. +48 500 000 000"
               />
             </div>
           </div>
+        </section>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Kraj</label>
-            <input
-              name="country"
-              defaultValue={guest.country ?? ""}
-              className="w-full rounded-lg border p-3"
-              placeholder="np. Polska"
-            />
+        <section className="space-y-4 border-t pt-6">
+          <div>
+            <h2 className="text-xl font-semibold">Adres</h2>
+
+            <p className="mt-1 text-sm text-zinc-500">
+              Te pola są używane przy danych gościa. Przy zapisie zostaną też
+              uzupełnione w powiązanych rezerwacjach.
+            </p>
           </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Ulica i numer</label>
+
+              <input
+                name="street"
+                defaultValue={guest.street ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="np. Leśna 5"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Kod pocztowy</label>
+
+              <input
+                name="postalCode"
+                defaultValue={guest.postalCode ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="np. 16-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Miasto</label>
+
+              <input
+                name="city"
+                defaultValue={guest.city ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="np. Sejny"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Kraj</label>
+
+              <input
+                name="country"
+                defaultValue={guest.country ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="np. Polska"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Źródło</label>
+
+              <select
+                name="source"
+                defaultValue={guest.source || "MANUAL"}
+                className="w-full rounded-lg border bg-white p-3"
+              >
+                <option value="MANUAL">Ręcznie</option>
+                <option value="BASE44">Base44</option>
+                <option value="CSV_IMPORT">Import CSV</option>
+                <option value="RESERVATION_SYNC">Synchronizacja rezerwacji</option>
+              </select>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Pełny adres</label>
+
+              <input
+                name="fullAddress"
+                defaultValue={guest.fullAddress ?? ""}
+                className="w-full rounded-lg border p-3"
+                placeholder="np. Leśna 5, 16-500 Sejny, Polska"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t pt-6">
+          <div>
+            <h2 className="text-xl font-semibold">Notatki</h2>
+
+            <p className="mt-1 text-sm text-zinc-500">
+              Notatki są zapisane tylko przy gościu. Nie nadpisują notatek w
+              rezerwacjach.
+            </p>
+          </div>
+
+          <textarea
+            name="notes"
+            rows={6}
+            defaultValue={guest.notes ?? ""}
+            className="w-full rounded-lg border p-3"
+            placeholder="Np. preferencje gościa, informacje z importu, uwagi organizacyjne..."
+          />
         </section>
 
         <section className="rounded-xl border bg-zinc-50 p-4">
           <div className="font-semibold">Powiązane rezerwacje</div>
 
           <p className="mt-1 text-sm text-zinc-500">
-            Ten gość ma przypisane rezerwacje: {guest.reservations.length}.
-            Po zapisaniu imię, nazwisko, email, telefon i kraj zostaną
-            zaktualizowane także w tych rezerwacjach.
+            Ten gość ma przypisane rezerwacje: {guest.reservations.length}. Po
+            zapisaniu imię, nazwisko, email, telefon, kraj, ulica, kod pocztowy i
+            miasto zostaną zaktualizowane także w tych rezerwacjach.
           </p>
         </section>
 

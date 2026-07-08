@@ -31,6 +31,16 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function normalizePhone(phone: string | null) {
+  if (!phone) {
+    return null;
+  }
+
+  const normalizedPhone = phone.replace(/[^\d+]/g, "");
+
+  return normalizedPhone || null;
+}
+
 function getRequiredString(formData: FormData, key: string) {
   const value = formData.get(key);
 
@@ -53,8 +63,40 @@ function getOptionalString(formData: FormData, key: string) {
   return trimmedValue === "" ? null : trimmedValue;
 }
 
+function buildFullAddress({
+  street,
+  postalCode,
+  city,
+  country,
+  fullAddress,
+}: {
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+  fullAddress: string | null;
+}) {
+  if (fullAddress) {
+    return fullAddress;
+  }
+
+  const parts = [
+    street,
+    [postalCode, city].filter(Boolean).join(" "),
+    country,
+  ].filter(Boolean);
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return parts.join(", ");
+}
+
 function redirectWithEditGuestError(guestId: string, message: string): never {
-  redirect(`/admin/goscie/${guestId}/edytuj?error=${encodeURIComponent(message)}`);
+  redirect(
+    `/admin/goscie/${guestId}/edytuj?error=${encodeURIComponent(message)}`
+  );
 }
 
 export async function syncGuestsFromReservations() {
@@ -83,12 +125,25 @@ export async function syncGuestsFromReservations() {
     const firstName = reservation.firstName || splitName.firstName;
     const lastName = reservation.lastName || splitName.lastName;
 
+    const fullAddress = buildFullAddress({
+      street: reservation.street,
+      postalCode: reservation.postalCode,
+      city: reservation.city,
+      country: reservation.country,
+      fullAddress: null,
+    });
+
     const guestData = {
       firstName,
       lastName,
       email,
       phone: reservation.phone,
       country: reservation.country,
+      street: reservation.street,
+      postalCode: reservation.postalCode,
+      city: reservation.city,
+      fullAddress,
+      source: "RESERVATION_SYNC",
     };
 
     const existingGuest = await prisma.guest.findFirst({
@@ -102,7 +157,18 @@ export async function syncGuestsFromReservations() {
           where: {
             id: existingGuest.id,
           },
-          data: guestData,
+          data: {
+            firstName: existingGuest.firstName || guestData.firstName,
+            lastName: existingGuest.lastName || guestData.lastName,
+            email: existingGuest.email || guestData.email,
+            phone: existingGuest.phone || guestData.phone,
+            country: existingGuest.country || guestData.country,
+            street: existingGuest.street || guestData.street,
+            postalCode: existingGuest.postalCode || guestData.postalCode,
+            city: existingGuest.city || guestData.city,
+            fullAddress: existingGuest.fullAddress || guestData.fullAddress,
+            source: existingGuest.source || guestData.source,
+          },
         })
       : await prisma.guest.create({
           data: guestData,
@@ -148,19 +214,27 @@ export async function updateGuest(formData: FormData) {
   const firstName = getRequiredString(formData, "firstName");
   const lastName = getRequiredString(formData, "lastName");
   const email = normalizeEmail(getRequiredString(formData, "email"));
-  const phone = getOptionalString(formData, "phone");
+  const phone = normalizePhone(getOptionalString(formData, "phone"));
   const country = getOptionalString(formData, "country");
+  const street = getOptionalString(formData, "street");
+  const postalCode = getOptionalString(formData, "postalCode");
+  const city = getOptionalString(formData, "city");
+  const fullAddress = getOptionalString(formData, "fullAddress");
+  const notes = getOptionalString(formData, "notes");
+  const source = getRequiredString(formData, "source") || "MANUAL";
 
-  if (!firstName) {
-    redirectWithEditGuestError(guestId, "Podaj imię gościa.");
+  if (!firstName && !lastName) {
+    redirectWithEditGuestError(
+      guestId,
+      "Podaj przynajmniej imię albo nazwisko gościa."
+    );
   }
 
-  if (!lastName) {
-    redirectWithEditGuestError(guestId, "Podaj nazwisko gościa.");
-  }
-
-  if (!email) {
-    redirectWithEditGuestError(guestId, "Podaj email gościa.");
+  if (!email && !phone) {
+    redirectWithEditGuestError(
+      guestId,
+      "Podaj przynajmniej email albo telefon gościa."
+    );
   }
 
   const guest = await prisma.guest.findUnique({
@@ -173,7 +247,45 @@ export async function updateGuest(formData: FormData) {
     redirect("/admin/goscie");
   }
 
-  const guestName = `${firstName} ${lastName}`.trim();
+  const duplicateConditions = [];
+
+  if (email) {
+    duplicateConditions.push({
+      email: {
+        equals: email,
+        mode: "insensitive" as const,
+      },
+    });
+  }
+
+  if (phone) {
+    duplicateConditions.push({
+      phone,
+    });
+  }
+
+  if (duplicateConditions.length > 0) {
+    const existingGuest = await prisma.guest.findFirst({
+      where: {
+        id: {
+          not: guestId,
+        },
+        OR: duplicateConditions,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingGuest) {
+      redirectWithEditGuestError(
+        guestId,
+        "Istnieje już inny gość z takim emailem albo telefonem."
+      );
+    }
+  }
+
+  const guestName = `${firstName || "Gość"} ${lastName}`.trim();
 
   await prisma.$transaction([
     prisma.guest.update({
@@ -181,11 +293,23 @@ export async function updateGuest(formData: FormData) {
         id: guestId,
       },
       data: {
-        firstName,
+        firstName: firstName || "Gość",
         lastName,
         email,
         phone,
         country,
+        street,
+        postalCode,
+        city,
+        fullAddress: buildFullAddress({
+          street,
+          postalCode,
+          city,
+          country,
+          fullAddress,
+        }),
+        notes,
+        source,
       },
     }),
     prisma.reservation.updateMany({
@@ -194,11 +318,14 @@ export async function updateGuest(formData: FormData) {
       },
       data: {
         guestName,
-        firstName,
+        firstName: firstName || "Gość",
         lastName,
         email,
         phone,
         country,
+        street,
+        postalCode,
+        city,
       },
     }),
   ]);

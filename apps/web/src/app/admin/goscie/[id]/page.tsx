@@ -84,6 +84,12 @@ function getSourceLabel(source: string) {
       return "Booking";
     case "AIRBNB":
       return "Airbnb";
+    case "BASE44":
+      return "Base44";
+    case "CSV_IMPORT":
+      return "Import CSV";
+    case "RESERVATION_SYNC":
+      return "Synchronizacja rezerwacji";
     default:
       return source;
   }
@@ -114,6 +120,12 @@ function getSourceClassName(source: string) {
       return "bg-blue-100 text-blue-700";
     case "PHONE":
       return "bg-yellow-100 text-yellow-800";
+    case "BASE44":
+      return "bg-purple-100 text-purple-700";
+    case "CSV_IMPORT":
+      return "bg-purple-100 text-purple-700";
+    case "RESERVATION_SYNC":
+      return "bg-indigo-100 text-indigo-700";
     case "MANUAL":
       return "bg-zinc-100 text-zinc-700";
     default:
@@ -159,6 +171,31 @@ function getAddress({
   }
 
   return parts.join(", ");
+}
+
+function getGuestAddress({
+  street,
+  postalCode,
+  city,
+  country,
+  fullAddress,
+}: {
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+  fullAddress: string | null;
+}) {
+  if (fullAddress) {
+    return fullAddress;
+  }
+
+  return getAddress({
+    street,
+    postalCode,
+    city,
+    country,
+  });
 }
 
 export default async function GuestDetailsPage({ params }: Props) {
@@ -219,7 +256,17 @@ export default async function GuestDetailsPage({ params }: Props) {
 
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">{guestName || "Gość"}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold">{guestName || "Gość"}</h1>
+
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getSourceClassName(
+                  guest.source
+                )}`}
+              >
+                {getSourceLabel(guest.source)}
+              </span>
+            </div>
 
             <p className="mt-2 text-zinc-500">
               Szczegóły gościa i pełna historia rezerwacji.
@@ -276,14 +323,41 @@ export default async function GuestDetailsPage({ params }: Props) {
             </div>
 
             <div>
+              <div className="text-sm text-zinc-500">Adres</div>
+              <div className="mt-1 font-semibold">
+                {getGuestAddress({
+                  street: guest.street,
+                  postalCode: guest.postalCode,
+                  city: guest.city,
+                  country: guest.country,
+                  fullAddress: guest.fullAddress,
+                })}
+              </div>
+            </div>
+
+            <div>
               <div className="text-sm text-zinc-500">Kraj</div>
               <div className="mt-1 font-semibold">{guest.country || "—"}</div>
+            </div>
+
+            <div>
+              <div className="text-sm text-zinc-500">Źródło</div>
+              <div className="mt-1 font-semibold">
+                {getSourceLabel(guest.source)}
+              </div>
             </div>
 
             <div>
               <div className="text-sm text-zinc-500">Dodano do bazy</div>
               <div className="mt-1 font-semibold">
                 {formatDate(guest.createdAt)}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm text-zinc-500">Ostatnia aktualizacja</div>
+              <div className="mt-1 font-semibold">
+                {formatDate(guest.updatedAt)}
               </div>
             </div>
 
@@ -342,6 +416,16 @@ export default async function GuestDetailsPage({ params }: Props) {
           </div>
         </div>
       </section>
+
+      {guest.notes ? (
+        <section className="rounded-xl border bg-white p-5 shadow-sm">
+          <h2 className="text-xl font-semibold">Notatki o gościu</h2>
+
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
+            {guest.notes}
+          </p>
+        </section>
+      ) : null}
 
       <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
         <div className="border-b px-5 py-4">
