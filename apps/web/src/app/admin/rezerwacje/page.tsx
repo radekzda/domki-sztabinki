@@ -219,7 +219,7 @@ function getRemainingAmount(
 function getStatusLabel(status: string) {
   switch (status) {
     case "PENDING":
-      return "Oczekująca";
+      return "Oczekuje na potwierdzenie";
     case "CONFIRMED":
       return "Potwierdzona";
     case "CANCELLED":
@@ -266,7 +266,7 @@ function getStatusClassName(status: string) {
     case "CONFIRMED":
       return "bg-blue-100 text-blue-700";
     case "PENDING":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-orange-100 text-orange-800";
     case "CANCELLED":
       return "bg-red-100 text-red-700";
     case "COMPLETED":
@@ -302,7 +302,7 @@ function getPaymentClassName(remainingAmount: number | null) {
     return "text-green-700";
   }
 
-  return "text-red-700";
+  return "text-yellow-700";
 }
 
 function getPaymentLabel(remainingAmount: number | null) {
@@ -365,6 +365,58 @@ function reservationMatchesPaymentFilter({
   }
 
   return true;
+}
+
+function isCurrentlyCheckedIn({
+  status,
+  startDate,
+  endDate,
+  checkInAt,
+  checkOutAt,
+}: {
+  status: string;
+  startDate: Date;
+  endDate: Date;
+  checkInAt: Date | null;
+  checkOutAt: Date | null;
+}) {
+  if (status !== "CONFIRMED") {
+    return false;
+  }
+
+  const now = new Date();
+  const checkInDate = checkInAt ?? startDate;
+  const checkOutDate = checkOutAt ?? endDate;
+
+  return now.getTime() >= checkInDate.getTime() && now.getTime() < checkOutDate.getTime();
+}
+
+function getReservationStatusLabel(reservation: {
+  status: string;
+  startDate: Date;
+  endDate: Date;
+  checkInAt: Date | null;
+  checkOutAt: Date | null;
+}) {
+  if (isCurrentlyCheckedIn(reservation)) {
+    return "Zameldowany";
+  }
+
+  return getStatusLabel(reservation.status);
+}
+
+function getReservationStatusClassName(reservation: {
+  status: string;
+  startDate: Date;
+  endDate: Date;
+  checkInAt: Date | null;
+  checkOutAt: Date | null;
+}) {
+  if (isCurrentlyCheckedIn(reservation)) {
+    return "bg-green-100 text-green-700";
+  }
+
+  return getStatusClassName(reservation.status);
 }
 
 function hasActiveFilters({
@@ -715,7 +767,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
         <div className="rounded-xl border bg-white p-5 shadow-sm">
           <div className="text-sm text-zinc-500">Oczekujące</div>
-          <div className="mt-1 text-3xl font-bold text-yellow-700">
+          <div className="mt-1 text-3xl font-bold text-orange-700">
             {pendingReservations}
           </div>
         </div>
@@ -729,7 +781,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
         <div className="rounded-xl border bg-white p-5 shadow-sm">
           <div className="text-sm text-zinc-500">Nieopłacone</div>
-          <div className="mt-1 text-3xl font-bold text-red-700">
+          <div className="mt-1 text-3xl font-bold text-yellow-700">
             {unpaidReservations}
           </div>
         </div>
@@ -759,7 +811,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
           <div className="rounded-xl bg-zinc-50 p-4">
             <div className="text-sm text-zinc-500">Pozostało razem</div>
-            <div className="mt-1 text-2xl font-bold text-red-700">
+            <div className="mt-1 text-2xl font-bold text-yellow-700">
               {formatMoney(financialSummary.remainingAmount)}
             </div>
           </div>
@@ -1144,11 +1196,11 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
                       <td className="border-b p-4">
                         <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClassName(
-                            reservation.status
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getReservationStatusClassName(
+                            reservation
                           )}`}
                         >
-                          {getStatusLabel(reservation.status)}
+                          {getReservationStatusLabel(reservation)}
                         </span>
                       </td>
 
