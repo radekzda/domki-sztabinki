@@ -17,6 +17,8 @@ const allowedSources = [
   "AIRBNB",
 ];
 
+const allowedPaymentFilters = ["ALL", "PAID", "UNPAID", "NO_PRICE"];
+
 function getStatusFilter(value: string | null) {
   if (!value) {
     return "ALL";
@@ -35,6 +37,18 @@ function getSourceFilter(value: string | null) {
   }
 
   if (!allowedSources.includes(value)) {
+    return "ALL";
+  }
+
+  return value;
+}
+
+function getPaymentFilter(value: string | null) {
+  if (!value) {
+    return "ALL";
+  }
+
+  if (!allowedPaymentFilters.includes(value)) {
     return "ALL";
   }
 
@@ -88,6 +102,32 @@ function getRemainingAmount(
   return Math.max(0, totalPrice - (paidAmount ?? 0));
 }
 
+function reservationMatchesPaymentFilter({
+  paymentFilter,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentFilter: string;
+  totalPrice: number | null;
+  paidAmount: number | null;
+}) {
+  const remainingAmount = getRemainingAmount(totalPrice, paidAmount);
+
+  if (paymentFilter === "PAID") {
+    return remainingAmount !== null && remainingAmount === 0;
+  }
+
+  if (paymentFilter === "UNPAID") {
+    return remainingAmount !== null && remainingAmount > 0;
+  }
+
+  if (paymentFilter === "NO_PRICE") {
+    return remainingAmount === null;
+  }
+
+  return true;
+}
+
 function formatDateTime(date: Date | null) {
   if (!date) {
     return "";
@@ -134,6 +174,18 @@ function getSourceLabel(source: string) {
   }
 }
 
+function getPaymentStatusLabel(remainingAmount: number | null) {
+  if (remainingAmount === null) {
+    return "Brak ceny";
+  }
+
+  if (remainingAmount === 0) {
+    return "Opłacone";
+  }
+
+  return "Nieopłacone";
+}
+
 function formatCsvValue(value: string | number | null) {
   if (value === null) {
     return "";
@@ -174,6 +226,7 @@ export async function GET(request: Request) {
 
   const statusFilter = getStatusFilter(url.searchParams.get("status"));
   const sourceFilter = getSourceFilter(url.searchParams.get("source"));
+  const paymentFilter = getPaymentFilter(url.searchParams.get("payment"));
   const searchQuery = getSearchQuery(url.searchParams.get("q"));
   const dateFrom = getDateInputValue(url.searchParams.get("dateFrom"));
   const dateTo = getDateInputValue(url.searchParams.get("dateTo"));
@@ -198,7 +251,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const reservations = await prisma.reservation.findMany({
+  const allReservations = await prisma.reservation.findMany({
     where: {
       ...(statusFilter !== "ALL"
         ? {
@@ -284,6 +337,17 @@ export async function GET(request: Request) {
     },
   });
 
+  const reservations = allReservations.filter((reservation) => {
+    const totalPrice = decimalToNumber(reservation.totalPrice);
+    const paidAmount = decimalToNumber(reservation.paidAmount);
+
+    return reservationMatchesPaymentFilter({
+      paymentFilter,
+      totalPrice,
+      paidAmount,
+    });
+  });
+
   const header = createCsvRow([
     "Gość",
     "Imię",
@@ -299,6 +363,7 @@ export async function GET(request: Request) {
     "Dzieci",
     "Status",
     "Źródło",
+    "Status płatności",
     "Cena pobytu",
     "Cena za noc",
     "Wpłacono",
@@ -336,6 +401,7 @@ export async function GET(request: Request) {
       reservation.children,
       getStatusLabel(reservation.status),
       getSourceLabel(reservation.source),
+      getPaymentStatusLabel(remainingAmount),
       totalPrice,
       pricePerNight,
       paidAmount,
