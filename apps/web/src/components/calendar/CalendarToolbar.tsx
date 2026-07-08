@@ -18,10 +18,11 @@ const statusOptions: {
   label: string;
 }[] = [
   { value: "ALL", label: "Wszystkie statusy" },
-  { value: "CONFIRMED", label: "Potwierdzone" },
-  { value: "PENDING", label: "Oczekujące" },
-  { value: "CANCELLED", label: "Anulowane" },
-  { value: "COMPLETED", label: "Zakończone" },
+  { value: "PENDING", label: "Oczekuje na potwierdzenie" },
+  { value: "CONFIRMED", label: "Potwierdzona" },
+  { value: "CHECKED_IN", label: "Zameldowany" },
+  { value: "CHECKED_OUT", label: "Wymeldowany" },
+  { value: "CANCELLED", label: "Anulowany" },
 ];
 
 const sourceOptions: {
@@ -87,7 +88,7 @@ export default function CalendarToolbar({
                 status: event.target.value as CalendarActiveFilters["status"],
               });
             }}
-            className="h-10 min-w-[180px] rounded-lg border bg-white px-3 text-sm font-medium"
+            className="h-10 min-w-[240px] rounded-lg border bg-white px-3 text-sm font-medium"
           >
             {statusOptions.map((status) => (
               <option key={status.value} value={status.value}>

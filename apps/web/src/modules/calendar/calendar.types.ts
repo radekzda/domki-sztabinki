@@ -3,8 +3,9 @@ export type CalendarViewMode = "month" | "week";
 export type CalendarReservationStatus =
   | "PENDING"
   | "CONFIRMED"
-  | "CANCELLED"
-  | "COMPLETED";
+  | "CHECKED_IN"
+  | "CHECKED_OUT"
+  | "CANCELLED";
 
 export type CalendarReservationSource =
   | "MANUAL"

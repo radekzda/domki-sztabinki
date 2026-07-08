@@ -40,13 +40,24 @@ function getSelectedCalendarDate(searchParams?: {
 }
 
 function mapReservationStatus(status: string): CalendarReservationStatus {
-  if (
-    status === "PENDING" ||
-    status === "CONFIRMED" ||
-    status === "CANCELLED" ||
-    status === "COMPLETED"
-  ) {
-    return status;
+  if (status === "PENDING") {
+    return "PENDING";
+  }
+
+  if (status === "CONFIRMED") {
+    return "CONFIRMED";
+  }
+
+  if (status === "CHECKED_IN") {
+    return "CHECKED_IN";
+  }
+
+  if (status === "CHECKED_OUT" || status === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (status === "CANCELLED") {
+    return "CANCELLED";
   }
 
   return "PENDING";

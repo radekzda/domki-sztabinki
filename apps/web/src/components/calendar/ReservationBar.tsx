@@ -26,14 +26,16 @@ const ESTIMATED_TOOLTIP_HEIGHT = 620;
 
 function getReservationBarColor(status: CalendarReservation["status"]) {
   switch (status) {
+    case "PENDING":
+      return "bg-orange-500 text-white";
     case "CONFIRMED":
       return "bg-blue-600 text-white";
-    case "PENDING":
-      return "bg-yellow-400 text-zinc-950";
+    case "CHECKED_IN":
+      return "bg-green-700 text-white";
+    case "CHECKED_OUT":
+      return "bg-zinc-400 text-white";
     case "CANCELLED":
       return "bg-red-500 text-white";
-    case "COMPLETED":
-      return "bg-zinc-400 text-white";
     default:
       return "bg-zinc-500 text-white";
   }
@@ -57,7 +59,7 @@ function getReservationSourceBadge(source: CalendarReservation["source"]) {
 }
 
 function getReservationSourceBadgeClassName(
-  source: CalendarReservation["source"]
+  source: CalendarReservation["source"],
 ) {
   switch (source) {
     case "BOOKING":
@@ -117,17 +119,17 @@ function getTooltipPosition(element: HTMLDivElement): TooltipPosition {
   const left = clamp(
     rect.left,
     TOOLTIP_MARGIN,
-    Math.max(TOOLTIP_MARGIN, maxLeft)
+    Math.max(TOOLTIP_MARGIN, maxLeft),
   );
 
   const availableTooltipHeight = Math.max(
     240,
-    viewportHeight - TOOLTIP_MARGIN * 2
+    viewportHeight - TOOLTIP_MARGIN * 2,
   );
 
   const tooltipHeight = Math.min(
     ESTIMATED_TOOLTIP_HEIGHT,
-    availableTooltipHeight
+    availableTooltipHeight,
   );
 
   const spaceBelow = viewportHeight - rect.bottom - TOOLTIP_MARGIN;
@@ -150,7 +152,7 @@ function getTooltipPosition(element: HTMLDivElement): TooltipPosition {
   const top = clamp(
     preferredTop,
     TOOLTIP_MARGIN,
-    Math.max(TOOLTIP_MARGIN, maxTop)
+    Math.max(TOOLTIP_MARGIN, maxTop),
   );
 
   return {
@@ -180,7 +182,7 @@ export default function ReservationBar({
     <>
       <div
         className={`pointer-events-auto absolute bottom-[5%] top-[5%] flex cursor-pointer overflow-hidden rounded-2xl px-4 py-3 text-[20px] leading-none shadow-sm transition-all hover:z-50 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-green-300 ${getReservationBarColor(
-          reservation.status
+          reservation.status,
         )}`}
         style={{
           left: `calc(${position.startColumn - 1} * ${DAY_WIDTH}px)`,
@@ -215,7 +217,7 @@ export default function ReservationBar({
           <div className="flex min-w-0 items-center gap-2 font-bold">
             <span
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded text-[14px] font-bold shadow-sm ${getReservationSourceBadgeClassName(
-                reservation.source
+                reservation.source,
               )}`}
             >
               {getReservationSourceBadge(reservation.source)}
@@ -240,7 +242,9 @@ export default function ReservationBar({
 
         <div
           className={`ml-3 flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full text-base font-bold ${
-            isPaid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            isPaid
+              ? "bg-green-100 text-green-700"
+              : "bg-yellow-100 text-yellow-800"
           }`}
         >
           {isPaid ? "✓" : "!"}

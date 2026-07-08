@@ -54,23 +54,28 @@ export default function CalendarLegend() {
 
           <div className="mt-4 flex flex-wrap gap-4 text-sm">
             <div className="flex items-center gap-2">
+              <span className="h-4 w-4 rounded-full bg-orange-500" />
+              <span>Oczekuje na potwierdzenie</span>
+            </div>
+
+            <div className="flex items-center gap-2">
               <span className="h-4 w-4 rounded-full bg-blue-600" />
               <span>Potwierdzona</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="h-4 w-4 rounded-full bg-yellow-400" />
-              <span>Oczekująca</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="h-4 w-4 rounded-full bg-red-500" />
-              <span>Anulowana</span>
+              <span className="h-4 w-4 rounded-full bg-green-700" />
+              <span>Zameldowany</span>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="h-4 w-4 rounded-full bg-zinc-400" />
-              <span>Zakończona</span>
+              <span>Wymeldowany</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="h-4 w-4 rounded-full bg-red-500" />
+              <span>Anulowany</span>
             </div>
           </div>
         </div>
@@ -89,7 +94,7 @@ export default function CalendarLegend() {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-sm font-bold text-red-700">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-yellow-100 text-sm font-bold text-yellow-800">
                 !
               </span>
               <span>Do zapłaty</span>
