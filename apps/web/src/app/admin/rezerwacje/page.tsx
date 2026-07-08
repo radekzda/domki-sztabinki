@@ -5,6 +5,7 @@ type Props = {
   searchParams?: Promise<{
     status?: string;
     source?: string;
+    payment?: string;
     q?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -27,6 +28,8 @@ const allowedSources = [
   "BOOKING",
   "AIRBNB",
 ];
+
+const allowedPaymentFilters = ["ALL", "PAID", "UNPAID", "NO_PRICE"];
 
 const quickStatusFilters = [
   {
@@ -78,6 +81,25 @@ const quickSourceFilters = [
   },
 ];
 
+const quickPaymentFilters = [
+  {
+    label: "Wszystkie płatności",
+    payment: "ALL",
+  },
+  {
+    label: "Opłacone",
+    payment: "PAID",
+  },
+  {
+    label: "Nieopłacone",
+    payment: "UNPAID",
+  },
+  {
+    label: "Brak ceny",
+    payment: "NO_PRICE",
+  },
+];
+
 function getStatusFilter(value: string | undefined) {
   if (!value) {
     return "ALL";
@@ -96,6 +118,18 @@ function getSourceFilter(value: string | undefined) {
   }
 
   if (!allowedSources.includes(value)) {
+    return "ALL";
+  }
+
+  return value;
+}
+
+function getPaymentFilter(value: string | undefined) {
+  if (!value) {
+    return "ALL";
+  }
+
+  if (!allowedPaymentFilters.includes(value)) {
     return "ALL";
   }
 
@@ -214,6 +248,19 @@ function getSourceLabel(source: string) {
   }
 }
 
+function getPaymentFilterLabel(paymentFilter: string) {
+  switch (paymentFilter) {
+    case "PAID":
+      return "Opłacone";
+    case "UNPAID":
+      return "Nieopłacone";
+    case "NO_PRICE":
+      return "Brak ceny";
+    default:
+      return paymentFilter;
+  }
+}
+
 function getStatusClassName(status: string) {
   switch (status) {
     case "CONFIRMED":
@@ -286,16 +333,52 @@ function getQuickSourceFilterClassName(isActive: boolean) {
   return "rounded-full border bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900";
 }
 
+function getQuickPaymentFilterClassName(isActive: boolean) {
+  if (isActive) {
+    return "rounded-full bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800";
+  }
+
+  return "rounded-full border bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900";
+}
+
+function reservationMatchesPaymentFilter({
+  paymentFilter,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentFilter: string;
+  totalPrice: number | null;
+  paidAmount: number | null;
+}) {
+  const remainingAmount = getRemainingAmount(totalPrice, paidAmount);
+
+  if (paymentFilter === "PAID") {
+    return remainingAmount !== null && remainingAmount === 0;
+  }
+
+  if (paymentFilter === "UNPAID") {
+    return remainingAmount !== null && remainingAmount > 0;
+  }
+
+  if (paymentFilter === "NO_PRICE") {
+    return remainingAmount === null;
+  }
+
+  return true;
+}
+
 function hasActiveFilters({
   searchQuery,
   statusFilter,
   sourceFilter,
+  paymentFilter,
   dateFrom,
   dateTo,
 }: {
   searchQuery: string;
   statusFilter: string;
   sourceFilter: string;
+  paymentFilter: string;
   dateFrom: string;
   dateTo: string;
 }) {
@@ -303,6 +386,7 @@ function hasActiveFilters({
     searchQuery !== "" ||
     statusFilter !== "ALL" ||
     sourceFilter !== "ALL" ||
+    paymentFilter !== "ALL" ||
     dateFrom !== "" ||
     dateTo !== ""
   );
@@ -312,12 +396,14 @@ function buildReservationsUrl({
   searchQuery,
   statusFilter,
   sourceFilter,
+  paymentFilter,
   dateFrom,
   dateTo,
 }: {
   searchQuery: string;
   statusFilter: string;
   sourceFilter: string;
+  paymentFilter: string;
   dateFrom: string;
   dateTo: string;
 }) {
@@ -341,6 +427,10 @@ function buildReservationsUrl({
 
   if (sourceFilter !== "ALL") {
     params.set("source", sourceFilter);
+  }
+
+  if (paymentFilter !== "ALL") {
+    params.set("payment", paymentFilter);
   }
 
   const queryString = params.toString();
@@ -352,12 +442,14 @@ function buildExportUrl({
   searchQuery,
   statusFilter,
   sourceFilter,
+  paymentFilter,
   dateFrom,
   dateTo,
 }: {
   searchQuery: string;
   statusFilter: string;
   sourceFilter: string;
+  paymentFilter: string;
   dateFrom: string;
   dateTo: string;
 }) {
@@ -381,6 +473,10 @@ function buildExportUrl({
 
   if (sourceFilter !== "ALL") {
     params.set("source", sourceFilter);
+  }
+
+  if (paymentFilter !== "ALL") {
+    params.set("payment", paymentFilter);
   }
 
   const queryString = params.toString();
@@ -395,6 +491,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
 
   const statusFilter = getStatusFilter(resolvedSearchParams?.status);
   const sourceFilter = getSourceFilter(resolvedSearchParams?.source);
+  const paymentFilter = getPaymentFilter(resolvedSearchParams?.payment);
   const searchQuery = getSearchQuery(resolvedSearchParams?.q);
   const dateFrom = getDateInputValue(resolvedSearchParams?.dateFrom);
   const dateTo = getDateInputValue(resolvedSearchParams?.dateTo);
@@ -419,7 +516,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
     });
   }
 
-  const reservations = await prisma.reservation.findMany({
+  const allReservations = await prisma.reservation.findMany({
     where: {
       ...(statusFilter !== "ALL"
         ? {
@@ -505,6 +602,17 @@ export default async function ReservationsPage({ searchParams }: Props) {
     },
   });
 
+  const reservations = allReservations.filter((reservation) => {
+    const totalPrice = decimalToNumber(reservation.totalPrice);
+    const paidAmount = decimalToNumber(reservation.paidAmount);
+
+    return reservationMatchesPaymentFilter({
+      paymentFilter,
+      totalPrice,
+      paidAmount,
+    });
+  });
+
   const totalReservations = reservations.length;
 
   const pendingReservations = reservations.filter(
@@ -553,6 +661,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
     searchQuery,
     statusFilter,
     sourceFilter,
+    paymentFilter,
     dateFrom,
     dateTo,
   });
@@ -561,6 +670,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
     searchQuery,
     statusFilter,
     sourceFilter,
+    paymentFilter,
     dateFrom,
     dateTo,
   });
@@ -684,6 +794,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
                       searchQuery,
                       statusFilter: filter.status,
                       sourceFilter,
+                      paymentFilter,
                       dateFrom,
                       dateTo,
                     })}
@@ -712,6 +823,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
                       searchQuery,
                       statusFilter,
                       sourceFilter: filter.source,
+                      paymentFilter,
                       dateFrom,
                       dateTo,
                     })}
@@ -723,9 +835,38 @@ export default async function ReservationsPage({ searchParams }: Props) {
               })}
             </div>
           </div>
+
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Szybki filtr płatności
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {quickPaymentFilters.map((filter) => {
+                const isActive = filter.payment === paymentFilter;
+
+                return (
+                  <Link
+                    key={filter.payment}
+                    href={buildReservationsUrl({
+                      searchQuery,
+                      statusFilter,
+                      sourceFilter,
+                      paymentFilter: filter.payment,
+                      dateFrom,
+                      dateTo,
+                    })}
+                    className={getQuickPaymentFilterClassName(isActive)}
+                  >
+                    {filter.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        <form className="grid gap-4 xl:grid-cols-[1fr_auto_auto_auto_auto_auto_auto] xl:items-end">
+        <form className="grid gap-4 xl:grid-cols-[1fr_auto_auto_auto_auto_auto_auto_auto] xl:items-end">
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Szukaj
@@ -802,6 +943,23 @@ export default async function ReservationsPage({ searchParams }: Props) {
             </select>
           </div>
 
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Płatność
+            </label>
+
+            <select
+              name="payment"
+              defaultValue={paymentFilter}
+              className="h-10 min-w-[180px] rounded-lg border bg-white px-3 text-sm font-medium"
+            >
+              <option value="ALL">Wszystkie płatności</option>
+              <option value="PAID">Opłacone</option>
+              <option value="UNPAID">Nieopłacone</option>
+              <option value="NO_PRICE">Brak ceny</option>
+            </select>
+          </div>
+
           <button className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800">
             Filtruj
           </button>
@@ -848,6 +1006,12 @@ export default async function ReservationsPage({ searchParams }: Props) {
               {sourceFilter !== "ALL" ? (
                 <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
                   Źródło: {getSourceLabel(sourceFilter)}
+                </span>
+              ) : null}
+
+              {paymentFilter !== "ALL" ? (
+                <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
+                  Płatność: {getPaymentFilterLabel(paymentFilter)}
                 </span>
               ) : null}
             </div>
