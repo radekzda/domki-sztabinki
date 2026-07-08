@@ -523,19 +523,16 @@ export default async function ReservationsPage({ searchParams }: Props) {
             status: statusFilter,
           }
         : {}),
-
       ...(sourceFilter !== "ALL"
         ? {
             source: sourceFilter,
           }
         : {}),
-
       ...(dateConditions.length > 0
         ? {
             AND: dateConditions,
           }
         : {}),
-
       ...(searchQuery
         ? {
             OR: [
@@ -695,6 +692,13 @@ export default async function ReservationsPage({ searchParams }: Props) {
           </Link>
 
           <Link
+            href="/admin/rezerwacje/import"
+            className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
+          >
+            Import CSV
+          </Link>
+
+          <Link
             href="/admin/rezerwacje/nowa"
             className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
           >
@@ -738,36 +742,36 @@ export default async function ReservationsPage({ searchParams }: Props) {
           Wartości liczone są dla aktualnie widocznych rezerwacji po filtrach.
         </p>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <div className="rounded-xl border bg-zinc-50 p-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-5">
+          <div className="rounded-xl bg-zinc-50 p-4">
             <div className="text-sm text-zinc-500">Cena pobytów razem</div>
-            <div className="mt-1 text-2xl font-bold">
+            <div className="mt-1 text-2xl font-bold text-green-700">
               {formatMoney(financialSummary.totalPrice)}
             </div>
           </div>
 
-          <div className="rounded-xl border bg-green-50 p-4">
-            <div className="text-sm text-green-700">Wpłacono razem</div>
-            <div className="mt-1 text-2xl font-bold text-green-800">
+          <div className="rounded-xl bg-zinc-50 p-4">
+            <div className="text-sm text-zinc-500">Wpłacono razem</div>
+            <div className="mt-1 text-2xl font-bold text-green-700">
               {formatMoney(financialSummary.paidAmount)}
             </div>
           </div>
 
-          <div className="rounded-xl border bg-red-50 p-4">
-            <div className="text-sm text-red-700">Pozostało razem</div>
-            <div className="mt-1 text-2xl font-bold text-red-800">
+          <div className="rounded-xl bg-zinc-50 p-4">
+            <div className="text-sm text-zinc-500">Pozostało razem</div>
+            <div className="mt-1 text-2xl font-bold text-red-700">
               {formatMoney(financialSummary.remainingAmount)}
             </div>
           </div>
 
-          <div className="rounded-xl border bg-zinc-50 p-4">
+          <div className="rounded-xl bg-zinc-50 p-4">
             <div className="text-sm text-zinc-500">Liczba nocy</div>
             <div className="mt-1 text-2xl font-bold">
               {financialSummary.nights}
             </div>
           </div>
 
-          <div className="rounded-xl border bg-zinc-50 p-4">
+          <div className="rounded-xl bg-zinc-50 p-4">
             <div className="text-sm text-zinc-500">Średnia rezerwacja</div>
             <div className="mt-1 text-2xl font-bold">
               {formatMoney(averageReservationValue)}
@@ -777,7 +781,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
       </section>
 
       <section className="rounded-xl border bg-white p-5 shadow-sm">
-        <div className="mb-5 space-y-4">
+        <div className="mb-5 space-y-5">
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Szybki filtr statusu
@@ -866,8 +870,8 @@ export default async function ReservationsPage({ searchParams }: Props) {
           </div>
         </div>
 
-        <form className="grid gap-4 xl:grid-cols-[1fr_auto_auto_auto_auto_auto_auto_auto] xl:items-end">
-          <div className="space-y-1">
+        <form className="grid gap-4 md:grid-cols-6">
+          <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Szukaj
             </label>
@@ -876,7 +880,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
               name="q"
               defaultValue={searchQuery}
               className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
-              placeholder="Gość, telefon, email albo domek"
+              placeholder="Gość, email, telefon albo domek"
             />
           </div>
 
@@ -889,7 +893,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
               type="date"
               name="dateFrom"
               defaultValue={dateFrom}
-              className="h-10 rounded-lg border bg-white px-3 text-sm font-medium"
+              className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
             />
           </div>
 
@@ -902,7 +906,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
               type="date"
               name="dateTo"
               defaultValue={dateTo}
-              className="h-10 rounded-lg border bg-white px-3 text-sm font-medium"
+              className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
             />
           </div>
 
@@ -914,7 +918,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
             <select
               name="status"
               defaultValue={statusFilter}
-              className="h-10 min-w-[180px] rounded-lg border bg-white px-3 text-sm font-medium"
+              className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
             >
               <option value="ALL">Wszystkie statusy</option>
               <option value="PENDING">Oczekujące</option>
@@ -932,7 +936,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
             <select
               name="source"
               defaultValue={sourceFilter}
-              className="h-10 min-w-[170px] rounded-lg border bg-white px-3 text-sm font-medium"
+              className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
             >
               <option value="ALL">Wszystkie źródła</option>
               <option value="MANUAL">Ręcznie</option>
@@ -951,7 +955,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
             <select
               name="payment"
               defaultValue={paymentFilter}
-              className="h-10 min-w-[180px] rounded-lg border bg-white px-3 text-sm font-medium"
+              className="h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium"
             >
               <option value="ALL">Wszystkie płatności</option>
               <option value="PAID">Opłacone</option>
@@ -960,16 +964,18 @@ export default async function ReservationsPage({ searchParams }: Props) {
             </select>
           </div>
 
-          <button className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800">
-            Filtruj
-          </button>
+          <div className="flex items-end gap-3 md:col-span-5">
+            <button className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800">
+              Filtruj
+            </button>
 
-          <Link
-            href="/admin/rezerwacje"
-            className="flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold hover:bg-zinc-50"
-          >
-            Wyczyść
-          </Link>
+            <Link
+              href="/admin/rezerwacje"
+              className="flex h-10 items-center rounded-lg border px-4 text-sm font-semibold hover:bg-zinc-50"
+            >
+              Wyczyść
+            </Link>
+          </div>
         </form>
       </section>
 
@@ -1024,7 +1030,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1150px] border-collapse text-sm">
+            <table className="w-full min-w-[1300px] border-collapse text-sm">
               <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
                   <th className="border-b p-4">Gość</th>
@@ -1056,7 +1062,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
                       className="align-top hover:bg-zinc-50"
                     >
                       <td className="border-b p-4">
-                        <div className="font-semibold text-zinc-900">
+                        <div className="font-semibold">
                           {reservation.guestName}
                         </div>
 
@@ -1092,12 +1098,14 @@ export default async function ReservationsPage({ searchParams }: Props) {
                         </div>
 
                         <div className="mt-1 text-zinc-500">
+                          Przyjazd:{" "}
                           {formatDateTime(
                             reservation.checkInAt ?? reservation.startDate
                           )}
                         </div>
 
                         <div className="mt-1 text-zinc-500">
+                          Wyjazd:{" "}
                           {formatDateTime(
                             reservation.checkOutAt ?? reservation.endDate
                           )}
