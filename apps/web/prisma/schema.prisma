@@ -85,40 +85,6 @@ model Reservation {
   guest Guest? @relation(fields: [guestId], references: [id])
 }
 
-model User {
-  id       String @id @default(cuid())
-  email    String @unique
-  password String
-  role     String @default("ADMIN")
-}
-
-model CabinImage {
-  id        String   @id @default(cuid())
-  cabinId   String
-  url       String
-  alt       String?
-  isMain    Boolean  @default(false)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-
-  cabin Cabin @relation(fields: [cabinId], references: [id], onDelete: Cascade)
-}
-
-model Guest {
-  id String @id @default(cuid())
-
-  firstName String
-  lastName  String
-
-  email   String
-  phone   String?
-  country String?
-
-  createdAt DateTime @default(now())
-
-  reservations Reservation[]
-}
-
 model Inquiry {
   id String @id @default(cuid())
 
@@ -154,9 +120,52 @@ model Inquiry {
 
   cabin Cabin? @relation(fields: [cabinId], references: [id], onDelete: SetNull)
 
-  @@index([createdAt])
-  @@index([status])
   @@index([cabinId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model User {
+  id       String @id @default(cuid())
+  email    String @unique
+  password String
+  role     String @default("ADMIN")
+}
+
+model CabinImage {
+  id        String   @id @default(cuid())
+  cabinId   String
+  url       String
+  alt       String?
+  isMain    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  cabin Cabin @relation(fields: [cabinId], references: [id], onDelete: Cascade)
+}
+
+model Guest {
+  id String @id @default(cuid())
+
+  firstName String
+  lastName  String
+
+  email   String
+  phone   String?
+  country String?
+
+  street      String?
+  postalCode  String?
+  city        String?
+  fullAddress String?
+
+  notes  String?
+  source String  @default("MANUAL")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  reservations Reservation[]
 }
 
 model SystemSettings {
