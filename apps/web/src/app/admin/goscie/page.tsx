@@ -331,6 +331,13 @@ export default async function GuestsPage({ searchParams }: Props) {
 
         <div className="flex flex-wrap gap-3">
           <Link
+            href="/admin/goscie/nowy"
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
+          >
+            + Dodaj gościa
+          </Link>
+
+          <Link
             href="/admin/goscie/import"
             className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
           >
@@ -346,7 +353,7 @@ export default async function GuestsPage({ searchParams }: Props) {
 
           <Link
             href="/admin/rezerwacje/nowa"
-            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
+            className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-zinc-50"
           >
             + Dodaj rezerwację
           </Link>
