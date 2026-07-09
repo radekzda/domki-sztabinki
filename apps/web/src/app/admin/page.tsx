@@ -12,7 +12,6 @@ import {
   CircleDollarSign,
   Inbox,
   Users,
-  Wallet,
 } from "lucide-react";
 
 function formatCurrency(value: number) {
@@ -39,44 +38,74 @@ function toNumber(value: unknown) {
   return Number(value);
 }
 
-function getStatusLabel(status: string) {
-  if (status === "PENDING") {
-    return "Oczekująca";
+function normalizeReservationStatus(status: string) {
+  if (status === "COMPLETED") {
+    return "CHECKED_OUT";
   }
 
-  if (status === "CONFIRMED") {
+  if (
+    status === "PENDING" ||
+    status === "CONFIRMED" ||
+    status === "CHECKED_IN" ||
+    status === "CHECKED_OUT" ||
+    status === "CANCELLED"
+  ) {
+    return status;
+  }
+
+  return "PENDING";
+}
+
+function getStatusLabel(status: string) {
+  const normalizedStatus = normalizeReservationStatus(status);
+
+  if (normalizedStatus === "PENDING") {
+    return "Oczekuje na potwierdzenie";
+  }
+
+  if (normalizedStatus === "CONFIRMED") {
     return "Potwierdzona";
   }
 
-  if (status === "CANCELLED") {
-    return "Anulowana";
+  if (normalizedStatus === "CHECKED_IN") {
+    return "Zameldowany";
   }
 
-  if (status === "COMPLETED") {
-    return "Zakończona";
+  if (normalizedStatus === "CHECKED_OUT") {
+    return "Wymeldowany";
   }
 
-  return status;
+  if (normalizedStatus === "CANCELLED") {
+    return "Anulowany";
+  }
+
+  return normalizedStatus;
 }
 
 function getStatusClassName(status: string) {
-  if (status === "PENDING") {
-    return "bg-amber-50 text-amber-700 border-amber-200";
+  const normalizedStatus = normalizeReservationStatus(status);
+
+  if (normalizedStatus === "PENDING") {
+    return "border-orange-200 bg-orange-50 text-orange-700";
   }
 
-  if (status === "CONFIRMED") {
-    return "bg-green-50 text-green-700 border-green-200";
+  if (normalizedStatus === "CONFIRMED") {
+    return "border-blue-200 bg-blue-50 text-blue-700";
   }
 
-  if (status === "CANCELLED") {
-    return "bg-red-50 text-red-700 border-red-200";
+  if (normalizedStatus === "CHECKED_IN") {
+    return "border-green-200 bg-green-50 text-green-700";
   }
 
-  if (status === "COMPLETED") {
-    return "bg-zinc-100 text-zinc-700 border-zinc-200";
+  if (normalizedStatus === "CHECKED_OUT") {
+    return "border-zinc-200 bg-zinc-100 text-zinc-700";
   }
 
-  return "bg-zinc-100 text-zinc-700 border-zinc-200";
+  if (normalizedStatus === "CANCELLED") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  return "border-zinc-200 bg-zinc-100 text-zinc-700";
 }
 
 function getInquiryStatusLabel(status: string) {
@@ -97,18 +126,18 @@ function getInquiryStatusLabel(status: string) {
 
 function getInquiryStatusClassName(status: string) {
   if (status === "NEW") {
-    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
 
   if (status === "APPROVED" || status === "CONTACTED") {
-    return "bg-sky-50 text-sky-700 border-sky-200";
+    return "border-sky-200 bg-sky-50 text-sky-700";
   }
 
   if (status === "ARCHIVED") {
-    return "bg-slate-100 text-slate-700 border-slate-200";
+    return "border-slate-200 bg-slate-100 text-slate-700";
   }
 
-  return "bg-zinc-100 text-zinc-700 border-zinc-200";
+  return "border-zinc-200 bg-zinc-100 text-zinc-700";
 }
 
 function getAlertClassName(type: string) {
@@ -156,6 +185,7 @@ export default async function AdminPage() {
     reservationsCount,
     pendingReservationsCount,
     confirmedReservationsCount,
+    checkedInReservationsCount,
     upcomingReservationsCount,
     guestsCount,
     inquiriesCount,
@@ -182,6 +212,11 @@ export default async function AdminPage() {
     prisma.reservation.count({
       where: {
         status: "CONFIRMED",
+      },
+    }),
+    prisma.reservation.count({
+      where: {
+        status: "CHECKED_IN",
       },
     }),
     prisma.reservation.count({
@@ -214,6 +249,11 @@ export default async function AdminPage() {
       },
     }),
     prisma.reservation.aggregate({
+      where: {
+        status: {
+          not: "CANCELLED",
+        },
+      },
       _sum: {
         totalPrice: true,
         paidAmount: true,
@@ -237,6 +277,8 @@ export default async function AdminPage() {
         guestName: true,
         startDate: true,
         endDate: true,
+        checkInAt: true,
+        checkOutAt: true,
         status: true,
         totalPrice: true,
         paidAmount: true,
@@ -265,6 +307,8 @@ export default async function AdminPage() {
         guestName: true,
         startDate: true,
         endDate: true,
+        checkInAt: true,
+        checkOutAt: true,
         status: true,
         cabin: {
           select: {
@@ -333,7 +377,7 @@ export default async function AdminPage() {
 
   const statusCards = [
     {
-      title: "Oczekujące rezerwacje",
+      title: "Oczekuje na potwierdzenie",
       value: pendingReservationsCount,
       description: "Rezerwacje do potwierdzenia",
       icon: AlertCircle,
@@ -342,9 +386,16 @@ export default async function AdminPage() {
     {
       title: "Potwierdzone rezerwacje",
       value: confirmedReservationsCount,
-      description: "Aktywne potwierdzone pobyty",
+      description: "Potwierdzone przyszłe pobyty",
       icon: CheckCircle2,
       href: "/admin/rezerwacje?status=CONFIRMED",
+    },
+    {
+      title: "Zameldowani",
+      value: checkedInReservationsCount,
+      description: "Aktualnie trwające pobyty",
+      icon: CalendarCheck,
+      href: "/admin/rezerwacje?status=CHECKED_IN",
     },
     {
       title: "Nowe zapytania",
@@ -362,18 +413,11 @@ export default async function AdminPage() {
       href: "/admin/zapytania?status=APPROVED",
     },
     {
-      title: "Archiwalne zapytania",
-      value: archivedInquiriesCount,
-      description: "Zapytania odłożone do archiwum",
-      icon: Inbox,
-      href: "/admin/zapytania?status=ARCHIVED",
-    },
-    {
       title: "Do zapłaty",
       value: formatCurrency(unpaidRevenue),
       description: "Różnica między wartością a wpłatami",
       icon: CircleDollarSign,
-      href: "/admin/rezerwacje",
+      href: "/admin/rezerwacje?payment=PARTIAL",
     },
   ];
 
@@ -435,7 +479,7 @@ export default async function AdminPage() {
             description: `W systemie pozostaje ${formatCurrency(
               unpaidRevenue,
             )} do rozliczenia względem zapisanych wartości rezerwacji.`,
-            href: "/admin/rezerwacje",
+            href: "/admin/rezerwacje?payment=PARTIAL",
             icon: CircleDollarSign,
           },
         ]
@@ -483,9 +527,7 @@ export default async function AdminPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900">
-            Dashboard
-          </h1>
+          <h1 className="text-3xl font-bold text-zinc-900">Dashboard</h1>
 
           <p className="mt-2 text-zinc-600">
             Szybki podgląd najważniejszych danych w systemie Domki Sztabinki
@@ -679,15 +721,18 @@ export default async function AdminPage() {
                           </p>
 
                           <p className="mt-1 text-sm text-zinc-500">
-                            {formatDate(reservation.startDate)} -{" "}
-                            {formatDate(reservation.endDate)}
+                            {formatDate(
+                              reservation.checkInAt ?? reservation.startDate,
+                            )}{" "}
+                            -{" "}
+                            {formatDate(
+                              reservation.checkOutAt ?? reservation.endDate,
+                            )}
                           </p>
                         </div>
 
                         <div className="text-left lg:text-right">
-                          <p className="text-sm text-zinc-500">
-                            Wartość
-                          </p>
+                          <p className="text-sm text-zinc-500">Wartość</p>
 
                           <p className="font-semibold text-zinc-900">
                             {formatCurrency(totalPrice)}
@@ -771,9 +816,7 @@ export default async function AdminPage() {
                         </div>
 
                         <div className="text-left lg:text-right">
-                          <p className="text-sm text-zinc-500">
-                            Telefon
-                          </p>
+                          <p className="text-sm text-zinc-500">Telefon</p>
 
                           <p className="font-semibold text-zinc-900">
                             {inquiry.phone}
@@ -825,11 +868,27 @@ export default async function AdminPage() {
                         <p className="mt-1 text-sm text-zinc-500">
                           {reservation.cabin.name}
                         </p>
+
+                        <span
+                          className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClassName(
+                            reservation.status,
+                          )}`}
+                        >
+                          {getStatusLabel(reservation.status)}
+                        </span>
                       </div>
 
                       <div className="text-right text-sm text-zinc-500">
-                        <p>{formatDate(reservation.startDate)}</p>
-                        <p>{formatDate(reservation.endDate)}</p>
+                        <p>
+                          {formatDate(
+                            reservation.checkInAt ?? reservation.startDate,
+                          )}
+                        </p>
+                        <p>
+                          {formatDate(
+                            reservation.checkOutAt ?? reservation.endDate,
+                          )}
+                        </p>
                       </div>
                     </div>
                   </Link>

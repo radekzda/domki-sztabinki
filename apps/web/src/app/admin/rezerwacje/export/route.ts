@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 
+type ReservationPaymentStatus = "PENDING" | "PAID" | "PARTIAL" | "REFUNDED";
+
 const allowedStatuses = [
   "ALL",
   "PENDING",
   "CONFIRMED",
+  "CHECKED_IN",
+  "CHECKED_OUT",
   "CANCELLED",
   "COMPLETED",
 ];
@@ -17,7 +21,13 @@ const allowedSources = [
   "AIRBNB",
 ];
 
-const allowedPaymentFilters = ["ALL", "PAID", "UNPAID", "NO_PRICE"];
+const allowedPaymentFilters = [
+  "ALL",
+  "PENDING",
+  "PAID",
+  "PARTIAL",
+  "REFUNDED",
+];
 
 function getStatusFilter(value: string | null) {
   if (!value) {
@@ -93,7 +103,7 @@ function decimalToNumber(value: { toString: () => string } | null) {
 
 function getRemainingAmount(
   totalPrice: number | null,
-  paidAmount: number | null
+  paidAmount: number | null,
 ) {
   if (totalPrice === null) {
     return null;
@@ -102,30 +112,68 @@ function getRemainingAmount(
   return Math.max(0, totalPrice - (paidAmount ?? 0));
 }
 
+function getReservationPaymentStatus({
+  paymentStatus,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentStatus: string | null;
+  totalPrice: number | null;
+  paidAmount: number | null;
+}): ReservationPaymentStatus {
+  if (paymentStatus === "REFUNDED") {
+    return "REFUNDED";
+  }
+
+  if (paymentStatus === "PAID") {
+    return "PAID";
+  }
+
+  if (paymentStatus === "PARTIAL") {
+    return "PARTIAL";
+  }
+
+  if (paymentStatus === "PENDING") {
+    return "PENDING";
+  }
+
+  if (totalPrice === null) {
+    return "PENDING";
+  }
+
+  if (paidAmount === null || paidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
+}
+
 function reservationMatchesPaymentFilter({
   paymentFilter,
+  paymentStatus,
   totalPrice,
   paidAmount,
 }: {
   paymentFilter: string;
+  paymentStatus: string | null;
   totalPrice: number | null;
   paidAmount: number | null;
 }) {
-  const remainingAmount = getRemainingAmount(totalPrice, paidAmount);
-
-  if (paymentFilter === "PAID") {
-    return remainingAmount !== null && remainingAmount === 0;
+  if (paymentFilter === "ALL") {
+    return true;
   }
 
-  if (paymentFilter === "UNPAID") {
-    return remainingAmount !== null && remainingAmount > 0;
-  }
+  const reservationPaymentStatus = getReservationPaymentStatus({
+    paymentStatus,
+    totalPrice,
+    paidAmount,
+  });
 
-  if (paymentFilter === "NO_PRICE") {
-    return remainingAmount === null;
-  }
-
-  return true;
+  return reservationPaymentStatus === paymentFilter;
 }
 
 function formatDateTime(date: Date | null) {
@@ -142,18 +190,40 @@ function formatDateTime(date: Date | null) {
   }).format(date);
 }
 
+function normalizeReservationStatus(status: string) {
+  if (status === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (
+    status === "PENDING" ||
+    status === "CONFIRMED" ||
+    status === "CHECKED_IN" ||
+    status === "CHECKED_OUT" ||
+    status === "CANCELLED"
+  ) {
+    return status;
+  }
+
+  return "PENDING";
+}
+
 function getStatusLabel(status: string) {
-  switch (status) {
+  const normalizedStatus = normalizeReservationStatus(status);
+
+  switch (normalizedStatus) {
     case "PENDING":
-      return "Oczekująca";
+      return "Oczekuje na potwierdzenie";
     case "CONFIRMED":
       return "Potwierdzona";
+    case "CHECKED_IN":
+      return "Zameldowany";
+    case "CHECKED_OUT":
+      return "Wymeldowany";
     case "CANCELLED":
-      return "Anulowana";
-    case "COMPLETED":
-      return "Zakończona";
+      return "Anulowany";
     default:
-      return status;
+      return normalizedStatus;
   }
 }
 
@@ -174,16 +244,19 @@ function getSourceLabel(source: string) {
   }
 }
 
-function getPaymentStatusLabel(remainingAmount: number | null) {
-  if (remainingAmount === null) {
-    return "Brak ceny";
+function getPaymentStatusLabel(status: ReservationPaymentStatus) {
+  switch (status) {
+    case "PENDING":
+      return "Oczekuje";
+    case "PAID":
+      return "Opłacona";
+    case "PARTIAL":
+      return "Częściowa";
+    case "REFUNDED":
+      return "Zwrócona";
+    default:
+      return status;
   }
-
-  if (remainingAmount === 0) {
-    return "Opłacone";
-  }
-
-  return "Nieopłacone";
 }
 
 function formatCsvValue(value: string | number | null) {
@@ -255,7 +328,12 @@ export async function GET(request: Request) {
     where: {
       ...(statusFilter !== "ALL"
         ? {
-            status: statusFilter,
+            status:
+              statusFilter === "CHECKED_OUT"
+                ? {
+                    in: ["CHECKED_OUT", "COMPLETED"],
+                  }
+                : statusFilter,
           }
         : {}),
 
@@ -343,6 +421,7 @@ export async function GET(request: Request) {
 
     return reservationMatchesPaymentFilter({
       paymentFilter,
+      paymentStatus: reservation.paymentStatus,
       totalPrice,
       paidAmount,
     });
@@ -361,7 +440,7 @@ export async function GET(request: Request) {
     "Goście",
     "Dorośli",
     "Dzieci",
-    "Status",
+    "Status rezerwacji",
     "Źródło",
     "Status płatności",
     "Cena pobytu",
@@ -377,6 +456,12 @@ export async function GET(request: Request) {
     const pricePerNight = decimalToNumber(reservation.pricePerNight);
     const paidAmount = decimalToNumber(reservation.paidAmount);
     const remainingAmount = getRemainingAmount(totalPrice, paidAmount);
+
+    const paymentStatus = getReservationPaymentStatus({
+      paymentStatus: reservation.paymentStatus,
+      totalPrice,
+      paidAmount,
+    });
 
     const address = [
       reservation.street,
@@ -401,7 +486,7 @@ export async function GET(request: Request) {
       reservation.children,
       getStatusLabel(reservation.status),
       getSourceLabel(reservation.source),
-      getPaymentStatusLabel(remainingAmount),
+      getPaymentStatusLabel(paymentStatus),
       totalPrice,
       pricePerNight,
       paidAmount,

@@ -35,16 +35,94 @@ function formatMoney(value: { toString: () => string } | null) {
   }).format(Number(value.toString()));
 }
 
+function decimalToNumber(value: { toString: () => string } | null) {
+  if (!value) {
+    return null;
+  }
+
+  return Number(value.toString());
+}
+
+function normalizeReservationStatus(status: string) {
+  if (status === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (
+    status === "PENDING" ||
+    status === "CONFIRMED" ||
+    status === "CHECKED_IN" ||
+    status === "CHECKED_OUT" ||
+    status === "CANCELLED"
+  ) {
+    return status;
+  }
+
+  return "PENDING";
+}
+
 function getStatusLabel(status: string) {
-  switch (status) {
+  const normalizedStatus = normalizeReservationStatus(status);
+
+  switch (normalizedStatus) {
     case "PENDING":
-      return "Oczekująca";
+      return "Oczekuje na potwierdzenie";
     case "CONFIRMED":
       return "Potwierdzona";
+    case "CHECKED_IN":
+      return "Zameldowany";
+    case "CHECKED_OUT":
+      return "Wymeldowany";
     case "CANCELLED":
-      return "Anulowana";
-    case "COMPLETED":
-      return "Zakończona";
+      return "Anulowany";
+    default:
+      return normalizedStatus;
+  }
+}
+
+function getPaymentStatus({
+  paymentStatus,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentStatus: string | null;
+  totalPrice: number | null;
+  paidAmount: number | null;
+}) {
+  if (
+    paymentStatus === "PENDING" ||
+    paymentStatus === "PAID" ||
+    paymentStatus === "PARTIAL" ||
+    paymentStatus === "REFUNDED"
+  ) {
+    return paymentStatus;
+  }
+
+  if (totalPrice === null) {
+    return "PENDING";
+  }
+
+  if (paidAmount === null || paidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
+}
+
+function getPaymentStatusLabel(status: string) {
+  switch (status) {
+    case "PENDING":
+      return "Oczekuje";
+    case "PAID":
+      return "Opłacona";
+    case "PARTIAL":
+      return "Częściowa";
+    case "REFUNDED":
+      return "Zwrócona";
     default:
       return status;
   }
@@ -66,6 +144,14 @@ export default async function DeleteReservationPage({ params }: Props) {
   if (!reservation) {
     notFound();
   }
+
+  const totalPrice = decimalToNumber(reservation.totalPrice);
+  const paidAmount = decimalToNumber(reservation.paidAmount);
+  const paymentStatus = getPaymentStatus({
+    paymentStatus: reservation.paymentStatus,
+    totalPrice,
+    paidAmount,
+  });
 
   return (
     <div className="max-w-3xl space-y-8">
@@ -130,9 +216,16 @@ export default async function DeleteReservationPage({ params }: Props) {
           </div>
 
           <div className="flex justify-between gap-4 border-b pb-3">
-            <span className="text-zinc-500">Status</span>
+            <span className="text-zinc-500">Status rezerwacji</span>
             <span className="text-right font-semibold">
               {getStatusLabel(reservation.status)}
+            </span>
+          </div>
+
+          <div className="flex justify-between gap-4 border-b pb-3">
+            <span className="text-zinc-500">Status płatności</span>
+            <span className="text-right font-semibold">
+              {getPaymentStatusLabel(paymentStatus)}
             </span>
           </div>
 
@@ -140,6 +233,13 @@ export default async function DeleteReservationPage({ params }: Props) {
             <span className="text-zinc-500">Cena pobytu</span>
             <span className="text-right font-semibold">
               {formatMoney(reservation.totalPrice)}
+            </span>
+          </div>
+
+          <div className="flex justify-between gap-4 border-b pb-3">
+            <span className="text-zinc-500">Wpłacono</span>
+            <span className="text-right font-semibold">
+              {formatMoney(reservation.paidAmount)}
             </span>
           </div>
 
