@@ -29,6 +29,12 @@ export type CreatePublicInquiryResult = {
 
 const allowedInquiryStatuses = ["NEW", "APPROVED", "ARCHIVED"] as const;
 
+const blockingReservationStatuses = [
+  "PENDING",
+  "CONFIRMED",
+  "CHECKED_IN",
+] as const;
+
 type InquiryStatus = (typeof allowedInquiryStatuses)[number];
 
 function normalizeText(value: string) {
@@ -43,18 +49,32 @@ function normalizeInquiryStatus(value: string) {
   return value;
 }
 
-function parseDateOnly(value: string) {
+function createUtcDateOnly(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null;
   }
 
-  const date = new Date(`${value}T12:00:00.000Z`);
+  const date = new Date(`${value}T00:00:00.000Z`);
 
   if (Number.isNaN(date.getTime())) {
     return null;
   }
 
+  if (date.toISOString().slice(0, 10) !== value) {
+    return null;
+  }
+
   return date;
+}
+
+function parseDateOnly(value: string) {
+  return createUtcDateOnly(value);
+}
+
+function createUtcDateOnlyFromDate(date: Date) {
+  const dateOnlyValue = date.toISOString().slice(0, 10);
+
+  return createUtcDateOnly(dateOnlyValue) ?? date;
 }
 
 function parsePeopleCount(value: string, fallback: number) {
@@ -86,7 +106,7 @@ function isInquiryStatus(value: string): value is InquiryStatus {
 }
 
 export async function createPublicInquiry(
-  input: CreatePublicInquiryInput
+  input: CreatePublicInquiryInput,
 ): Promise<CreatePublicInquiryResult> {
   const firstName = normalizeText(input.firstName);
   const lastName = normalizeText(input.lastName);
@@ -108,8 +128,7 @@ export async function createPublicInquiry(
   if (!firstName || !lastName || !phone || !dateFrom || !dateTo) {
     return {
       ok: false,
-      message:
-        "Uzupełnij imię, nazwisko, telefon oraz termin pobytu.",
+      message: "Uzupełnij imię, nazwisko, telefon oraz termin pobytu.",
     };
   }
 
@@ -165,6 +184,7 @@ export async function createPublicInquiry(
         select: {
           id: true,
           name: true,
+          maxGuests: true,
         },
       })
     : null;
@@ -177,12 +197,19 @@ export async function createPublicInquiry(
     };
   }
 
+  if (cabin && guests > cabin.maxGuests) {
+    return {
+      ok: false,
+      message: `Wybrany domek mieści maksymalnie ${cabin.maxGuests} osób. Zmniejsz liczbę osób albo wybierz opcję dowolną / do ustalenia.`,
+    };
+  }
+
   if (cabin) {
     const reservationsForCabin = await prisma.reservation.findMany({
       where: {
         cabinId: cabin.id,
         status: {
-          not: "CANCELLED",
+          in: [...blockingReservationStatuses],
         },
       },
       select: {
@@ -195,8 +222,12 @@ export async function createPublicInquiry(
     });
 
     const conflictingReservation = reservationsForCabin.find((reservation) => {
-      const occupiedDateFrom = reservation.checkInAt ?? reservation.startDate;
-      const occupiedDateTo = reservation.checkOutAt ?? reservation.endDate;
+      const occupiedDateFrom = createUtcDateOnlyFromDate(
+        reservation.checkInAt ?? reservation.startDate,
+      );
+      const occupiedDateTo = createUtcDateOnlyFromDate(
+        reservation.checkOutAt ?? reservation.endDate,
+      );
 
       return dateRangesOverlap({
         selectedDateFrom: parsedDateFrom,
