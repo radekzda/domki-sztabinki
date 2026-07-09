@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState, useTransition } from "react";
+import { FormEvent, useMemo, useRef, useState, useTransition } from "react";
 
 import { createPublicInquiry } from "@/actions/inquiries";
 
@@ -388,6 +388,9 @@ export function InquiryForm({
 }: InquiryFormProps) {
   const defaultCabinId = cabins[0]?.id ?? "";
 
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const messageRef = useRef<HTMLDivElement | null>(null);
+
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -459,13 +462,47 @@ export function InquiryForm({
   ]);
 
   const hasDateCollision = collidingDateRanges.length > 0;
-  const isSubmitDisabled = isPending || hasDateCollision;
+  const isSubmitDisabled = isPending || hasDateCollision || isSuccess;
+
+  function scrollToMessage() {
+    window.setTimeout(() => {
+      messageRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 0);
+  }
+
+  function showFormMessage({
+    ok,
+    text,
+  }: {
+    ok: boolean;
+    text: string;
+  }) {
+    setIsSuccess(ok);
+    setMessage(text);
+    scrollToMessage();
+  }
+
+  function clearFormMessage() {
+    setIsSuccess(false);
+    setMessage("");
+  }
 
   function showCheckInBoundaryStartMessage() {
-    setIsSuccess(false);
-    setMessage(
-      "Ten dzień jest dniem zameldowania innej rezerwacji. Może być wybrany jako dzień wyjazdu, ale nie jako dzień rozpoczęcia nowego pobytu.",
-    );
+    showFormMessage({
+      ok: false,
+      text: "Ten dzień jest dniem zameldowania innej rezerwacji. Może być wybrany jako dzień wyjazdu, ale nie jako dzień rozpoczęcia nowego pobytu.",
+    });
+  }
+
+  function handlePrepareNextInquiry() {
+    formRef.current?.reset();
+    setSelectedCabinId(defaultCabinId);
+    setDateFromValue("");
+    setDateToValue("");
+    clearFormMessage();
   }
 
   function handleCalendarDayClick(day: CalendarDay) {
@@ -502,7 +539,7 @@ export function InquiryForm({
         return;
       }
 
-      setMessage("");
+      clearFormMessage();
       setDateFromValue(day.dateInputValue);
       setDateToValue("");
       return;
@@ -514,7 +551,7 @@ export function InquiryForm({
         return;
       }
 
-      setMessage("");
+      clearFormMessage();
       setDateFromValue(day.dateInputValue);
       setDateToValue("");
       return;
@@ -524,12 +561,16 @@ export function InquiryForm({
       return;
     }
 
-    setMessage("");
+    clearFormMessage();
     setDateToValue(day.dateInputValue);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSuccess) {
+      return;
+    }
 
     const form = event.currentTarget;
     const formData = new FormData(form);
@@ -551,16 +592,18 @@ export function InquiryForm({
     const notes = getStringValue(formData, "notes");
 
     if (!firstName || !lastName || !phone || !dateFrom || !dateTo) {
-      setIsSuccess(false);
-      setMessage("Uzupełnij imię, nazwisko, telefon oraz termin pobytu.");
+      showFormMessage({
+        ok: false,
+        text: "Uzupełnij imię, nazwisko, telefon oraz termin pobytu.",
+      });
       return;
     }
 
     if (hasDateCollision) {
-      setIsSuccess(false);
-      setMessage(
-        "Wybrany termin jest zajęty dla tego domku. Wybierz inny termin, inny domek albo opcję dowolną / do ustalenia.",
-      );
+      showFormMessage({
+        ok: false,
+        text: "Wybrany termin jest zajęty dla tego domku. Wybierz inny termin, inny domek albo opcję dowolną / do ustalenia.",
+      });
       return;
     }
 
@@ -583,8 +626,10 @@ export function InquiryForm({
         notes,
       });
 
-      setIsSuccess(result.ok);
-      setMessage(result.message);
+      showFormMessage({
+        ok: result.ok,
+        text: result.message,
+      });
 
       if (result.ok) {
         form.reset();
@@ -597,6 +642,7 @@ export function InquiryForm({
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       className="mt-10 grid gap-8 rounded-[2rem] bg-white p-6 text-left text-slate-950 shadow-xl lg:grid-cols-[0.9fr_1.1fr] md:p-8"
     >
@@ -701,7 +747,10 @@ export function InquiryForm({
               type="date"
               required
               value={dateFromValue}
-              onChange={(event) => setDateFromValue(event.target.value)}
+              onChange={(event) => {
+                clearFormMessage();
+                setDateFromValue(event.target.value);
+              }}
               className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
             />
           </label>
@@ -715,7 +764,10 @@ export function InquiryForm({
               type="date"
               required
               value={dateToValue}
-              onChange={(event) => setDateToValue(event.target.value)}
+              onChange={(event) => {
+                clearFormMessage();
+                setDateToValue(event.target.value);
+              }}
               className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
             />
           </label>
@@ -833,13 +885,28 @@ export function InquiryForm({
 
         {message ? (
           <div
+            ref={messageRef}
+            role={isSuccess ? "status" : "alert"}
             className={
               isSuccess
-                ? "rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
-                : "rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
+                ? "rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-950"
+                : "rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950"
             }
           >
-            {message}
+            {isSuccess ? (
+              <div className="space-y-3">
+                <p className="font-black uppercase tracking-[0.14em]">
+                  Zapytanie zostało wysłane
+                </p>
+                <p className="leading-6">{message}</p>
+                <p className="leading-6">
+                  To jeszcze nie jest potwierdzona rezerwacja. Termin i cenę
+                  potwierdzimy po kontakcie telefonicznym lub mailowym.
+                </p>
+              </div>
+            ) : (
+              <p className="font-semibold leading-6">{message}</p>
+            )}
           </div>
         ) : null}
 
@@ -855,10 +922,22 @@ export function InquiryForm({
           >
             {isPending
               ? "Wysyłanie zapytania..."
-              : hasDateCollision
-                ? "Termin zajęty — wybierz inny"
-                : "Wyślij zapytanie"}
+              : isSuccess
+                ? "Zapytanie zapisane"
+                : hasDateCollision
+                  ? "Termin zajęty — wybierz inny"
+                  : "Wyślij zapytanie"}
           </button>
+
+          {isSuccess ? (
+            <button
+              type="button"
+              onClick={handlePrepareNextInquiry}
+              className="rounded-2xl border border-slate-300 px-7 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
+            >
+              Wypełnij kolejne zapytanie
+            </button>
+          ) : null}
 
           <a
             href={getPhoneHref(phoneNumber)}
@@ -878,7 +957,10 @@ export function InquiryForm({
             <select
               name="cabinId"
               value={selectedCabinId}
-              onChange={(event) => setSelectedCabinId(event.target.value)}
+              onChange={(event) => {
+                clearFormMessage();
+                setSelectedCabinId(event.target.value);
+              }}
               className="rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-950"
             >
               {cabins.map((cabin) => (
