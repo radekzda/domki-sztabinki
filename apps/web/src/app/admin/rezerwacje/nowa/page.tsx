@@ -31,6 +31,7 @@ type Props = {
     checkOutTime?: string;
     totalPrice?: string;
     paidAmount?: string;
+    returnTo?: string;
   }>;
 };
 
@@ -68,6 +69,22 @@ function getNextDateInputValue(dateValue: string) {
 
 function getSearchParamValue(value: string | undefined) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getSafeReturnToPath(value: string) {
+  if (!value) {
+    return "/admin/rezerwacje";
+  }
+
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return "/admin/rezerwacje";
+  }
+
+  if (!value.startsWith("/admin/")) {
+    return "/admin/rezerwacje";
+  }
+
+  return value;
 }
 
 function splitGuestName(guestName: string) {
@@ -221,6 +238,9 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
 
   const error = resolvedSearchParams?.error;
   const inquiryId = getSearchParamValue(resolvedSearchParams?.inquiryId);
+  const returnTo = getSafeReturnToPath(
+    getSearchParamValue(resolvedSearchParams?.returnTo),
+  );
   const urlGuestName = getSearchParamValue(resolvedSearchParams?.guestName);
   const urlFirstName = getSearchParamValue(resolvedSearchParams?.firstName);
   const urlLastName = getSearchParamValue(resolvedSearchParams?.lastName);
@@ -327,11 +347,8 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
   return (
     <div className="max-w-5xl space-y-8">
       <div>
-        <Link
-          href="/admin/rezerwacje"
-          className="text-sm text-zinc-500 hover:text-zinc-900"
-        >
-          ← Wróć do rezerwacji
+        <Link href={returnTo} className="text-sm text-zinc-500 hover:text-zinc-900">
+          ← Wróć
         </Link>
 
         <h1 className="mt-3 text-3xl font-bold">Dodaj rezerwację</h1>
@@ -422,6 +439,7 @@ export default async function NowaRezerwacjaPage({ searchParams }: Props) {
         initialTotalPrice={urlTotalPrice}
         initialPaidAmount={urlPaidAmount}
         initialInquiryId={inquiryId}
+        initialReturnTo={returnTo}
         minimumNights={settings.minimumNights}
       />
     </div>

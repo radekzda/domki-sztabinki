@@ -152,6 +152,22 @@ function getNumber(formData: FormData, key: string, defaultValue: number) {
   return parsedValue;
 }
 
+function getSafeRedirectPath(value: string | null, fallbackPath: string) {
+  if (!value) {
+    return fallbackPath;
+  }
+
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return fallbackPath;
+  }
+
+  if (!value.startsWith("/admin/")) {
+    return fallbackPath;
+  }
+
+  return value;
+}
+
 function buildNewReservationErrorHref(formData: FormData, message: string) {
   const params = new URLSearchParams();
 
@@ -183,6 +199,7 @@ function buildNewReservationErrorHref(formData: FormData, message: string) {
     "checkOutTime",
     "totalPrice",
     "paidAmount",
+    "returnTo",
   ];
 
   for (const key of keysToPreserve) {
@@ -625,6 +642,10 @@ async function saveGuestForReservation({
 
 export async function createReservation(formData: FormData) {
   const inquiryId = getOptionalString(formData, "inquiryId");
+  const returnTo = getSafeRedirectPath(
+    getOptionalString(formData, "returnTo"),
+    "/admin/rezerwacje",
+  );
 
   const onError = (message: string): never => {
     redirectWithNewReservationFormError(formData, message);
@@ -674,7 +695,7 @@ export async function createReservation(formData: FormData) {
     revalidatePath(`/admin/zapytania/${inquiryId}`);
   }
 
-  redirect("/admin/rezerwacje");
+  redirect(returnTo);
 }
 
 export async function updateReservation(formData: FormData) {

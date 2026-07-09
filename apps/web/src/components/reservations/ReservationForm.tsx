@@ -49,6 +49,7 @@ type ReservationFormProps = {
   initialCheckOutTime?: string;
   initialTotalPrice?: string;
   initialPaidAmount?: string;
+  initialReturnTo?: string;
   minimumNights?: number;
 };
 
@@ -120,6 +121,7 @@ export default function ReservationForm({
   initialCheckOutTime = "11:00",
   initialTotalPrice = "",
   initialPaidAmount = "",
+  initialReturnTo = "/admin/rezerwacje",
   minimumNights = 4,
 }: ReservationFormProps) {
   const [selectedCabinId, setSelectedCabinId] = useState(initialCabinId);
@@ -191,6 +193,7 @@ export default function ReservationForm({
     >
       <input type="hidden" name="guestId" value={initialGuestId} />
       <input type="hidden" name="inquiryId" value={initialInquiryId} />
+      <input type="hidden" name="returnTo" value={initialReturnTo} />
 
       <section className="space-y-4">
         <div>
@@ -578,7 +581,7 @@ export default function ReservationForm({
         </button>
 
         <Link
-          href="/admin/rezerwacje"
+          href={initialReturnTo}
           className="rounded-lg border px-6 py-3 hover:bg-zinc-50"
         >
           Anuluj

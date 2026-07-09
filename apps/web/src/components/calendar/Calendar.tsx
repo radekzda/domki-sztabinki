@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CalendarLegend from "@/components/calendar/CalendarLegend";
 import MonthNavigation from "@/components/calendar/MonthNavigation";
@@ -18,9 +18,20 @@ type CalendarProps = {
   data: CalendarEngineData;
 };
 
+type SelectedCalendarDate = {
+  cabinId: string;
+  cabinName: string;
+  date: Date;
+};
+
+type ReservationDateRange = {
+  startDate: Date;
+  endDate: Date;
+};
+
 function filterReservations(
   reservations: CalendarReservation[],
-  filters: CalendarActiveFilters
+  filters: CalendarActiveFilters,
 ) {
   return reservations.filter((reservation) => {
     if (filters.status !== "ALL" && reservation.status !== filters.status) {
@@ -37,7 +48,7 @@ function filterReservations(
 
 function filterCabins(
   cabins: CalendarCabin[],
-  filters: CalendarActiveFilters
+  filters: CalendarActiveFilters,
 ): CalendarCabin[] {
   return cabins
     .filter((cabin) => {
@@ -53,20 +64,73 @@ function filterCabins(
     }));
 }
 
+function createUtcDayStart(date: Date) {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+}
+
+function addUtcDays(date: Date, days: number) {
+  const nextDate = createUtcDayStart(date);
+
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+
+  return nextDate;
+}
+
 function formatDateQueryValue(date: Date) {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
+  const normalizedDate = createUtcDayStart(date);
+  const year = normalizedDate.getUTCFullYear();
+  const month = String(normalizedDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(normalizedDate.getUTCDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
-function formatNextDateQueryValue(date: Date) {
-  const nextDate = new Date(date);
+function formatDisplayDate(date: Date) {
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
 
-  nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+function createReservationDateRange(
+  firstDate: Date,
+  secondDate: Date,
+): ReservationDateRange {
+  const normalizedFirstDate = createUtcDayStart(firstDate);
+  const normalizedSecondDate = createUtcDayStart(secondDate);
 
-  return formatDateQueryValue(nextDate);
+  const firstTime = normalizedFirstDate.getTime();
+  const secondTime = normalizedSecondDate.getTime();
+
+  if (firstTime === secondTime) {
+    return {
+      startDate: normalizedFirstDate,
+      endDate: addUtcDays(normalizedFirstDate, 1),
+    };
+  }
+
+  if (firstTime < secondTime) {
+    return {
+      startDate: normalizedFirstDate,
+      endDate: normalizedSecondDate,
+    };
+  }
+
+  return {
+    startDate: normalizedSecondDate,
+    endDate: normalizedFirstDate,
+  };
 }
 
 function getWeekDayLabel(day: CalendarDay) {
@@ -94,6 +158,37 @@ function isWeekend(day: CalendarDay) {
   return day.weekDay === 0 || day.weekDay === 6;
 }
 
+function isSameCalendarDay(firstDate: Date, secondDate: Date) {
+  const normalizedFirstDate = createUtcDayStart(firstDate);
+  const normalizedSecondDate = createUtcDayStart(secondDate);
+
+  return normalizedFirstDate.getTime() === normalizedSecondDate.getTime();
+}
+
+function isBlockingReservationStatus(status: CalendarReservation["status"]) {
+  return (
+    status === "PENDING" ||
+    status === "CONFIRMED" ||
+    status === "CHECKED_IN"
+  );
+}
+
+function hasReservationConflict(
+  cabin: CalendarCabin,
+  range: ReservationDateRange,
+) {
+  return cabin.reservations.some((reservation) => {
+    if (!isBlockingReservationStatus(reservation.status)) {
+      return false;
+    }
+
+    const reservationStart = createUtcDayStart(reservation.startDate);
+    const reservationEnd = createUtcDayStart(reservation.endDate);
+
+    return reservationStart < range.endDate && reservationEnd > range.startDate;
+  });
+}
+
 function getDayHeaderClassName(day: CalendarDay) {
   const baseClassName = "border-b border-r p-2 text-center text-sm";
 
@@ -108,9 +203,13 @@ function getDayHeaderClassName(day: CalendarDay) {
   return `${baseClassName} bg-zinc-100 text-zinc-700`;
 }
 
-function getDayCellClassName(day: CalendarDay) {
+function getDayCellClassName(day: CalendarDay, isSelected: boolean) {
   const baseClassName =
     "border-r text-left transition-colors focus:outline-none";
+
+  if (isSelected) {
+    return `${baseClassName} bg-green-200 ring-2 ring-inset ring-green-700 hover:bg-green-200 focus:bg-green-200`;
+  }
 
   if (day.isToday) {
     return `${baseClassName} bg-green-50 hover:bg-green-100 focus:bg-green-100`;
@@ -126,11 +225,16 @@ function getDayCellClassName(day: CalendarDay) {
 export default function Calendar({ data }: CalendarProps) {
   const router = useRouter();
 
+  const clickTimerRef = useRef<number | null>(null);
+
   const [filters, setFilters] = useState<CalendarActiveFilters>({
     cabinId: "ALL",
     status: "ALL",
     source: "ALL",
   });
+
+  const [selectedDate, setSelectedDate] =
+    useState<SelectedCalendarDate | null>(null);
 
   const dayWidth = 72;
   const rowHeight = 116;
@@ -140,25 +244,123 @@ export default function Calendar({ data }: CalendarProps) {
 
   const filteredCabins = useMemo(
     () => filterCabins(data.cabins, filters),
-    [data.cabins, filters]
+    [data.cabins, filters],
   );
 
   const reservationsCount = filteredCabins.reduce(
     (total, cabin) => total + cabin.reservations.length,
-    0
+    0,
   );
 
-  function openNewReservation(cabinId: string, date: Date) {
-    const startDate = formatDateQueryValue(date);
-    const endDate = formatNextDateQueryValue(date);
+  const calendarReturnUrl = `/admin/kalendarz?year=${data.month.year}&month=${
+    data.month.month + 1
+  }`;
+
+  useEffect(() => {
+    return () => {
+      if (clickTimerRef.current !== null) {
+        window.clearTimeout(clickTimerRef.current);
+      }
+    };
+  }, []);
+
+  function openNewReservation(
+    cabinId: string,
+    startDateValue: Date,
+    endDateValue: Date,
+  ) {
+    const startDate = formatDateQueryValue(startDateValue);
+    const endDate = formatDateQueryValue(endDateValue);
 
     router.push(
       `/admin/rezerwacje/nowa?cabinId=${encodeURIComponent(
-        cabinId
+        cabinId,
       )}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(
-        endDate
-      )}`
+        endDate,
+      )}&returnTo=${encodeURIComponent(calendarReturnUrl)}`,
     );
+  }
+
+  function findOriginalCabin(cabinId: string) {
+    return data.cabins.find((cabin) => cabin.id === cabinId) ?? null;
+  }
+
+  function handleDateSelection(cabin: CalendarCabin, date: Date) {
+    const cabinName = cabin.shortName || cabin.name;
+
+    if (!selectedDate) {
+      setSelectedDate({
+        cabinId: cabin.id,
+        cabinName,
+        date,
+      });
+
+      return;
+    }
+
+    if (selectedDate.cabinId !== cabin.id) {
+      setSelectedDate({
+        cabinId: cabin.id,
+        cabinName,
+        date,
+      });
+
+      return;
+    }
+
+    const range = createReservationDateRange(selectedDate.date, date);
+    const originalCabin = findOriginalCabin(cabin.id);
+
+    if (!originalCabin) {
+      setSelectedDate(null);
+      return;
+    }
+
+    if (hasReservationConflict(originalCabin, range)) {
+      window.alert(
+        `Ten termin jest już zajęty.\n\nDomek: ${cabinName}\nOd: ${formatDisplayDate(
+          range.startDate,
+        )}\nDo: ${formatDisplayDate(range.endDate)}`,
+      );
+
+      setSelectedDate(null);
+      return;
+    }
+
+    const shouldCreateReservation = window.confirm(
+      `Utworzyć nową rezerwację?\n\nDomek: ${cabinName}\nOd: ${formatDisplayDate(
+        range.startDate,
+      )}\nDo: ${formatDisplayDate(range.endDate)}`,
+    );
+
+    setSelectedDate(null);
+
+    if (!shouldCreateReservation) {
+      return;
+    }
+
+    openNewReservation(cabin.id, range.startDate, range.endDate);
+  }
+
+  function handleDayClick(cabin: CalendarCabin, date: Date) {
+    if (clickTimerRef.current !== null) {
+      window.clearTimeout(clickTimerRef.current);
+    }
+
+    clickTimerRef.current = window.setTimeout(() => {
+      handleDateSelection(cabin, date);
+      clickTimerRef.current = null;
+    }, 220);
+  }
+
+  function handleDayDoubleClick(cabin: CalendarCabin, date: Date) {
+    if (clickTimerRef.current !== null) {
+      window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
+
+    setSelectedDate(null);
+    openNewReservation(cabin.id, date, addUtcDays(date, 1));
   }
 
   return (
@@ -171,8 +373,9 @@ export default function Calendar({ data }: CalendarProps) {
             </h2>
 
             <p className="mt-2 text-sm text-zinc-500">
-              Dwuklik w pusty dzień dodaje rezerwację. Weekendy są oznaczone
-              jasnym tłem.
+              Dwuklik w pusty dzień dodaje rezerwację na 1 noc. Możesz też
+              kliknąć pierwszy dzień, a potem drugi dzień w tym samym domku, aby
+              utworzyć rezerwację z zakresem dat.
             </p>
           </div>
 
@@ -231,19 +434,28 @@ export default function Calendar({ data }: CalendarProps) {
                       gridTemplateColumns: `repeat(${data.month.days.length}, ${dayWidth}px)`,
                     }}
                   >
-                    {data.month.days.map((day) => (
-                      <button
-                        key={`${cabin.id}-${day.date.toISOString()}`}
-                        type="button"
-                        onDoubleClick={() => {
-                          openNewReservation(cabin.id, day.date);
-                        }}
-                        className={getDayCellClassName(day)}
-                        aria-label={`Dodaj rezerwację: ${
-                          cabin.shortName || cabin.name
-                        }, dzień ${day.day}`}
-                      />
-                    ))}
+                    {data.month.days.map((day) => {
+                      const isSelected =
+                        selectedDate?.cabinId === cabin.id &&
+                        isSameCalendarDay(selectedDate.date, day.date);
+
+                      return (
+                        <button
+                          key={`${cabin.id}-${day.date.toISOString()}`}
+                          type="button"
+                          onClick={() => {
+                            handleDayClick(cabin, day.date);
+                          }}
+                          onDoubleClick={() => {
+                            handleDayDoubleClick(cabin, day.date);
+                          }}
+                          className={getDayCellClassName(day, isSelected)}
+                          aria-label={`Wybierz termin: ${
+                            cabin.shortName || cabin.name
+                          }, dzień ${day.day}`}
+                        />
+                      );
+                    })}
                   </div>
 
                   <ReservationLayer
