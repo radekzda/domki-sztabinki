@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { FormEvent, useMemo, useState, useTransition } from "react";
 
 import { createPublicInquiry } from "@/actions/inquiries";
 
@@ -17,6 +17,20 @@ type OccupiedDateRange = {
   status: string;
 };
 
+type CalendarDay = {
+  dateInputValue: string;
+  dayNumber: number;
+  isToday: boolean;
+  isOccupied: boolean;
+};
+
+type CalendarMonth = {
+  key: string;
+  label: string;
+  emptyDaysBeforeMonth: number[];
+  days: CalendarDay[];
+};
+
 type InquiryFormProps = {
   recipientEmail: string;
   phoneNumber: string;
@@ -27,9 +41,7 @@ type InquiryFormProps = {
   checkOutTime: string;
 };
 
-type CabinAvailabilityStatus = "UNKNOWN" | "AVAILABLE" | "UNAVAILABLE";
-
-const blockingReservationStatuses = ["PENDING", "CONFIRMED", "CHECKED_IN"];
+const weekDayLabels = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
 
 function getStringValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -55,43 +67,49 @@ function getPhoneHref(phone: string) {
   return `tel:${normalizedPhone}`;
 }
 
-function isBlockingReservationStatus(status: string) {
-  return blockingReservationStatuses.includes(status);
-}
-
-function isValidDateInputValue(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
-function normalizeDateOnlyValue(value: string) {
-  if (isValidDateInputValue(value)) {
-    return value;
-  }
-
+function formatDate(value: string) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
     return "";
   }
 
-  return date.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/Warsaw",
+  }).format(date);
 }
 
-function getSelectedNights(dateFrom: string, dateTo: string) {
-  if (!isValidDateInputValue(dateFrom) || !isValidDateInputValue(dateTo)) {
+function getReservationStatusLabel(status: string) {
+  if (status === "PENDING") {
+    return "wstępnie zajęty";
+  }
+
+  if (status === "CONFIRMED") {
+    return "zajęty";
+  }
+
+  if (status === "COMPLETED") {
+    return "zakończony pobyt";
+  }
+
+  return "zajęty";
+}
+
+function parseDateInputValue(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null;
   }
 
-  const startDate = new Date(`${dateFrom}T00:00:00.000Z`);
-  const endDate = new Date(`${dateTo}T00:00:00.000Z`);
-  const millisecondsPerDay = 1000 * 60 * 60 * 24;
-  const difference = endDate.getTime() - startDate.getTime();
+  const date = new Date(`${value}T12:00:00.000Z`);
 
-  if (difference <= 0) {
+  if (Number.isNaN(date.getTime())) {
     return null;
   }
 
-  return Math.round(difference / millisecondsPerDay);
+  return date;
 }
 
 function dateRangesOverlap({
@@ -100,68 +118,147 @@ function dateRangesOverlap({
   occupiedDateFrom,
   occupiedDateTo,
 }: {
-  selectedDateFrom: string;
-  selectedDateTo: string;
-  occupiedDateFrom: string;
-  occupiedDateTo: string;
+  selectedDateFrom: Date;
+  selectedDateTo: Date;
+  occupiedDateFrom: Date;
+  occupiedDateTo: Date;
 }) {
   return selectedDateFrom < occupiedDateTo && selectedDateTo > occupiedDateFrom;
 }
 
-function getAvailabilityStatusLabel(status: CabinAvailabilityStatus) {
-  if (status === "AVAILABLE") {
-    return "Wolny w wybranym terminie";
-  }
+function getDateInputValueFromDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
-  if (status === "UNAVAILABLE") {
-    return "Zajęty w wybranym terminie";
-  }
-
-  return "Wybierz daty, aby sprawdzić";
+  return `${year}-${month}-${day}`;
 }
 
-function getAvailabilityStatusClassName(status: CabinAvailabilityStatus) {
-  if (status === "AVAILABLE") {
-    return "bg-green-100 text-green-800";
+function getDateInputValueFromIso(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
   }
 
-  if (status === "UNAVAILABLE") {
-    return "bg-red-100 text-red-800";
-  }
-
-  return "bg-slate-100 text-slate-700";
+  return getDateInputValueFromDate(date);
 }
 
-function getCabinCardClassName({
-  isSelected,
-  status,
+function getMonthLabel(date: Date) {
+  return new Intl.DateTimeFormat("pl-PL", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function getMondayFirstWeekdayIndex(date: Date) {
+  const day = date.getDay();
+
+  if (day === 0) {
+    return 6;
+  }
+
+  return day - 1;
+}
+
+function isDateOccupiedByRanges(
+  dateInputValue: string,
+  occupiedRanges: OccupiedDateRange[],
+) {
+  return occupiedRanges.some((dateRange) => {
+    const occupiedDateFrom = getDateInputValueFromIso(dateRange.dateFrom);
+    const occupiedDateTo = getDateInputValueFromIso(dateRange.dateTo);
+
+    if (!occupiedDateFrom || !occupiedDateTo) {
+      return false;
+    }
+
+    return (
+      dateInputValue >= occupiedDateFrom && dateInputValue < occupiedDateTo
+    );
+  });
+}
+
+function buildCalendarMonths({
+  occupiedRanges,
+  monthsCount,
 }: {
-  isSelected: boolean;
-  status: CabinAvailabilityStatus;
-}) {
-  if (isSelected) {
-    return "border-slate-950 bg-slate-950 text-white";
+  occupiedRanges: OccupiedDateRange[];
+  monthsCount: number;
+}): CalendarMonth[] {
+  const today = new Date();
+  const todayInputValue = getDateInputValueFromDate(today);
+  const months: CalendarMonth[] = [];
+
+  for (let monthOffset = 0; monthOffset < monthsCount; monthOffset += 1) {
+    const monthDate = new Date(
+      today.getFullYear(),
+      today.getMonth() + monthOffset,
+      1,
+      12,
+    );
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1, 12);
+    const emptyDaysBeforeMonth = Array.from({
+      length: getMondayFirstWeekdayIndex(firstDayOfMonth),
+    }).map((_, index) => index);
+
+    const days = Array.from({ length: daysInMonth }).map((_, index) => {
+      const dayNumber = index + 1;
+      const date = new Date(year, month, dayNumber, 12);
+      const dateInputValue = getDateInputValueFromDate(date);
+
+      return {
+        dateInputValue,
+        dayNumber,
+        isToday: dateInputValue === todayInputValue,
+        isOccupied: isDateOccupiedByRanges(dateInputValue, occupiedRanges),
+      };
+    });
+
+    months.push({
+      key: `${year}-${String(month + 1).padStart(2, "0")}`,
+      label: getMonthLabel(monthDate),
+      emptyDaysBeforeMonth,
+      days,
+    });
   }
 
-  if (status === "UNAVAILABLE") {
-    return "border-red-200 bg-red-50 text-slate-500";
-  }
-
-  if (status === "AVAILABLE") {
-    return "border-green-200 bg-green-50 text-slate-950 hover:border-green-500";
-  }
-
-  return "border-slate-200 bg-white text-slate-950 hover:border-slate-400";
+  return months;
 }
 
-function parsePeopleCount(value: string, fallback: number) {
-  const parsedValue = Number.parseInt(value, 10);
-
-  if (!Number.isInteger(parsedValue)) {
-    return fallback;
+function getCalendarDayClassName({
+  isToday,
+  isOccupied,
+  isSelectedStart,
+  isSelectedEnd,
+  isSelectedBetween,
+}: {
+  isToday: boolean;
+  isOccupied: boolean;
+  isSelectedStart: boolean;
+  isSelectedEnd: boolean;
+  isSelectedBetween: boolean;
+}) {
+  if (isOccupied) {
+    return "flex h-9 cursor-not-allowed items-center justify-center rounded-xl border border-red-200 bg-red-50 text-xs font-black text-red-800";
   }
 
-  return parsedValue;
+  if (isSelectedStart || isSelectedEnd) {
+    return "flex h-9 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white ring-2 ring-slate-400";
+  }
+
+  if (isSelectedBetween) {
+    return "flex h-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-xs font-black text-sky-800";
+  }
+
+  if (isToday) {
+    return "flex h-9 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white";
+  }
+
+  return "flex h-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-black text-emerald-800 transition hover:bg-emerald-100";
 }
 
 export function InquiryForm({
@@ -172,90 +269,99 @@ export function InquiryForm({
   checkInTime,
   checkOutTime,
 }: InquiryFormProps) {
+  const defaultCabinId = cabins[0]?.id ?? "";
+
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
-
-  const [selectedCabinId, setSelectedCabinId] = useState("");
+  const [selectedCabinId, setSelectedCabinId] = useState(defaultCabinId);
   const [dateFromValue, setDateFromValue] = useState("");
   const [dateToValue, setDateToValue] = useState("");
-  const [adultsValue, setAdultsValue] = useState("2");
-  const [childrenValue, setChildrenValue] = useState("0");
 
-  const selectedNights = getSelectedNights(dateFromValue, dateToValue);
-  const hasValidDateRange = selectedNights !== null;
-
-  const adultsCount = parsePeopleCount(adultsValue, 1);
-  const childrenCount = parsePeopleCount(childrenValue, 0);
-  const guestsCount = Math.max(0, adultsCount + childrenCount);
-
-  const cabinsWithAvailability = useMemo(
+  const selectedCabinOccupiedDateRanges = useMemo(
     () =>
-      cabins.map((cabin) => {
-        if (!hasValidDateRange) {
-          return {
-            ...cabin,
-            availabilityStatus: "UNKNOWN" as CabinAvailabilityStatus,
-          };
-        }
+      occupiedDateRanges
+        .filter((dateRange) => dateRange.cabinId === selectedCabinId)
+        .sort(
+          (firstDateRange, secondDateRange) =>
+            new Date(firstDateRange.dateFrom).getTime() -
+            new Date(secondDateRange.dateFrom).getTime(),
+        ),
+    [occupiedDateRanges, selectedCabinId],
+  );
 
-        const hasConflict = occupiedDateRanges.some((range) => {
-          if (range.cabinId !== cabin.id) {
-            return false;
-          }
+  const selectedCabinName =
+    cabins.find((cabin) => cabin.id === selectedCabinId)?.name || "";
 
-          if (!isBlockingReservationStatus(range.status)) {
-            return false;
-          }
-
-          const occupiedDateFrom = normalizeDateOnlyValue(range.dateFrom);
-          const occupiedDateTo = normalizeDateOnlyValue(range.dateTo);
-
-          if (!occupiedDateFrom || !occupiedDateTo) {
-            return false;
-          }
-
-          return dateRangesOverlap({
-            selectedDateFrom: dateFromValue,
-            selectedDateTo: dateToValue,
-            occupiedDateFrom,
-            occupiedDateTo,
-          });
-        });
-
-        return {
-          ...cabin,
-          availabilityStatus: hasConflict
-            ? ("UNAVAILABLE" as CabinAvailabilityStatus)
-            : ("AVAILABLE" as CabinAvailabilityStatus),
-        };
+  const availabilityCalendarMonths = useMemo(
+    () =>
+      buildCalendarMonths({
+        occupiedRanges: selectedCabinOccupiedDateRanges,
+        monthsCount: 6,
       }),
-    [cabins, dateFromValue, dateToValue, hasValidDateRange, occupiedDateRanges],
+    [selectedCabinOccupiedDateRanges],
   );
 
-  const availableCabinsCount = cabinsWithAvailability.filter(
-    (cabin) => cabin.availabilityStatus === "AVAILABLE",
-  ).length;
+  const collidingDateRanges = useMemo(() => {
+    const selectedDateFrom = parseDateInputValue(dateFromValue);
+    const selectedDateTo = parseDateInputValue(dateToValue);
 
-  const selectedCabin = cabinsWithAvailability.find(
-    (cabin) => cabin.id === selectedCabinId,
-  );
-
-  const isSelectedCabinUnavailable =
-    selectedCabin?.availabilityStatus === "UNAVAILABLE";
-
-  useEffect(() => {
-    if (selectedCabinId && isSelectedCabinUnavailable) {
-      setSelectedCabinId("");
+    if (!selectedCabinId || !selectedDateFrom || !selectedDateTo) {
+      return [];
     }
-  }, [isSelectedCabinUnavailable, selectedCabinId]);
 
-  function resetAvailabilityFields() {
-    setSelectedCabinId("");
-    setDateFromValue("");
-    setDateToValue("");
-    setAdultsValue("2");
-    setChildrenValue("0");
+    if (selectedDateTo <= selectedDateFrom) {
+      return [];
+    }
+
+    return selectedCabinOccupiedDateRanges.filter((dateRange) => {
+      const occupiedDateFrom = new Date(dateRange.dateFrom);
+      const occupiedDateTo = new Date(dateRange.dateTo);
+
+      if (
+        Number.isNaN(occupiedDateFrom.getTime()) ||
+        Number.isNaN(occupiedDateTo.getTime())
+      ) {
+        return false;
+      }
+
+      return dateRangesOverlap({
+        selectedDateFrom,
+        selectedDateTo,
+        occupiedDateFrom,
+        occupiedDateTo,
+      });
+    });
+  }, [
+    dateFromValue,
+    dateToValue,
+    selectedCabinId,
+    selectedCabinOccupiedDateRanges,
+  ]);
+
+  const hasDateCollision = collidingDateRanges.length > 0;
+  const isSubmitDisabled = isPending || hasDateCollision;
+
+  function handleCalendarDayClick(day: CalendarDay) {
+    if (day.isOccupied) {
+      return;
+    }
+
+    setMessage("");
+
+    if (!dateFromValue || (dateFromValue && dateToValue)) {
+      setDateFromValue(day.dateInputValue);
+      setDateToValue("");
+      return;
+    }
+
+    if (day.dateInputValue <= dateFromValue) {
+      setDateFromValue(day.dateInputValue);
+      setDateToValue("");
+      return;
+    }
+
+    setDateToValue(day.dateInputValue);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -268,13 +374,13 @@ export function InquiryForm({
     const lastName = getStringValue(formData, "lastName");
     const phone = getStringValue(formData, "phone");
     const email = getStringValue(formData, "email");
-    const cabinId = selectedCabinId;
+    const cabinId = getStringValue(formData, "cabinId");
     const cabinName =
       cabins.find((cabin) => cabin.id === cabinId)?.name || "";
-    const dateFrom = dateFromValue;
-    const dateTo = dateToValue;
-    const adults = adultsValue;
-    const children = childrenValue;
+    const dateFrom = getStringValue(formData, "dateFrom");
+    const dateTo = getStringValue(formData, "dateTo");
+    const adults = getStringValue(formData, "adults");
+    const children = getStringValue(formData, "children");
     const street = getStringValue(formData, "street");
     const postalCode = getStringValue(formData, "postalCode");
     const city = getStringValue(formData, "city");
@@ -283,32 +389,16 @@ export function InquiryForm({
 
     if (!firstName || !lastName || !phone || !dateFrom || !dateTo) {
       setIsSuccess(false);
-      setMessage("Uzupełnij imię, nazwisko, telefon oraz termin pobytu.");
+      setMessage(
+        "Uzupełnij imię, nazwisko, telefon oraz termin pobytu.",
+      );
       return;
     }
 
-    if (!hasValidDateRange) {
-      setIsSuccess(false);
-      setMessage("Data wyjazdu musi być późniejsza niż data przyjazdu.");
-      return;
-    }
-
-    if (adultsCount < 1 || adultsCount > 20 || childrenCount < 0 || childrenCount > 20) {
-      setIsSuccess(false);
-      setMessage("Podaj poprawną liczbę dorosłych i dzieci.");
-      return;
-    }
-
-    if (guestsCount < 1 || guestsCount > 20) {
-      setIsSuccess(false);
-      setMessage("Łączna liczba osób musi być od 1 do 20.");
-      return;
-    }
-
-    if (isSelectedCabinUnavailable) {
+    if (hasDateCollision) {
       setIsSuccess(false);
       setMessage(
-        "Wybrany domek jest zajęty w tym terminie. Wybierz inny domek albo opcję dowolną / do ustalenia.",
+        "Wybrany termin jest zajęty dla tego domku. Wybierz inny termin, inny domek albo opcję dowolną / do ustalenia.",
       );
       return;
     }
@@ -337,7 +427,9 @@ export function InquiryForm({
 
       if (result.ok) {
         form.reset();
-        resetAvailabilityFields();
+        setSelectedCabinId(defaultCabinId);
+        setDateFromValue("");
+        setDateToValue("");
       }
     });
   }
@@ -345,26 +437,100 @@ export function InquiryForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-10 rounded-[2rem] bg-white p-6 text-left text-slate-950 shadow-xl md:p-8"
+      className="mt-10 grid gap-8 rounded-[2rem] bg-white p-6 text-left text-slate-950 shadow-xl lg:grid-cols-[0.9fr_1.1fr] md:p-8"
     >
-      <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
-        <div>
+      <div className="space-y-5">
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Sprawdź termin
+            Dane zapytania
           </p>
-
-          <h3 className="mt-2 text-2xl font-black">
-            Wybierz daty i zobacz wolne domki
-          </h3>
-
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            System pokazuje dostępność na podstawie rezerwacji oczekujących,
-            potwierdzonych i aktualnie zameldowanych. Można rozpocząć pobyt w
-            dniu wymeldowania poprzednich gości.
+            Uzupełnij dane kontaktowe i termin pobytu. Dostępność wybranego
+            domku sprawdzisz w kalendarzu po prawej stronie.
           </p>
         </div>
 
-        <div className="mt-5 grid gap-5 md:grid-cols-4">
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Imię
+            </span>
+            <input
+              name="firstName"
+              type="text"
+              required
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Jan"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Nazwisko
+            </span>
+            <input
+              name="lastName"
+              type="text"
+              required
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Kowalski"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Telefon
+            </span>
+            <input
+              name="phone"
+              type="tel"
+              required
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="502 286 724"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              E-mail
+            </span>
+            <input
+              name="email"
+              type="email"
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="adres@email.com"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Dorośli
+            </span>
+            <input
+              name="adults"
+              type="number"
+              required
+              min={1}
+              max={20}
+              defaultValue={2}
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Dzieci
+            </span>
+            <input
+              name="children"
+              type="number"
+              min={0}
+              max={20}
+              defaultValue={0}
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+            />
+          </label>
+
           <label className="grid gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Pobyt od
@@ -393,336 +559,294 @@ export function InquiryForm({
             />
           </label>
 
-          <label className="grid gap-2">
+          {hasDateCollision ? (
+            <div className="rounded-3xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 md:col-span-2">
+              <p className="font-black uppercase tracking-[0.14em]">
+                Uwaga: wybrany termin jest zajęty
+              </p>
+
+              <p className="mt-3 leading-6">
+                Wybrany termin dla domku {selectedCabinName} koliduje z
+                terminem zapisanym w systemie. Wybierz inny termin, inny domek
+                albo opcję dowolną / do ustalenia.
+              </p>
+
+              <div className="mt-4 grid gap-2">
+                {collidingDateRanges.map((dateRange) => (
+                  <div
+                    key={dateRange.id}
+                    className="rounded-2xl border border-red-200 bg-white px-4 py-3"
+                  >
+                    <span className="font-black">
+                      {formatDate(dateRange.dateFrom)} –{" "}
+                      {formatDate(dateRange.dateTo)}
+                    </span>{" "}
+                    <span>
+                      ({getReservationStatusLabel(dateRange.status)})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : selectedCabinId && dateFromValue && dateToValue ? (
+            <div className="rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-900 md:col-span-2">
+              <p className="font-black uppercase tracking-[0.14em]">
+                Brak kolizji z zajętymi terminami
+              </p>
+              <p className="mt-3 leading-6">
+                Wybrany termin nie nachodzi na aktualnie zapisane rezerwacje
+                tego domku. Ostateczną dostępność i cenę potwierdzimy po
+                kontakcie.
+              </p>
+            </div>
+          ) : null}
+
+          <label className="grid gap-2 md:col-span-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-              Dorośli
+              Ulica i numer
             </span>
             <input
-              name="adults"
-              type="number"
-              required
-              min={1}
-              max={20}
-              value={adultsValue}
-              onChange={(event) => setAdultsValue(event.target.value)}
+              name="street"
+              type="text"
               className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Leśna 23"
             />
           </label>
 
           <label className="grid gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-              Dzieci
+              Kod pocztowy
             </span>
             <input
-              name="children"
-              type="number"
-              min={0}
-              max={20}
-              value={childrenValue}
-              onChange={(event) => setChildrenValue(event.target.value)}
+              name="postalCode"
+              type="text"
               className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="16-500"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Miasto
+            </span>
+            <input
+              name="city"
+              type="text"
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Sejny"
+            />
+          </label>
+
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Kraj
+            </span>
+            <input
+              name="country"
+              type="text"
+              defaultValue="Polska"
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Polska"
+            />
+          </label>
+
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Wiadomość
+            </span>
+            <textarea
+              name="notes"
+              rows={5}
+              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              placeholder="Napisz dodatkowe informacje, np. przyjazd z dziećmi, pytanie o późniejsze wymeldowanie albo konkretny domek."
             />
           </label>
         </div>
 
-        <div className="mt-5 grid gap-3 rounded-2xl bg-white p-4 text-sm text-slate-600 md:grid-cols-3">
-          <div>
-            <span className="font-black text-slate-950">Osoby: </span>
-            {guestsCount}
-          </div>
-
-          <div>
-            <span className="font-black text-slate-950">Noce: </span>
-            {selectedNights ?? "—"}
-          </div>
-
-          <div>
-            <span className="font-black text-slate-950">Wolne domki: </span>
-            {hasValidDateRange ? availableCabinsCount : "—"}
-          </div>
+        <div className="rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-600">
+          Minimalny pobyt: <strong>{minimumNightsLabel}</strong>. Zameldowanie
+          od <strong>{checkInTime}</strong>, wymeldowanie do{" "}
+          <strong>{checkOutTime}</strong>. Ostateczną dostępność i cenę
+          potwierdzamy po kontakcie.
         </div>
-      </section>
 
-      <section className="mt-6 rounded-[1.5rem] border border-slate-200 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-              Domek
-            </p>
-
-            <h3 className="mt-2 text-2xl font-black">
-              Wybierz dostępny domek
-            </h3>
+        {message ? (
+          <div
+            className={
+              isSuccess
+                ? "rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
+                : "rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
+            }
+          >
+            {message}
           </div>
+        ) : null}
 
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
-            type="button"
-            onClick={() => setSelectedCabinId("")}
-            className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-black transition hover:bg-slate-50"
+            type="submit"
+            disabled={isSubmitDisabled}
+            className={
+              isSubmitDisabled
+                ? "cursor-not-allowed rounded-2xl bg-slate-400 px-7 py-4 text-sm font-black text-white"
+                : "rounded-2xl bg-slate-950 px-7 py-4 text-sm font-black text-white transition hover:bg-slate-800"
+            }
           >
-            Dowolny / do ustalenia
+            {isPending
+              ? "Wysyłanie zapytania..."
+              : hasDateCollision
+                ? "Termin zajęty — wybierz inny"
+                : "Wyślij zapytanie"}
           </button>
+
+          <a
+            href={getPhoneHref(phoneNumber)}
+            className="rounded-2xl border border-slate-300 px-7 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
+          >
+            Zadzwoń: {phoneNumber}
+          </a>
+        </div>
+      </div>
+
+      <aside className="space-y-5">
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+          <label className="grid gap-2">
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Wybierz domek
+            </span>
+            <select
+              name="cabinId"
+              value={selectedCabinId}
+              onChange={(event) => setSelectedCabinId(event.target.value)}
+              className="rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-950"
+            >
+              {cabins.map((cabin) => (
+                <option key={cabin.id} value={cabin.id}>
+                  {cabin.name}
+                </option>
+              ))}
+              <option value="">Dowolny / do ustalenia</option>
+            </select>
+          </label>
+
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Domyślnie wybrany jest pierwszy aktywny domek z listy. Jeżeli
+            chcesz, żeby zawsze był to „Domek 1”, ustaw mu najniższy numer
+            sortowania w panelu admina.
+          </p>
         </div>
 
-        <input type="hidden" name="cabinId" value={selectedCabinId} />
-
-        <div className="mt-5 grid gap-3">
-          <label
-            className={`cursor-pointer rounded-2xl border p-4 transition ${getCabinCardClassName(
-              {
-                isSelected: selectedCabinId === "",
-                status: "AVAILABLE",
-              },
-            )}`}
-          >
-            <input
-              type="radio"
-              name="cabinChoice"
-              value=""
-              checked={selectedCabinId === ""}
-              onChange={() => setSelectedCabinId("")}
-              className="sr-only"
-            />
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        {selectedCabinId ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <div className="font-black">Dowolny / do ustalenia</div>
-                <div
-                  className={
-                    selectedCabinId === ""
-                      ? "mt-1 text-sm text-white/80"
-                      : "mt-1 text-sm text-slate-500"
-                  }
-                >
-                  Wyślij zapytanie bez wyboru konkretnego domku.
-                </div>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+                  Kalendarz dostępności
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Kliknij pierwszy wolny dzień jako przyjazd, a następnie drugi
+                  wolny dzień jako wyjazd. Dzień wymeldowania nie jest liczony
+                  jako zajęty.
+                </p>
               </div>
 
-              <span
-                className={
-                  selectedCabinId === ""
-                    ? "rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white"
-                    : "rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700"
-                }
-              >
-                Bez wyboru
-              </span>
+              <div className="flex flex-wrap gap-2 text-xs font-bold">
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-800">
+                  wolny
+                </span>
+                <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-red-800">
+                  zajęty
+                </span>
+                <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-800">
+                  wybrany zakres
+                </span>
+              </div>
             </div>
-          </label>
 
-          {cabinsWithAvailability.map((cabin) => {
-            const isSelected = selectedCabinId === cabin.id;
-            const isUnavailable = cabin.availabilityStatus === "UNAVAILABLE";
+            {dateFromValue ? (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                <strong>Wybrany termin:</strong>{" "}
+                {formatDate(`${dateFromValue}T12:00:00.000Z`)}
+                {dateToValue
+                  ? ` – ${formatDate(`${dateToValue}T12:00:00.000Z`)}`
+                  : " – kliknij datę wyjazdu"}
+              </div>
+            ) : null}
 
-            return (
-              <label
-                key={cabin.id}
-                className={`rounded-2xl border p-4 transition ${
-                  isUnavailable
-                    ? "cursor-not-allowed"
-                    : "cursor-pointer"
-                } ${getCabinCardClassName({
-                  isSelected,
-                  status: cabin.availabilityStatus,
-                })}`}
-              >
-                <input
-                  type="radio"
-                  name="cabinChoice"
-                  value={cabin.id}
-                  checked={isSelected}
-                  disabled={isUnavailable}
-                  onChange={() => setSelectedCabinId(cabin.id)}
-                  className="sr-only"
-                />
+            <div className="mt-6 grid gap-5">
+              {availabilityCalendarMonths.map((calendarMonth) => (
+                <div
+                  key={calendarMonth.key}
+                  className="rounded-3xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <p className="text-center text-sm font-black uppercase tracking-[0.16em] text-slate-700">
+                    {calendarMonth.label}
+                  </p>
 
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="font-black">{cabin.name}</div>
-                    <div
-                      className={
-                        isSelected
-                          ? "mt-1 text-sm text-white/80"
-                          : "mt-1 text-sm text-slate-500"
-                      }
-                    >
-                      {hasValidDateRange
-                        ? `Termin: ${dateFromValue} – ${dateToValue}`
-                        : "Najpierw wybierz daty pobytu."}
-                    </div>
+                  <div className="mt-4 grid grid-cols-7 gap-1 text-center">
+                    {weekDayLabels.map((weekDayLabel) => (
+                      <div
+                        key={weekDayLabel}
+                        className="py-1 text-xs font-black uppercase text-slate-500"
+                      >
+                        {weekDayLabel}
+                      </div>
+                    ))}
+
+                    {calendarMonth.emptyDaysBeforeMonth.map((emptyDay) => (
+                      <div key={emptyDay} className="h-9" />
+                    ))}
+
+                    {calendarMonth.days.map((day) => {
+                      const isSelectedStart =
+                        day.dateInputValue === dateFromValue;
+                      const isSelectedEnd = day.dateInputValue === dateToValue;
+                      const isSelectedBetween =
+                        Boolean(dateFromValue) &&
+                        Boolean(dateToValue) &&
+                        day.dateInputValue > dateFromValue &&
+                        day.dateInputValue < dateToValue;
+
+                      return (
+                        <button
+                          key={day.dateInputValue}
+                          type="button"
+                          disabled={day.isOccupied}
+                          title={
+                            day.isOccupied
+                              ? `${day.dateInputValue} — zajęty`
+                              : `${day.dateInputValue} — wolny`
+                          }
+                          onClick={() => handleCalendarDayClick(day)}
+                          className={getCalendarDayClassName({
+                            isToday: day.isToday,
+                            isOccupied: day.isOccupied,
+                            isSelectedStart,
+                            isSelectedEnd,
+                            isSelectedBetween,
+                          })}
+                        >
+                          {day.dayNumber}
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-black ${
-                      isSelected
-                        ? "bg-white/20 text-white"
-                        : getAvailabilityStatusClassName(
-                            cabin.availabilityStatus,
-                          )
-                    }`}
-                  >
-                    {getAvailabilityStatusLabel(cabin.availabilityStatus)}
-                  </span>
                 </div>
-              </label>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="mt-6 grid gap-5 md:grid-cols-2">
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Imię
-          </span>
-          <input
-            name="firstName"
-            type="text"
-            required
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Jan"
-          />
-        </label>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Nazwisko
-          </span>
-          <input
-            name="lastName"
-            type="text"
-            required
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Kowalski"
-          />
-        </label>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Telefon
-          </span>
-          <input
-            name="phone"
-            type="tel"
-            required
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="502 286 724"
-          />
-        </label>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            E-mail
-          </span>
-          <input
-            name="email"
-            type="email"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="adres@email.com"
-          />
-        </label>
-
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Ulica i numer
-          </span>
-          <input
-            name="street"
-            type="text"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Leśna 23"
-          />
-        </label>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Kod pocztowy
-          </span>
-          <input
-            name="postalCode"
-            type="text"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="16-500"
-          />
-        </label>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Miasto
-          </span>
-          <input
-            name="city"
-            type="text"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Sejny"
-          />
-        </label>
-
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Kraj
-          </span>
-          <input
-            name="country"
-            type="text"
-            defaultValue="Polska"
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Polska"
-          />
-        </label>
-
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-            Wiadomość
-          </span>
-          <textarea
-            name="notes"
-            rows={5}
-            className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
-            placeholder="Napisz dodatkowe informacje, np. przyjazd z dziećmi, pytanie o późniejsze wymeldowanie albo konkretny domek."
-          />
-        </label>
-      </section>
-
-      <div className="mt-6 rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-600">
-        Minimalny pobyt: <strong>{minimumNightsLabel}</strong>. Zameldowanie od{" "}
-        <strong>{checkInTime}</strong>, wymeldowanie do{" "}
-        <strong>{checkOutTime}</strong>. Ostateczną dostępność i cenę
-        potwierdzamy po kontakcie.
-      </div>
-
-      {message ? (
-        <div
-          className={
-            isSuccess
-              ? "mt-6 rounded-3xl border border-green-200 bg-green-50 p-5 text-sm font-semibold leading-6 text-green-800"
-              : "mt-6 rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-semibold leading-6 text-red-800"
-          }
-        >
-          {message}
-        </div>
-      ) : null}
-
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <button
-          type="submit"
-          disabled={isPending}
-          className={
-            isPending
-              ? "cursor-not-allowed rounded-2xl bg-slate-400 px-6 py-4 text-center text-sm font-black text-white"
-              : "rounded-2xl bg-slate-950 px-6 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
-          }
-        >
-          {isPending ? "Wysyłanie..." : "Wyślij zapytanie"}
-        </button>
-
-        <a
-          href={getPhoneHref(phoneNumber)}
-          className="rounded-2xl border border-slate-300 px-6 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-slate-50"
-        >
-          Zadzwoń: {phoneNumber}
-        </a>
-      </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-slate-200 bg-white p-5">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
+              Kalendarz dostępności
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Przy opcji dowolnej / do ustalenia dostępność dobierzemy po
+              kontakcie.
+            </p>
+          </div>
+        )}
+      </aside>
     </form>
   );
 }
