@@ -30,29 +30,47 @@ async function getPublicCabins() {
           },
         ],
       },
-      reservations: {
-        where: {
-          status: {
-            not: "CANCELLED",
-          },
-        },
-        orderBy: [
-          {
-            startDate: "asc",
-          },
-        ],
-        select: {
-          id: true,
-          cabinId: true,
-          startDate: true,
-          endDate: true,
-          checkInAt: true,
-          checkOutAt: true,
-          status: true,
-        },
-      },
     },
   });
+}
+
+async function getPublicOccupiedDateRanges(cabinIds: string[]) {
+  if (cabinIds.length === 0) {
+    return [];
+  }
+
+  const reservations = await prisma.reservation.findMany({
+    where: {
+      cabinId: {
+        in: cabinIds,
+      },
+      status: {
+        not: "CANCELLED",
+      },
+    },
+    orderBy: [
+      {
+        startDate: "asc",
+      },
+    ],
+    select: {
+      id: true,
+      cabinId: true,
+      startDate: true,
+      endDate: true,
+      checkInAt: true,
+      checkOutAt: true,
+      status: true,
+    },
+  });
+
+  return reservations.map((reservation) => ({
+    id: reservation.id,
+    cabinId: reservation.cabinId,
+    dateFrom: (reservation.checkInAt ?? reservation.startDate).toISOString(),
+    dateTo: (reservation.checkOutAt ?? reservation.endDate).toISOString(),
+    status: reservation.status,
+  }));
 }
 
 async function getPublicSettings() {
@@ -118,6 +136,10 @@ export default async function HomePage() {
     getPublicSettings(),
   ]);
 
+  const occupiedDateRanges = await getPublicOccupiedDateRanges(
+    cabins.map((cabin) => cabin.id),
+  );
+
   const minimumNights = settings?.minimumNights ?? 1;
   const checkInTime = settings?.checkInTime ?? "16:00";
   const checkOutTime = settings?.checkOutTime ?? "11:00";
@@ -129,21 +151,14 @@ export default async function HomePage() {
   const contactPhoneHref = getPhoneHref(contactPhone);
   const contactEmail = settings?.ownerEmail || "";
 
-  const occupiedDateRanges = cabins.flatMap((cabin) =>
-    cabin.reservations.map((reservation) => ({
-      id: reservation.id,
-      cabinId: reservation.cabinId,
-      dateFrom: (reservation.checkInAt ?? reservation.startDate).toISOString(),
-      dateTo: (reservation.checkOutAt ?? reservation.endDate).toISOString(),
-      status: reservation.status,
-    })),
-  );
-
   return (
     <main className="min-h-screen bg-white text-slate-950">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <a href="/" className="text-2xl font-black tracking-tight text-slate-950">
+          <a
+            href="/"
+            className="text-2xl font-black tracking-tight text-slate-950"
+          >
             Domki Sztabinki
           </a>
 
@@ -595,16 +610,17 @@ export default async function HomePage() {
             </div>
 
             <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
-              <p className="text-sm font-semibold text-slate-500">
-                Kontakt
-              </p>
+              <p className="text-sm font-semibold text-slate-500">Kontakt</p>
               <p className="mt-2 text-2xl font-black">{contactPhone}</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="kontakt" className="bg-slate-950 px-6 py-24 text-white lg:px-8">
+      <section
+        id="kontakt"
+        className="bg-slate-950 px-6 py-24 text-white lg:px-8"
+      >
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-300">
             Zapytanie

@@ -21,6 +21,7 @@ type CalendarDay = {
   dateInputValue: string;
   dayNumber: number;
   isToday: boolean;
+  isPast: boolean;
   isOccupied: boolean;
 };
 
@@ -42,6 +43,8 @@ type InquiryFormProps = {
 };
 
 const weekDayLabels = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
+
+const blockingReservationStatuses = ["PENDING", "CONFIRMED", "CHECKED_IN"];
 
 function getStringValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -82,46 +85,64 @@ function formatDate(value: string) {
   }).format(date);
 }
 
+function normalizeReservationStatus(status: string) {
+  if (status === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (
+    status === "PENDING" ||
+    status === "CONFIRMED" ||
+    status === "CHECKED_IN" ||
+    status === "CHECKED_OUT" ||
+    status === "CANCELLED"
+  ) {
+    return status;
+  }
+
+  return "PENDING";
+}
+
+function isBlockingReservationStatus(status: string) {
+  return blockingReservationStatuses.includes(normalizeReservationStatus(status));
+}
+
 function getReservationStatusLabel(status: string) {
-  if (status === "PENDING") {
+  const normalizedStatus = normalizeReservationStatus(status);
+
+  if (normalizedStatus === "PENDING") {
     return "wstępnie zajęty";
   }
 
-  if (status === "CONFIRMED") {
+  if (normalizedStatus === "CONFIRMED") {
     return "zajęty";
   }
 
-  if (status === "COMPLETED") {
+  if (normalizedStatus === "CHECKED_IN") {
+    return "trwający pobyt";
+  }
+
+  if (normalizedStatus === "CHECKED_OUT") {
     return "zakończony pobyt";
+  }
+
+  if (normalizedStatus === "CANCELLED") {
+    return "anulowany";
   }
 
   return "zajęty";
 }
 
-function parseDateInputValue(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return null;
-  }
-
-  const date = new Date(`${value}T12:00:00.000Z`);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-}
-
-function dateRangesOverlap({
+function dateInputRangesOverlap({
   selectedDateFrom,
   selectedDateTo,
   occupiedDateFrom,
   occupiedDateTo,
 }: {
-  selectedDateFrom: Date;
-  selectedDateTo: Date;
-  occupiedDateFrom: Date;
-  occupiedDateTo: Date;
+  selectedDateFrom: string;
+  selectedDateTo: string;
+  occupiedDateFrom: string;
+  occupiedDateTo: string;
 }) {
   return selectedDateFrom < occupiedDateTo && selectedDateTo > occupiedDateFrom;
 }
@@ -173,10 +194,95 @@ function isDateOccupiedByRanges(
       return false;
     }
 
-    return (
-      dateInputValue >= occupiedDateFrom && dateInputValue < occupiedDateTo
-    );
+    return dateInputValue >= occupiedDateFrom && dateInputValue < occupiedDateTo;
   });
+}
+
+function isDateCheckInBoundaryOfRanges(
+  dateInputValue: string,
+  occupiedRanges: OccupiedDateRange[],
+) {
+  return occupiedRanges.some((dateRange) => {
+    const occupiedDateFrom = getDateInputValueFromIso(dateRange.dateFrom);
+
+    if (!occupiedDateFrom) {
+      return false;
+    }
+
+    return dateInputValue === occupiedDateFrom;
+  });
+}
+
+function isDateCheckOutBoundaryOfRanges(
+  dateInputValue: string,
+  occupiedRanges: OccupiedDateRange[],
+) {
+  return occupiedRanges.some((dateRange) => {
+    const occupiedDateTo = getDateInputValueFromIso(dateRange.dateTo);
+
+    if (!occupiedDateTo) {
+      return false;
+    }
+
+    return dateInputValue === occupiedDateTo;
+  });
+}
+
+function isDateTurnoverBlockedDay({
+  dateInputValue,
+  allDateRanges,
+  blockingDateRanges,
+}: {
+  dateInputValue: string;
+  allDateRanges: OccupiedDateRange[];
+  blockingDateRanges: OccupiedDateRange[];
+}) {
+  return (
+    isDateCheckOutBoundaryOfRanges(dateInputValue, allDateRanges) &&
+    isDateCheckInBoundaryOfRanges(dateInputValue, blockingDateRanges)
+  );
+}
+
+function canUseOccupiedDayAsCheckout({
+  day,
+  dateFromValue,
+  dateToValue,
+  blockingDateRanges,
+  allDateRanges,
+}: {
+  day: CalendarDay;
+  dateFromValue: string;
+  dateToValue: string;
+  blockingDateRanges: OccupiedDateRange[];
+  allDateRanges: OccupiedDateRange[];
+}) {
+  if (day.isPast) {
+    return false;
+  }
+
+  if (!day.isOccupied) {
+    return false;
+  }
+
+  if (
+    isDateTurnoverBlockedDay({
+      dateInputValue: day.dateInputValue,
+      allDateRanges,
+      blockingDateRanges,
+    })
+  ) {
+    return false;
+  }
+
+  if (!dateFromValue || dateToValue) {
+    return false;
+  }
+
+  if (day.dateInputValue <= dateFromValue) {
+    return false;
+  }
+
+  return isDateCheckInBoundaryOfRanges(day.dateInputValue, blockingDateRanges);
 }
 
 function buildCalendarMonths({
@@ -214,6 +320,7 @@ function buildCalendarMonths({
         dateInputValue,
         dayNumber,
         isToday: dateInputValue === todayInputValue,
+        isPast: dateInputValue < todayInputValue,
         isOccupied: isDateOccupiedByRanges(dateInputValue, occupiedRanges),
       };
     });
@@ -231,18 +338,24 @@ function buildCalendarMonths({
 
 function getCalendarDayClassName({
   isToday,
+  isPast,
   isOccupied,
   isSelectedStart,
   isSelectedEnd,
   isSelectedBetween,
+  isCheckInBoundary,
+  isTurnoverBlockedDay,
 }: {
   isToday: boolean;
+  isPast: boolean;
   isOccupied: boolean;
   isSelectedStart: boolean;
   isSelectedEnd: boolean;
   isSelectedBetween: boolean;
+  isCheckInBoundary: boolean;
+  isTurnoverBlockedDay: boolean;
 }) {
-  if (isOccupied) {
+  if (isPast || isTurnoverBlockedDay) {
     return "flex h-9 cursor-not-allowed items-center justify-center rounded-xl border border-red-200 bg-red-50 text-xs font-black text-red-800";
   }
 
@@ -254,8 +367,12 @@ function getCalendarDayClassName({
     return "flex h-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-xs font-black text-sky-800";
   }
 
+  if (isOccupied && !isCheckInBoundary) {
+    return "flex h-9 cursor-not-allowed items-center justify-center rounded-xl border border-red-200 bg-red-50 text-xs font-black text-red-800";
+  }
+
   if (isToday) {
-    return "flex h-9 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white";
+    return "flex h-9 items-center justify-center rounded-xl border border-emerald-400 bg-emerald-50 text-xs font-black text-emerald-900 ring-2 ring-emerald-200 transition hover:bg-emerald-100";
   }
 
   return "flex h-9 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-black text-emerald-800 transition hover:bg-emerald-100";
@@ -278,7 +395,7 @@ export function InquiryForm({
   const [dateFromValue, setDateFromValue] = useState("");
   const [dateToValue, setDateToValue] = useState("");
 
-  const selectedCabinOccupiedDateRanges = useMemo(
+  const selectedCabinAllDateRanges = useMemo(
     () =>
       occupiedDateRanges
         .filter((dateRange) => dateRange.cabinId === selectedCabinId)
@@ -288,6 +405,14 @@ export function InquiryForm({
             new Date(secondDateRange.dateFrom).getTime(),
         ),
     [occupiedDateRanges, selectedCabinId],
+  );
+
+  const selectedCabinOccupiedDateRanges = useMemo(
+    () =>
+      selectedCabinAllDateRanges.filter((dateRange) =>
+        isBlockingReservationStatus(dateRange.status),
+      ),
+    [selectedCabinAllDateRanges],
   );
 
   const selectedCabinName =
@@ -303,31 +428,25 @@ export function InquiryForm({
   );
 
   const collidingDateRanges = useMemo(() => {
-    const selectedDateFrom = parseDateInputValue(dateFromValue);
-    const selectedDateTo = parseDateInputValue(dateToValue);
-
-    if (!selectedCabinId || !selectedDateFrom || !selectedDateTo) {
+    if (!selectedCabinId || !dateFromValue || !dateToValue) {
       return [];
     }
 
-    if (selectedDateTo <= selectedDateFrom) {
+    if (dateToValue <= dateFromValue) {
       return [];
     }
 
     return selectedCabinOccupiedDateRanges.filter((dateRange) => {
-      const occupiedDateFrom = new Date(dateRange.dateFrom);
-      const occupiedDateTo = new Date(dateRange.dateTo);
+      const occupiedDateFrom = getDateInputValueFromIso(dateRange.dateFrom);
+      const occupiedDateTo = getDateInputValueFromIso(dateRange.dateTo);
 
-      if (
-        Number.isNaN(occupiedDateFrom.getTime()) ||
-        Number.isNaN(occupiedDateTo.getTime())
-      ) {
+      if (!occupiedDateFrom || !occupiedDateTo) {
         return false;
       }
 
-      return dateRangesOverlap({
-        selectedDateFrom,
-        selectedDateTo,
+      return dateInputRangesOverlap({
+        selectedDateFrom: dateFromValue,
+        selectedDateTo: dateToValue,
         occupiedDateFrom,
         occupiedDateTo,
       });
@@ -342,25 +461,70 @@ export function InquiryForm({
   const hasDateCollision = collidingDateRanges.length > 0;
   const isSubmitDisabled = isPending || hasDateCollision;
 
+  function showCheckInBoundaryStartMessage() {
+    setIsSuccess(false);
+    setMessage(
+      "Ten dzień jest dniem zameldowania innej rezerwacji. Może być wybrany jako dzień wyjazdu, ale nie jako dzień rozpoczęcia nowego pobytu.",
+    );
+  }
+
   function handleCalendarDayClick(day: CalendarDay) {
-    if (day.isOccupied) {
+    const isCheckInBoundary = isDateCheckInBoundaryOfRanges(
+      day.dateInputValue,
+      selectedCabinOccupiedDateRanges,
+    );
+
+    const isTurnoverBlockedDay = isDateTurnoverBlockedDay({
+      dateInputValue: day.dateInputValue,
+      allDateRanges: selectedCabinAllDateRanges,
+      blockingDateRanges: selectedCabinOccupiedDateRanges,
+    });
+
+    const isCheckoutBoundaryAvailable = canUseOccupiedDayAsCheckout({
+      day,
+      dateFromValue,
+      dateToValue,
+      allDateRanges: selectedCabinAllDateRanges,
+      blockingDateRanges: selectedCabinOccupiedDateRanges,
+    });
+
+    if (day.isPast || isTurnoverBlockedDay) {
       return;
     }
 
-    setMessage("");
+    if (day.isOccupied && !isCheckInBoundary) {
+      return;
+    }
 
     if (!dateFromValue || (dateFromValue && dateToValue)) {
+      if (isCheckInBoundary) {
+        showCheckInBoundaryStartMessage();
+        return;
+      }
+
+      setMessage("");
       setDateFromValue(day.dateInputValue);
       setDateToValue("");
       return;
     }
 
     if (day.dateInputValue <= dateFromValue) {
+      if (isCheckInBoundary) {
+        showCheckInBoundaryStartMessage();
+        return;
+      }
+
+      setMessage("");
       setDateFromValue(day.dateInputValue);
       setDateToValue("");
       return;
     }
 
+    if (day.isOccupied && !isCheckoutBoundaryAvailable) {
+      return;
+    }
+
+    setMessage("");
     setDateToValue(day.dateInputValue);
   }
 
@@ -375,8 +539,7 @@ export function InquiryForm({
     const phone = getStringValue(formData, "phone");
     const email = getStringValue(formData, "email");
     const cabinId = getStringValue(formData, "cabinId");
-    const cabinName =
-      cabins.find((cabin) => cabin.id === cabinId)?.name || "";
+    const cabinName = cabins.find((cabin) => cabin.id === cabinId)?.name || "";
     const dateFrom = getStringValue(formData, "dateFrom");
     const dateTo = getStringValue(formData, "dateTo");
     const adults = getStringValue(formData, "adults");
@@ -389,9 +552,7 @@ export function InquiryForm({
 
     if (!firstName || !lastName || !phone || !dateFrom || !dateTo) {
       setIsSuccess(false);
-      setMessage(
-        "Uzupełnij imię, nazwisko, telefon oraz termin pobytu.",
-      );
+      setMessage("Uzupełnij imię, nazwisko, telefon oraz termin pobytu.");
       return;
     }
 
@@ -745,8 +906,10 @@ export function InquiryForm({
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   Kliknij pierwszy wolny dzień jako przyjazd, a następnie drugi
-                  wolny dzień jako wyjazd. Dzień wymeldowania nie jest liczony
-                  jako zajęty.
+                  dzień jako wyjazd. Dzień zameldowania kolejnych gości wygląda
+                  jak wolny, ale nie może być początkiem nowego pobytu. Jeżeli
+                  tego samego dnia jest wymeldowanie i zameldowanie, dzień jest
+                  zajęty.
                 </p>
               </div>
 
@@ -755,7 +918,7 @@ export function InquiryForm({
                   wolny
                 </span>
                 <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-red-800">
-                  zajęty
+                  zajęty / miniony
                 </span>
                 <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-800">
                   wybrany zakres
@@ -806,24 +969,47 @@ export function InquiryForm({
                         Boolean(dateToValue) &&
                         day.dateInputValue > dateFromValue &&
                         day.dateInputValue < dateToValue;
+                      const isCheckInBoundary =
+                        isDateCheckInBoundaryOfRanges(
+                          day.dateInputValue,
+                          selectedCabinOccupiedDateRanges,
+                        );
+                      const isTurnoverBlockedDay = isDateTurnoverBlockedDay({
+                        dateInputValue: day.dateInputValue,
+                        allDateRanges: selectedCabinAllDateRanges,
+                        blockingDateRanges: selectedCabinOccupiedDateRanges,
+                      });
+                      const isDayDisabled =
+                        day.isPast ||
+                        isTurnoverBlockedDay ||
+                        (day.isOccupied && !isCheckInBoundary);
 
                       return (
                         <button
                           key={day.dateInputValue}
                           type="button"
-                          disabled={day.isOccupied}
+                          disabled={isDayDisabled}
                           title={
-                            day.isOccupied
-                              ? `${day.dateInputValue} — zajęty`
-                              : `${day.dateInputValue} — wolny`
+                            day.isPast
+                              ? `${day.dateInputValue} — data miniona`
+                              : isTurnoverBlockedDay
+                                ? `${day.dateInputValue} — zajęty: wymeldowanie i zameldowanie tego samego dnia`
+                                : day.isOccupied && !isCheckInBoundary
+                                  ? `${day.dateInputValue} — zajęty`
+                                  : isCheckInBoundary
+                                    ? `${day.dateInputValue} — możliwy tylko jako dzień wyjazdu`
+                                    : `${day.dateInputValue} — wolny`
                           }
                           onClick={() => handleCalendarDayClick(day)}
                           className={getCalendarDayClassName({
                             isToday: day.isToday,
+                            isPast: day.isPast,
                             isOccupied: day.isOccupied,
                             isSelectedStart,
                             isSelectedEnd,
                             isSelectedBetween,
+                            isCheckInBoundary,
+                            isTurnoverBlockedDay,
                           })}
                         >
                           {day.dayNumber}
