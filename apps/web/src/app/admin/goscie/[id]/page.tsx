@@ -8,6 +8,8 @@ type Props = {
   }>;
 };
 
+type ReservationPaymentStatus = "PENDING" | "PAID" | "PARTIAL" | "REFUNDED";
+
 function decimalToNumber(value: { toString: () => string } | null) {
   if (!value) {
     return 0;
@@ -57,18 +59,129 @@ function getRemainingAmount(totalPrice: number, paidAmount: number) {
   return Math.max(0, totalPrice - paidAmount);
 }
 
+function normalizeReservationStatus(status: string) {
+  if (status === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (
+    status === "PENDING" ||
+    status === "CONFIRMED" ||
+    status === "CHECKED_IN" ||
+    status === "CHECKED_OUT" ||
+    status === "CANCELLED"
+  ) {
+    return status;
+  }
+
+  return "PENDING";
+}
+
 function getStatusLabel(status: string) {
-  switch (status) {
+  const normalizedStatus = normalizeReservationStatus(status);
+
+  switch (normalizedStatus) {
     case "PENDING":
-      return "Oczekująca";
+      return "Oczekuje na potwierdzenie";
     case "CONFIRMED":
       return "Potwierdzona";
+    case "CHECKED_IN":
+      return "Zameldowany";
+    case "CHECKED_OUT":
+      return "Wymeldowany";
     case "CANCELLED":
-      return "Anulowana";
-    case "COMPLETED":
-      return "Zakończona";
+      return "Anulowany";
+    default:
+      return normalizedStatus;
+  }
+}
+
+function getStatusClassName(status: string) {
+  const normalizedStatus = normalizeReservationStatus(status);
+
+  switch (normalizedStatus) {
+    case "PENDING":
+      return "bg-orange-100 text-orange-800";
+    case "CONFIRMED":
+      return "bg-blue-100 text-blue-700";
+    case "CHECKED_IN":
+      return "bg-green-100 text-green-700";
+    case "CHECKED_OUT":
+      return "bg-zinc-100 text-zinc-700";
+    case "CANCELLED":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-zinc-100 text-zinc-700";
+  }
+}
+
+function getReservationPaymentStatus({
+  paymentStatus,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentStatus: string | null;
+  totalPrice: number;
+  paidAmount: number;
+}): ReservationPaymentStatus {
+  if (paymentStatus === "REFUNDED") {
+    return "REFUNDED";
+  }
+
+  if (paymentStatus === "PAID") {
+    return "PAID";
+  }
+
+  if (paymentStatus === "PARTIAL") {
+    return "PARTIAL";
+  }
+
+  if (paymentStatus === "PENDING") {
+    return "PENDING";
+  }
+
+  if (totalPrice <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (paidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
+}
+
+function getPaymentStatusLabel(status: ReservationPaymentStatus) {
+  switch (status) {
+    case "PENDING":
+      return "Oczekuje";
+    case "PAID":
+      return "Opłacona";
+    case "PARTIAL":
+      return "Częściowa";
+    case "REFUNDED":
+      return "Zwrócona";
     default:
       return status;
+  }
+}
+
+function getPaymentStatusClassName(status: ReservationPaymentStatus) {
+  switch (status) {
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-800";
+    case "PAID":
+      return "bg-green-100 text-green-700";
+    case "PARTIAL":
+      return "bg-blue-100 text-blue-700";
+    case "REFUNDED":
+      return "bg-zinc-100 text-zinc-700";
+    default:
+      return "bg-zinc-100 text-zinc-700";
   }
 }
 
@@ -92,21 +205,6 @@ function getSourceLabel(source: string) {
       return "Synchronizacja rezerwacji";
     default:
       return source;
-  }
-}
-
-function getStatusClassName(status: string) {
-  switch (status) {
-    case "CONFIRMED":
-      return "bg-blue-100 text-blue-700";
-    case "PENDING":
-      return "bg-yellow-100 text-yellow-800";
-    case "CANCELLED":
-      return "bg-red-100 text-red-700";
-    case "COMPLETED":
-      return "bg-zinc-100 text-zinc-700";
-    default:
-      return "bg-zinc-100 text-zinc-700";
   }
 }
 
@@ -138,7 +236,7 @@ function getPaymentClassName(remainingAmount: number) {
     return "text-green-700";
   }
 
-  return "text-red-700";
+  return "text-yellow-700";
 }
 
 function getPaymentLabel(remainingAmount: number) {
@@ -407,7 +505,11 @@ export default async function GuestDetailsPage({ params }: Props) {
 
           <div className="rounded-xl border bg-white p-5 shadow-sm">
             <div className="text-sm text-zinc-500">Pozostało</div>
-            <div className="mt-1 text-3xl font-bold text-red-700">
+            <div
+              className={`mt-1 text-3xl font-bold ${getPaymentClassName(
+                totalRemaining
+              )}`}
+            >
               {formatMoney(totalRemaining)}
             </div>
           </div>
@@ -490,7 +592,7 @@ export default async function GuestDetailsPage({ params }: Props) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1150px] border-collapse text-sm">
+            <table className="w-full min-w-[1300px] border-collapse text-sm">
               <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
                   <th className="border-b p-4">Domek</th>
@@ -501,6 +603,7 @@ export default async function GuestDetailsPage({ params }: Props) {
                   <th className="border-b p-4 text-right">Wpłacono</th>
                   <th className="border-b p-4 text-right">Pozostało</th>
                   <th className="border-b p-4">Status</th>
+                  <th className="border-b p-4">Status płatności</th>
                   <th className="border-b p-4">Źródło</th>
                   <th className="border-b p-4">Adres</th>
                   <th className="border-b p-4 text-right">Akcje</th>
@@ -515,6 +618,12 @@ export default async function GuestDetailsPage({ params }: Props) {
                     totalPrice,
                     paidAmount
                   );
+
+                  const paymentStatus = getReservationPaymentStatus({
+                    paymentStatus: reservation.paymentStatus,
+                    totalPrice,
+                    paidAmount,
+                  });
 
                   return (
                     <tr
@@ -595,6 +704,16 @@ export default async function GuestDetailsPage({ params }: Props) {
                           )}`}
                         >
                           {getStatusLabel(reservation.status)}
+                        </span>
+                      </td>
+
+                      <td className="border-b p-4">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getPaymentStatusClassName(
+                            paymentStatus
+                          )}`}
+                        >
+                          {getPaymentStatusLabel(paymentStatus)}
                         </span>
                       </td>
 
