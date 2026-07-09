@@ -7,6 +7,12 @@ export type CalendarReservationStatus =
   | "CHECKED_OUT"
   | "CANCELLED";
 
+export type CalendarReservationPaymentStatus =
+  | "PENDING"
+  | "PAID"
+  | "PARTIAL"
+  | "REFUNDED";
+
 export type CalendarReservationSource =
   | "MANUAL"
   | "PHONE"
@@ -43,6 +49,7 @@ export interface CalendarReservation {
   children: number;
 
   status: CalendarReservationStatus;
+  paymentStatus: CalendarReservationPaymentStatus;
   source: CalendarReservationSource;
 
   totalPrice: number | null;

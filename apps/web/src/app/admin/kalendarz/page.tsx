@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   CalendarCabin,
   CalendarEngineData,
+  CalendarReservationPaymentStatus,
   CalendarReservationSource,
   CalendarReservationStatus,
 } from "@/modules/calendar/calendar.types";
@@ -63,6 +64,48 @@ function mapReservationStatus(status: string): CalendarReservationStatus {
   }
 
   return "PENDING";
+}
+
+function mapReservationPaymentStatus({
+  paymentStatus,
+  totalPrice,
+  paidAmount,
+}: {
+  paymentStatus: string | null;
+  totalPrice: number | null;
+  paidAmount: number | null;
+}): CalendarReservationPaymentStatus {
+  if (paymentStatus === "PAID") {
+    return "PAID";
+  }
+
+  if (paymentStatus === "PARTIAL") {
+    return "PARTIAL";
+  }
+
+  if (paymentStatus === "REFUNDED") {
+    return "REFUNDED";
+  }
+
+  if (paymentStatus === "PENDING") {
+    return "PENDING";
+  }
+
+  if (totalPrice === null || totalPrice <= 0) {
+    return "PENDING";
+  }
+
+  const normalizedPaidAmount = paidAmount ?? 0;
+
+  if (normalizedPaidAmount <= 0) {
+    return "PENDING";
+  }
+
+  if (normalizedPaidAmount >= totalPrice) {
+    return "PAID";
+  }
+
+  return "PARTIAL";
 }
 
 function mapReservationSource(source: string): CalendarReservationSource {
@@ -128,43 +171,53 @@ export default async function KalendarzPage({ searchParams }: Props) {
     shortName: cabin.shortName,
     maxGuests: cabin.maxGuests,
     isActive: cabin.isActive,
-    reservations: cabin.reservations.map((reservation) => ({
-      id: reservation.id,
-      cabinId: reservation.cabinId,
+    reservations: cabin.reservations.map((reservation) => {
+      const totalPrice = decimalToNumber(reservation.totalPrice);
+      const paidAmount = decimalToNumber(reservation.paidAmount);
 
-      guestName: reservation.guestName,
-      firstName: reservation.firstName,
-      lastName: reservation.lastName,
+      return {
+        id: reservation.id,
+        cabinId: reservation.cabinId,
 
-      email: reservation.email,
-      phone: reservation.phone,
+        guestName: reservation.guestName,
+        firstName: reservation.firstName,
+        lastName: reservation.lastName,
 
-      startDate: reservation.startDate,
-      endDate: reservation.endDate,
+        email: reservation.email,
+        phone: reservation.phone,
 
-      checkInAt: reservation.checkInAt,
-      checkOutAt: reservation.checkOutAt,
+        startDate: reservation.startDate,
+        endDate: reservation.endDate,
 
-      nights: reservation.nights,
-      pricePerNight: decimalToNumber(reservation.pricePerNight),
+        checkInAt: reservation.checkInAt,
+        checkOutAt: reservation.checkOutAt,
 
-      guests: reservation.guests,
-      adults: reservation.adults,
-      children: reservation.children,
+        nights: reservation.nights,
+        pricePerNight: decimalToNumber(reservation.pricePerNight),
 
-      status: mapReservationStatus(reservation.status),
-      source: mapReservationSource(reservation.source),
+        guests: reservation.guests,
+        adults: reservation.adults,
+        children: reservation.children,
 
-      totalPrice: decimalToNumber(reservation.totalPrice),
-      paidAmount: decimalToNumber(reservation.paidAmount),
+        status: mapReservationStatus(reservation.status),
+        paymentStatus: mapReservationPaymentStatus({
+          paymentStatus: reservation.paymentStatus,
+          totalPrice,
+          paidAmount,
+        }),
+        source: mapReservationSource(reservation.source),
 
-      street: reservation.street,
-      postalCode: reservation.postalCode,
-      city: reservation.city,
-      country: reservation.country,
+        totalPrice,
+        paidAmount,
 
-      notes: reservation.notes,
-    })),
+        street: reservation.street,
+        postalCode: reservation.postalCode,
+        city: reservation.city,
+        country: reservation.country,
+
+        notes: reservation.notes,
+      };
+    }),
   }));
 
   const calendarData: CalendarEngineData = {

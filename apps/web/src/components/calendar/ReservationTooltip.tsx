@@ -42,6 +42,53 @@ function getReservationStatusLabel(status: CalendarReservation["status"]) {
   }
 }
 
+function getReservationStatusClassName(status: CalendarReservation["status"]) {
+  switch (status) {
+    case "PENDING":
+      return "bg-orange-100 text-orange-800";
+    case "CONFIRMED":
+      return "bg-blue-100 text-blue-800";
+    case "CHECKED_IN":
+      return "bg-green-100 text-green-800";
+    case "CHECKED_OUT":
+      return "bg-zinc-100 text-zinc-700";
+    case "CANCELLED":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-zinc-100 text-zinc-700";
+  }
+}
+
+function getPaymentStatusLabel(status: CalendarReservation["paymentStatus"]) {
+  switch (status) {
+    case "PENDING":
+      return "Oczekuje";
+    case "PAID":
+      return "Opłacona";
+    case "PARTIAL":
+      return "Częściowa";
+    case "REFUNDED":
+      return "Zwrócona";
+    default:
+      return status;
+  }
+}
+
+function getPaymentStatusClassName(status: CalendarReservation["paymentStatus"]) {
+  switch (status) {
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-800";
+    case "PAID":
+      return "bg-green-100 text-green-800";
+    case "PARTIAL":
+      return "bg-blue-100 text-blue-800";
+    case "REFUNDED":
+      return "bg-zinc-100 text-zinc-700";
+    default:
+      return "bg-zinc-100 text-zinc-700";
+  }
+}
+
 function getReservationSourceLabel(source: CalendarReservation["source"]) {
   switch (source) {
     case "BOOKING":
@@ -59,31 +106,11 @@ function getReservationSourceLabel(source: CalendarReservation["source"]) {
   }
 }
 
-function getPaymentInfo(reservation: CalendarReservation) {
-  if (reservation.totalPrice === null) {
-    return {
-      label: "Płatność",
-      value: "Brak danych",
-      className: "text-zinc-700",
-    };
-  }
-
+function getRemainingAmount(reservation: CalendarReservation) {
+  const totalPrice = reservation.totalPrice ?? 0;
   const paidAmount = reservation.paidAmount ?? 0;
-  const remainingAmount = Math.max(0, reservation.totalPrice - paidAmount);
 
-  if (remainingAmount === 0) {
-    return {
-      label: "Opłacono",
-      value: formatMoney(paidAmount),
-      className: "text-green-700",
-    };
-  }
-
-  return {
-    label: "Pozostało do zapłaty",
-    value: formatMoney(remainingAmount),
-    className: "text-yellow-800",
-  };
+  return Math.max(0, totalPrice - paidAmount);
 }
 
 function getAddress(reservation: CalendarReservation) {
@@ -108,7 +135,7 @@ export default function ReservationTooltip({
     return null;
   }
 
-  const paymentInfo = getPaymentInfo(reservation);
+  const remainingAmount = getRemainingAmount(reservation);
 
   const tooltip = (
     <div
@@ -125,12 +152,24 @@ export default function ReservationTooltip({
           </div>
 
           <div className="mt-2 flex flex-wrap gap-2 text-[14px]">
-            <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
-              {getReservationSourceLabel(reservation.source)}
+            <span
+              className={`rounded-full px-3 py-1 font-semibold ${getReservationStatusClassName(
+                reservation.status,
+              )}`}
+            >
+              {getReservationStatusLabel(reservation.status)}
             </span>
 
-            <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-700">
-              {getReservationStatusLabel(reservation.status)}
+            <span
+              className={`rounded-full px-3 py-1 font-semibold ${getPaymentStatusClassName(
+                reservation.paymentStatus,
+              )}`}
+            >
+              {getPaymentStatusLabel(reservation.paymentStatus)}
+            </span>
+
+            <span className="rounded-full bg-zinc-100 px-3 py-1 font-semibold text-zinc-700">
+              {getReservationSourceLabel(reservation.source)}
             </span>
           </div>
         </div>
@@ -164,32 +203,9 @@ export default function ReservationTooltip({
           </div>
 
           <div className="rounded-xl border p-3 text-center">
-            <div className="text-[14px] text-zinc-500">Cena / noc</div>
-            <div className="mt-1 text-[24px] font-bold">
-              {formatMoney(reservation.pricePerNight)}
-            </div>
-          </div>
-
-          <div className="rounded-xl border p-3 text-center">
-            <div className="text-[14px] text-zinc-500">Razem</div>
-            <div className="mt-1 text-[24px] font-bold">
-              {formatMoney(reservation.totalPrice)}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl border p-3 text-center">
             <div className="text-[14px] text-zinc-500">Dorośli</div>
             <div className="mt-1 text-[28px] font-bold">
               {reservation.adults}
-            </div>
-          </div>
-
-          <div className="rounded-xl border p-3 text-center">
-            <div className="text-[14px] text-zinc-500">Dzieci</div>
-            <div className="mt-1 text-[28px] font-bold">
-              {reservation.children}
             </div>
           </div>
 
@@ -202,26 +218,39 @@ export default function ReservationTooltip({
         </div>
 
         <div className="rounded-xl border p-4">
-          <div className="flex justify-between gap-4">
-            <span className="text-zinc-500">Cena pobytu</span>
-            <span className="font-semibold">
-              {formatMoney(reservation.totalPrice)}
-            </span>
-          </div>
-
-          <div className="mt-2 flex justify-between gap-4">
-            <span className="text-zinc-500">Wpłacono</span>
-            <span className="font-semibold">
-              {formatMoney(reservation.paidAmount)}
-            </span>
-          </div>
-
-          <div className="mt-3 border-t pt-3">
+          <div className="grid gap-3">
             <div className="flex justify-between gap-4">
-              <span className="font-semibold">{paymentInfo.label}</span>
-              <span className={`font-bold ${paymentInfo.className}`}>
-                {paymentInfo.value}
+              <span className="text-zinc-500">Cena / noc</span>
+              <span className="font-semibold">
+                {formatMoney(reservation.pricePerNight)}
               </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span className="text-zinc-500">Cena pobytu</span>
+              <span className="font-semibold">
+                {formatMoney(reservation.totalPrice)}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span className="text-zinc-500">Wpłacono</span>
+              <span className="font-semibold">
+                {formatMoney(reservation.paidAmount)}
+              </span>
+            </div>
+
+            <div className="border-t pt-3">
+              <div className="flex justify-between gap-4">
+                <span className="font-semibold">Pozostało</span>
+                <span
+                  className={`font-bold ${
+                    remainingAmount > 0 ? "text-yellow-800" : "text-green-700"
+                  }`}
+                >
+                  {formatMoney(remainingAmount)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
