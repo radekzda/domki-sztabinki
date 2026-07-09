@@ -27,6 +27,13 @@ export type CreatePublicInquiryResult = {
   message: string;
 };
 
+type AvailabilityDateRange = {
+  id: string;
+  dateFrom: string;
+  dateTo: string;
+  status: string;
+};
+
 const allowedInquiryStatuses = ["NEW", "APPROVED", "ARCHIVED"] as const;
 
 const blockingReservationStatuses = [
@@ -47,6 +54,30 @@ function normalizeInquiryStatus(value: string) {
   }
 
   return value;
+}
+
+function normalizeReservationStatus(value: string) {
+  if (value === "COMPLETED") {
+    return "CHECKED_OUT";
+  }
+
+  if (
+    value === "PENDING" ||
+    value === "CONFIRMED" ||
+    value === "CHECKED_IN" ||
+    value === "CHECKED_OUT" ||
+    value === "CANCELLED"
+  ) {
+    return value;
+  }
+
+  return "PENDING";
+}
+
+function isBlockingReservationStatus(value: string) {
+  return blockingReservationStatuses.includes(
+    normalizeReservationStatus(value) as (typeof blockingReservationStatuses)[number],
+  );
 }
 
 function createUtcDateOnly(value: string) {
@@ -71,10 +102,36 @@ function parseDateOnly(value: string) {
   return createUtcDateOnly(value);
 }
 
+function getDateInputValueFromDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 function createUtcDateOnlyFromDate(date: Date) {
-  const dateOnlyValue = date.toISOString().slice(0, 10);
+  const dateOnlyValue = getDateInputValueFromDate(date);
 
   return createUtcDateOnly(dateOnlyValue) ?? date;
+}
+
+function getTodayDateInputValueInWarsaw() {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Warsaw",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayDateOnlyInWarsaw() {
+  const todayValue = getTodayDateInputValueInWarsaw();
+
+  return createUtcDateOnly(todayValue);
 }
 
 function parsePeopleCount(value: string, fallback: number) {
@@ -87,18 +144,47 @@ function parsePeopleCount(value: string, fallback: number) {
   return parsedValue;
 }
 
-function dateRangesOverlap({
+function dateInputRangesOverlap({
   selectedDateFrom,
   selectedDateTo,
   occupiedDateFrom,
   occupiedDateTo,
 }: {
-  selectedDateFrom: Date;
-  selectedDateTo: Date;
-  occupiedDateFrom: Date;
-  occupiedDateTo: Date;
+  selectedDateFrom: string;
+  selectedDateTo: string;
+  occupiedDateFrom: string;
+  occupiedDateTo: string;
 }) {
   return selectedDateFrom < occupiedDateTo && selectedDateTo > occupiedDateFrom;
+}
+
+function isDateCheckInBoundaryOfRanges(
+  dateInputValue: string,
+  dateRanges: AvailabilityDateRange[],
+) {
+  return dateRanges.some((dateRange) => dateInputValue === dateRange.dateFrom);
+}
+
+function isDateCheckOutBoundaryOfRanges(
+  dateInputValue: string,
+  dateRanges: AvailabilityDateRange[],
+) {
+  return dateRanges.some((dateRange) => dateInputValue === dateRange.dateTo);
+}
+
+function isDateTurnoverBlockedDay({
+  dateInputValue,
+  allDateRanges,
+  blockingDateRanges,
+}: {
+  dateInputValue: string;
+  allDateRanges: AvailabilityDateRange[];
+  blockingDateRanges: AvailabilityDateRange[];
+}) {
+  return (
+    isDateCheckOutBoundaryOfRanges(dateInputValue, allDateRanges) &&
+    isDateCheckInBoundaryOfRanges(dateInputValue, blockingDateRanges)
+  );
 }
 
 function isInquiryStatus(value: string): value is InquiryStatus {
@@ -134,11 +220,19 @@ export async function createPublicInquiry(
 
   const parsedDateFrom = parseDateOnly(dateFrom);
   const parsedDateTo = parseDateOnly(dateTo);
+  const todayDate = getTodayDateOnlyInWarsaw();
 
-  if (!parsedDateFrom || !parsedDateTo) {
+  if (!parsedDateFrom || !parsedDateTo || !todayDate) {
     return {
       ok: false,
       message: "Podaj poprawny termin pobytu.",
+    };
+  }
+
+  if (parsedDateFrom < todayDate) {
+    return {
+      ok: false,
+      message: "Data przyjazdu nie może być wcześniejsza niż dzisiejsza data.",
     };
   }
 
@@ -209,7 +303,7 @@ export async function createPublicInquiry(
       where: {
         cabinId: cabin.id,
         status: {
-          in: [...blockingReservationStatuses],
+          not: "CANCELLED",
         },
       },
       select: {
@@ -218,24 +312,66 @@ export async function createPublicInquiry(
         endDate: true,
         checkInAt: true,
         checkOutAt: true,
+        status: true,
       },
     });
 
-    const conflictingReservation = reservationsForCabin.find((reservation) => {
-      const occupiedDateFrom = createUtcDateOnlyFromDate(
-        reservation.checkInAt ?? reservation.startDate,
-      );
-      const occupiedDateTo = createUtcDateOnlyFromDate(
-        reservation.checkOutAt ?? reservation.endDate,
-      );
+    const allDateRanges = reservationsForCabin.map((reservation) => ({
+      id: reservation.id,
+      dateFrom: getDateInputValueFromDate(
+        createUtcDateOnlyFromDate(reservation.checkInAt ?? reservation.startDate),
+      ),
+      dateTo: getDateInputValueFromDate(
+        createUtcDateOnlyFromDate(reservation.checkOutAt ?? reservation.endDate),
+      ),
+      status: reservation.status,
+    }));
 
-      return dateRangesOverlap({
-        selectedDateFrom: parsedDateFrom,
-        selectedDateTo: parsedDateTo,
-        occupiedDateFrom,
-        occupiedDateTo,
-      });
+    const blockingDateRanges = allDateRanges.filter((dateRange) =>
+      isBlockingReservationStatus(dateRange.status),
+    );
+
+    const isStartOnCheckInBoundary = isDateCheckInBoundaryOfRanges(
+      dateFrom,
+      blockingDateRanges,
+    );
+
+    const isStartOnTurnoverBlockedDay = isDateTurnoverBlockedDay({
+      dateInputValue: dateFrom,
+      allDateRanges,
+      blockingDateRanges,
     });
+
+    const isEndOnTurnoverBlockedDay = isDateTurnoverBlockedDay({
+      dateInputValue: dateTo,
+      allDateRanges,
+      blockingDateRanges,
+    });
+
+    if (isStartOnTurnoverBlockedDay || isEndOnTurnoverBlockedDay) {
+      return {
+        ok: false,
+        message:
+          "Wybrany dzień jest już w pełni zajęty, ponieważ tego samego dnia jest wymeldowanie i zameldowanie innej rezerwacji. Wybierz inny termin.",
+      };
+    }
+
+    if (isStartOnCheckInBoundary) {
+      return {
+        ok: false,
+        message:
+          "Wybrany dzień jest dniem zameldowania innej rezerwacji. Może być dniem wyjazdu, ale nie może być początkiem nowego pobytu.",
+      };
+    }
+
+    const conflictingReservation = blockingDateRanges.find((dateRange) =>
+      dateInputRangesOverlap({
+        selectedDateFrom: dateFrom,
+        selectedDateTo: dateTo,
+        occupiedDateFrom: dateRange.dateFrom,
+        occupiedDateTo: dateRange.dateTo,
+      }),
+    );
 
     if (conflictingReservation) {
       return {
