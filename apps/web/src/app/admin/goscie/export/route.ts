@@ -1,3 +1,7 @@
+import {
+  getAdminRouteUnauthorizedResponse,
+  isAdminRouteRequestAuthorized,
+} from "@/lib/adminRouteAuth";
 import { prisma } from "@/lib/prisma";
 
 type GuestFilter =
@@ -101,7 +105,7 @@ function getLastReservationDate(
   reservations: Array<{
     startDate: Date;
     checkInAt: Date | null;
-  }>
+  }>,
 ) {
   if (reservations.length === 0) {
     return null;
@@ -153,7 +157,7 @@ function guestMatchesFilter(
     isVip: boolean;
     reservations: unknown[];
   },
-  guestFilter: GuestFilter
+  guestFilter: GuestFilter,
 ) {
   if (guestFilter === "WITH_RESERVATIONS") {
     return guest.reservations.length > 0;
@@ -202,6 +206,10 @@ function createExportFileName() {
 }
 
 export async function GET(request: Request) {
+  if (!isAdminRouteRequestAuthorized(request)) {
+    return getAdminRouteUnauthorizedResponse(request);
+  }
+
   const url = new URL(request.url);
   const searchQuery = getSearchQuery(url.searchParams.get("q"));
   const guestFilter = getGuestFilter(url.searchParams.get("filter"));
@@ -323,7 +331,7 @@ export async function GET(request: Request) {
   });
 
   const guests = allGuests.filter((guest) =>
-    guestMatchesFilter(guest, guestFilter)
+    guestMatchesFilter(guest, guestFilter),
   );
 
   const header = createCsvRow([
@@ -361,17 +369,17 @@ export async function GET(request: Request) {
 
     const totalNights = guest.reservations.reduce(
       (sum, reservation) => sum + reservation.nights,
-      0
+      0,
     );
 
     const totalValue = guest.reservations.reduce(
       (sum, reservation) => sum + decimalToNumber(reservation.totalPrice),
-      0
+      0,
     );
 
     const totalPaid = guest.reservations.reduce(
       (sum, reservation) => sum + decimalToNumber(reservation.paidAmount),
-      0
+      0,
     );
 
     const totalRemaining = Math.max(0, totalValue - totalPaid);

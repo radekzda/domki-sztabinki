@@ -1,3 +1,7 @@
+import {
+  getAdminRouteUnauthorizedResponse,
+  isAdminRouteRequestAuthorized,
+} from "@/lib/adminRouteAuth";
 import { prisma } from "@/lib/prisma";
 
 type ReservationPaymentStatus = "PENDING" | "PAID" | "PARTIAL" | "REFUNDED";
@@ -295,6 +299,10 @@ function createExportFileName() {
 }
 
 export async function GET(request: Request) {
+  if (!isAdminRouteRequestAuthorized(request)) {
+    return getAdminRouteUnauthorizedResponse(request);
+  }
+
   const url = new URL(request.url);
 
   const statusFilter = getStatusFilter(url.searchParams.get("status"));

@@ -1,3 +1,7 @@
+import {
+  getAdminRouteUnauthorizedResponse,
+  isAdminRouteRequestAuthorized,
+} from "@/lib/adminRouteAuth";
 import { prisma } from "@/lib/prisma";
 
 type InquiryStatusFilter = "NEW" | "APPROVED" | "ARCHIVED";
@@ -116,6 +120,10 @@ function createExportFileName() {
 }
 
 export async function GET(request: Request) {
+  if (!isAdminRouteRequestAuthorized(request)) {
+    return getAdminRouteUnauthorizedResponse(request);
+  }
+
   const url = new URL(request.url);
 
   const activeStatus = getStatusFilter(url.searchParams.get("status"));
