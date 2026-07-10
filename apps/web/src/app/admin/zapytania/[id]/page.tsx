@@ -12,6 +12,19 @@ type AdminInquiryDetailsPageProps = {
   }>;
 };
 
+type TemplateVariables = {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  term: string;
+  cabinName: string;
+  nights: number;
+  guests: number;
+  phone: string;
+  email: string;
+  address: string;
+};
+
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("pl-PL", {
     day: "2-digit",
@@ -62,14 +75,6 @@ function formatPeople(count: number) {
 
   if (count >= 2 && count <= 4) {
     return `${count} osoby`;
-  }
-
-  return `${count} osób`;
-}
-
-function formatPeopleLimit(count: number) {
-  if (count === 1) {
-    return "1 osoby";
   }
 
   return `${count} osób`;
@@ -194,56 +199,6 @@ function getPhoneHref(phone: string) {
   return `tel:${normalizedPhone}`;
 }
 
-function getMailHref({
-  email,
-  fullName,
-  dateFrom,
-  dateTo,
-  cabinName,
-  nights,
-  guests,
-}: {
-  email: string;
-  fullName: string;
-  dateFrom: Date;
-  dateTo: Date;
-  cabinName: string;
-  nights: number;
-  guests: number;
-}) {
-  const subject = encodeURIComponent(
-    `Domki Sztabinki — odpowiedź na zapytanie ${fullName}`,
-  );
-
-  const cabinText =
-    cabinName === "Dowolny / do ustalenia"
-      ? "w uzgodnionym domku"
-      : `w domku ${cabinName}`;
-
-  const body = encodeURIComponent(
-    [
-      "Dzień dobry,",
-      "",
-      `dziękujemy za zapytanie. Wybrany termin ${formatDate(
-        dateFrom,
-      )} – ${formatDate(dateTo)} ${cabinText} jest dostępny.`,
-      "",
-      `Cena pobytu wynosi [KWOTA] zł za ${formatNights(
-        nights,
-      )}. Cena obejmuje pobyt do ${formatPeopleLimit(
-        guests,
-      )} oraz korzystanie z wyposażenia domku, grilla, łódki, kajaka i rowerków wodnych.`,
-      "",
-      "W celu potwierdzenia rezerwacji prosimy o informację zwrotną. Następnie prześlemy dane do wpłaty zadatku.",
-      "",
-      "Pozdrawiamy serdecznie",
-      "Domki Sztabinki",
-    ].join("\n"),
-  );
-
-  return `mailto:${email}?subject=${subject}&body=${body}`;
-}
-
 function getSourceLabel(source: string | null) {
   if (source === "WWW" || source === "WEBSITE") {
     return "Strona WWW";
@@ -288,6 +243,52 @@ function getAddressText({
   }
 
   return lines.join(", ");
+}
+
+function replaceTemplateVariables(content: string, variables: TemplateVariables) {
+  const replacements: Record<string, string> = {
+    "[IMIE]": variables.firstName || variables.fullName,
+    "[NAZWISKO]": variables.lastName,
+    "[IMIE_NAZWISKO]": variables.fullName,
+    "[TERMIN]": variables.term,
+    "[DOMEK]": variables.cabinName,
+    "[LICZBA_NOCY]": String(variables.nights),
+    "[LICZBA_OSOB]": String(variables.guests),
+    "[KWOTA]": "[KWOTA]",
+    "[TELEFON]": variables.phone,
+    "[EMAIL]": variables.email,
+    "[ADRES]": variables.address,
+  };
+
+  return Object.entries(replacements).reduce(
+    (updatedContent, [placeholder, value]) =>
+      updatedContent.split(placeholder).join(value),
+    content,
+  );
+}
+
+function getMailtoHref({
+  email,
+  subject,
+  body,
+}: {
+  email: string;
+  subject: string;
+  body: string;
+}) {
+  return `mailto:${email}?subject=${encodeURIComponent(
+    subject,
+  )}&body=${encodeURIComponent(body)}`;
+}
+
+function getTemplatePreview(body: string) {
+  const cleanedBody = body.replace(/\s+/g, " ").trim();
+
+  if (cleanedBody.length <= 190) {
+    return cleanedBody;
+  }
+
+  return `${cleanedBody.slice(0, 190)}...`;
 }
 
 function getCreateReservationHref({
@@ -372,19 +373,34 @@ export default async function AdminInquiryDetailsPage({
 }: AdminInquiryDetailsPageProps) {
   const resolvedParams = await params;
 
-  const inquiry = await prisma.inquiry.findUnique({
-    where: {
-      id: resolvedParams.id,
-    },
-    include: {
-      cabin: {
-        select: {
-          id: true,
-          name: true,
+  const [inquiry, responseTemplates] = await Promise.all([
+    prisma.inquiry.findUnique({
+      where: {
+        id: resolvedParams.id,
+      },
+      include: {
+        cabin: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.responseTemplate.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: [
+        {
+          sortOrder: "asc",
+        },
+        {
+          createdAt: "asc",
+        },
+      ],
+    }),
+  ]);
 
   if (!inquiry) {
     notFound();
@@ -404,6 +420,42 @@ export default async function AdminInquiryDetailsPage({
     country: inquiry.country,
   });
 
+  const templateVariables: TemplateVariables = {
+    firstName,
+    lastName,
+    fullName: inquiry.fullName,
+    term: `${formatDate(inquiry.dateFrom)} – ${formatDate(inquiry.dateTo)}`,
+    cabinName: selectedCabinName,
+    nights,
+    guests: inquiry.guests,
+    phone: inquiry.phone,
+    email: inquiry.email || "",
+    address: addressText,
+  };
+
+  const templatesWithMailto = responseTemplates.map((template) => {
+    const subject = replaceTemplateVariables(
+      template.subject,
+      templateVariables,
+    );
+    const body = replaceTemplateVariables(template.body, templateVariables);
+
+    return {
+      id: template.id,
+      name: template.name,
+      subject,
+      body,
+      preview: getTemplatePreview(body),
+      mailtoHref: inquiry.email
+        ? getMailtoHref({
+            email: inquiry.email,
+            subject,
+            body,
+          })
+        : null,
+    };
+  });
+
   const createReservationHref = getCreateReservationHref({
     inquiryId: inquiry.id,
     cabinId: inquiry.cabinId,
@@ -421,18 +473,6 @@ export default async function AdminInquiryDetailsPage({
     country: inquiry.country,
     notes: inquiry.notes,
   });
-
-  const mailHref = inquiry.email
-    ? getMailHref({
-        email: inquiry.email,
-        fullName: inquiry.fullName,
-        dateFrom: inquiry.dateFrom,
-        dateTo: inquiry.dateTo,
-        cabinName: selectedCabinName,
-        nights,
-        guests: inquiry.guests,
-      })
-    : null;
 
   return (
     <main className="space-y-8">
@@ -472,8 +512,8 @@ export default async function AdminInquiryDetailsPage({
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
               Zapytanie wysłane {formatDateTime(inquiry.createdAt)}. Sprawdź
-              termin, domek i dane kontaktowe, a następnie skontaktuj się z
-              gościem albo utwórz rezerwację z tego zapytania.
+              termin, domek i dane kontaktowe, a następnie wybierz gotowy
+              szablon odpowiedzi albo utwórz rezerwację z tego zapytania.
             </p>
           </div>
 
@@ -485,12 +525,12 @@ export default async function AdminInquiryDetailsPage({
               Zadzwoń
             </a>
 
-            {mailHref ? (
+            {inquiry.email ? (
               <a
-                href={mailHref}
+                href="#wybierz-odpowiedz"
                 className="rounded-2xl border border-slate-300 bg-white px-5 py-4 text-center text-sm font-black text-slate-800 transition hover:bg-slate-100"
               >
-                Napisz e-mail
+                Wybierz odpowiedź
               </a>
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-center text-sm font-black text-slate-400">
@@ -606,6 +646,89 @@ export default async function AdminInquiryDetailsPage({
         </div>
       </section>
 
+      <section
+        id="wybierz-odpowiedz"
+        className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+      >
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+              Odpowiedź do gościa
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+              Wybierz odpowiedź
+            </h2>
+
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+              Wybierz jeden z aktywnych szablonów. System automatycznie podstawi
+              dane z zapytania: termin, domek, liczbę nocy, liczbę osób i dane
+              gościa. Kwotę zostawiamy jako <strong>[KWOTA]</strong> do
+              ręcznego uzupełnienia.
+            </p>
+          </div>
+
+          <Link
+            href="/admin/szablony"
+            className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-black text-slate-800 transition hover:bg-slate-100"
+          >
+            Edytuj szablony
+          </Link>
+        </div>
+
+        {!inquiry.email ? (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
+            To zapytanie nie ma adresu e-mail. Możesz skontaktować się z
+            gościem telefonicznie albo najpierw uzupełnić e-mail w rezerwacji.
+          </div>
+        ) : templatesWithMailto.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-700">
+            Brak aktywnych szablonów odpowiedzi. Wejdź w zakładkę „Szablony” i
+            dodaj albo aktywuj przynajmniej jeden szablon.
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            {templatesWithMailto.map((template) => (
+              <article
+                key={template.id}
+                className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
+              >
+                <h3 className="text-lg font-black text-slate-950">
+                  {template.name}
+                </h3>
+
+                <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Temat
+                </p>
+                <p className="mt-1 text-sm font-bold leading-6 text-slate-800">
+                  {template.subject}
+                </p>
+
+                <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Podgląd treści
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {template.preview}
+                </p>
+
+                {template.mailtoHref ? (
+                  <a
+                    href={template.mailtoHref}
+                    className="mt-5 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+                  >
+                    Użyj tego szablonu
+                  </a>
+                ) : (
+                  <div className="mt-5 inline-flex rounded-2xl bg-slate-200 px-5 py-3 text-sm font-black text-slate-500">
+                    Brak e-maila
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-8">
           <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
@@ -651,9 +774,9 @@ export default async function AdminInquiryDetailsPage({
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                   E-mail
                 </p>
-                {mailHref ? (
+                {inquiry.email ? (
                   <a
-                    href={mailHref}
+                    href="#wybierz-odpowiedz"
                     className="mt-2 block break-all text-lg font-black text-slate-950 hover:underline"
                   >
                     {inquiry.email}
