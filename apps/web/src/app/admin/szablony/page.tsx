@@ -7,38 +7,139 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const defaultTemplate = {
-  name: "Potwierdzenie dostępności",
-  subject: "Domki Sztabinki — odpowiedź na zapytanie [IMIE]",
-  body: [
-    "Dzień dobry,",
-    "",
-    "dziękujemy za zapytanie. Wybrany termin [TERMIN] w wybranym domku [DOMEK] jest dostępny.",
-    "",
-    "Cena pobytu wynosi [KWOTA] zł za [LICZBA_NOCY] noclegi. Cena obejmuje pobyt do [LICZBA_OSOB] osób oraz korzystanie z wyposażenia domku, grilla, łódki, kajaka i rowerków wodnych.",
-    "",
-    "W celu potwierdzenia rezerwacji prosimy o informację zwrotną. Następnie prześlemy dane do wpłaty zadatku.",
-    "",
-    "Pozdrawiamy serdecznie",
-    "Domki Sztabinki",
-  ].join("\n"),
-};
+const defaultTemplates = [
+  {
+    name: "Potwierdzenie dostępności",
+    subject: "Domki Sztabinki — odpowiedź na zapytanie [IMIE]",
+    body: [
+      "Dzień dobry,",
+      "",
+      "dziękujemy za zapytanie. Wybrany termin [TERMIN] w wybranym domku [DOMEK] jest dostępny.",
+      "",
+      "Cena pobytu wynosi [KWOTA] zł za [LICZBA_NOCY] noclegi. Cena obejmuje pobyt do [LICZBA_OSOB] osób oraz korzystanie z wyposażenia domku, grilla, łódki, kajaka i rowerków wodnych.",
+      "",
+      "W celu potwierdzenia rezerwacji prosimy o informację zwrotną. Następnie prześlemy dane do wpłaty zadatku.",
+      "",
+      "Pozdrawiamy serdecznie",
+      "Domki Sztabinki",
+    ].join("\n"),
+    sortOrder: 0,
+  },
+  {
+    name: "Brak dostępności",
+    subject: "Domki Sztabinki — odpowiedź na zapytanie [IMIE]",
+    body: [
+      "Dzień dobry,",
+      "",
+      "dziękujemy za zapytanie. Niestety wybrany termin [TERMIN] w domku [DOMEK] nie jest już dostępny.",
+      "",
+      "Możemy sprawdzić dla Państwa inny termin lub inny dostępny domek. Prosimy o informację, czy interesuje Państwa alternatywny termin pobytu.",
+      "",
+      "Pozdrawiamy serdecznie",
+      "Domki Sztabinki",
+    ].join("\n"),
+    sortOrder: 10,
+  },
+  {
+    name: "Prośba o potwierdzenie rezerwacji",
+    subject: "Domki Sztabinki — potwierdzenie rezerwacji [TERMIN]",
+    body: [
+      "Dzień dobry,",
+      "",
+      "wstępnie rezerwujemy dla Państwa termin [TERMIN] w domku [DOMEK].",
+      "",
+      "Cena pobytu wynosi [KWOTA] zł za [LICZBA_NOCY] noclegi dla maksymalnie [LICZBA_OSOB] osób.",
+      "",
+      "W celu potwierdzenia rezerwacji prosimy o wiadomość zwrotną. Po potwierdzeniu prześlemy dane do wpłaty zadatku.",
+      "",
+      "Pozdrawiamy serdecznie",
+      "Domki Sztabinki",
+    ].join("\n"),
+    sortOrder: 20,
+  },
+  {
+    name: "Przypomnienie o zadatku",
+    subject: "Domki Sztabinki — zadatek za rezerwację [TERMIN]",
+    body: [
+      "Dzień dobry,",
+      "",
+      "przypominamy o wpłacie zadatku za rezerwację terminu [TERMIN] w domku [DOMEK].",
+      "",
+      "Rezerwacja zostanie potwierdzona po zaksięgowaniu wpłaty zadatku.",
+      "",
+      "W razie pytań prosimy o kontakt.",
+      "",
+      "Pozdrawiamy serdecznie",
+      "Domki Sztabinki",
+    ].join("\n"),
+    sortOrder: 30,
+  },
+  {
+    name: "Za krótki pobyt",
+    subject: "Domki Sztabinki — odpowiedź na zapytanie [IMIE]",
+    body: [
+      "Dzień dobry,",
+      "",
+      "dziękujemy za zapytanie dotyczące terminu [TERMIN].",
+      "",
+      "Niestety w tym okresie minimalna długość pobytu jest dłuższa niż wskazana w zapytaniu. Prosimy o wybór dłuższego terminu pobytu albo kontakt telefoniczny w celu sprawdzenia dostępnych możliwości.",
+      "",
+      "Pozdrawiamy serdecznie",
+      "Domki Sztabinki",
+    ].join("\n"),
+    sortOrder: 40,
+  },
+  {
+    name: "Pytanie o charakter pobytu",
+    subject: "Domki Sztabinki — pytanie dotyczące pobytu [TERMIN]",
+    body: [
+      "Dzień dobry,",
+      "",
+      "dziękujemy za zapytanie dotyczące pobytu w terminie [TERMIN].",
+      "",
+      "Przed potwierdzeniem rezerwacji chcielibyśmy uprzejmie zapytać, czy celem pobytu jest spokojny wypoczynek, czy planowane jest spotkanie/impreza.",
+      "",
+      "Domki Sztabinki są miejscem przeznaczonym głównie do spokojnego wypoczynku rodzinnego nad jeziorem. Zależy nam na komforcie wszystkich gości oraz sąsiadów.",
+      "",
+      "Pozdrawiamy serdecznie",
+      "Domki Sztabinki",
+    ].join("\n"),
+    sortOrder: 50,
+  },
+];
 
-async function ensureDefaultTemplate() {
-  const templatesCount = await prisma.responseTemplate.count();
+async function ensureDefaultTemplates() {
+  const existingTemplates = await prisma.responseTemplate.findMany({
+    where: {
+      name: {
+        in: defaultTemplates.map((template) => template.name),
+      },
+    },
+    select: {
+      name: true,
+    },
+  });
 
-  if (templatesCount > 0) {
+  const existingTemplateNames = new Set(
+    existingTemplates.map((template) => template.name),
+  );
+
+  const missingTemplates = defaultTemplates.filter(
+    (template) => !existingTemplateNames.has(template.name),
+  );
+
+  if (missingTemplates.length === 0) {
     return;
   }
 
-  await prisma.responseTemplate.create({
-    data: {
-      name: defaultTemplate.name,
-      subject: defaultTemplate.subject,
-      body: defaultTemplate.body,
+  await prisma.responseTemplate.createMany({
+    data: missingTemplates.map((template) => ({
+      name: template.name,
+      subject: template.subject,
+      body: template.body,
       isActive: true,
-      sortOrder: 0,
-    },
+      sortOrder: template.sortOrder,
+    })),
   });
 }
 
@@ -54,7 +155,7 @@ function formatDateTime(date: Date) {
 }
 
 export default async function AdminResponseTemplatesPage() {
-  await ensureDefaultTemplate();
+  await ensureDefaultTemplates();
 
   const templates = await prisma.responseTemplate.findMany({
     orderBy: [
@@ -185,7 +286,7 @@ export default async function AdminResponseTemplatesPage() {
               name="body"
               required
               rows={10}
-              placeholder={defaultTemplate.body}
+              placeholder={defaultTemplates[0].body}
               className="rounded-2xl border border-slate-300 px-4 py-3 text-sm leading-7 outline-none transition focus:border-slate-950"
             />
           </label>
