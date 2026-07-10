@@ -67,6 +67,14 @@ function formatPeople(count: number) {
   return `${count} osób`;
 }
 
+function formatPeopleLimit(count: number) {
+  if (count === 1) {
+    return "1 osoby";
+  }
+
+  return `${count} osób`;
+}
+
 function splitFullName(fullName: string) {
   const cleanedFullName = fullName.trim().replace(/\s+/g, " ");
 
@@ -186,10 +194,54 @@ function getPhoneHref(phone: string) {
   return `tel:${normalizedPhone}`;
 }
 
-function getMailHref(email: string, fullName: string) {
-  const subject = encodeURIComponent(`Domki Sztabinki — zapytanie ${fullName}`);
+function getMailHref({
+  email,
+  fullName,
+  dateFrom,
+  dateTo,
+  cabinName,
+  nights,
+  guests,
+}: {
+  email: string;
+  fullName: string;
+  dateFrom: Date;
+  dateTo: Date;
+  cabinName: string;
+  nights: number;
+  guests: number;
+}) {
+  const subject = encodeURIComponent(
+    `Domki Sztabinki — odpowiedź na zapytanie ${fullName}`,
+  );
 
-  return `mailto:${email}?subject=${subject}`;
+  const cabinText =
+    cabinName === "Dowolny / do ustalenia"
+      ? "w uzgodnionym domku"
+      : `w domku ${cabinName}`;
+
+  const body = encodeURIComponent(
+    [
+      "Dzień dobry,",
+      "",
+      `dziękujemy za zapytanie. Wybrany termin ${formatDate(
+        dateFrom,
+      )} – ${formatDate(dateTo)} ${cabinText} jest dostępny.`,
+      "",
+      `Cena pobytu wynosi [KWOTA] zł za ${formatNights(
+        nights,
+      )}. Cena obejmuje pobyt do ${formatPeopleLimit(
+        guests,
+      )} oraz korzystanie z wyposażenia domku, grilla, łódki, kajaka i rowerków wodnych.`,
+      "",
+      "W celu potwierdzenia rezerwacji prosimy o informację zwrotną. Następnie prześlemy dane do wpłaty zadatku.",
+      "",
+      "Pozdrawiamy serdecznie",
+      "Domki Sztabinki",
+    ].join("\n"),
+  );
+
+  return `mailto:${email}?subject=${subject}&body=${body}`;
 }
 
 function getSourceLabel(source: string | null) {
@@ -370,6 +422,18 @@ export default async function AdminInquiryDetailsPage({
     notes: inquiry.notes,
   });
 
+  const mailHref = inquiry.email
+    ? getMailHref({
+        email: inquiry.email,
+        fullName: inquiry.fullName,
+        dateFrom: inquiry.dateFrom,
+        dateTo: inquiry.dateTo,
+        cabinName: selectedCabinName,
+        nights,
+        guests: inquiry.guests,
+      })
+    : null;
+
   return (
     <main className="space-y-8">
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
@@ -421,9 +485,9 @@ export default async function AdminInquiryDetailsPage({
               Zadzwoń
             </a>
 
-            {inquiry.email ? (
+            {mailHref ? (
               <a
-                href={getMailHref(inquiry.email, inquiry.fullName)}
+                href={mailHref}
                 className="rounded-2xl border border-slate-300 bg-white px-5 py-4 text-center text-sm font-black text-slate-800 transition hover:bg-slate-100"
               >
                 Napisz e-mail
@@ -587,9 +651,9 @@ export default async function AdminInquiryDetailsPage({
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                   E-mail
                 </p>
-                {inquiry.email ? (
+                {mailHref ? (
                   <a
-                    href={getMailHref(inquiry.email, inquiry.fullName)}
+                    href={mailHref}
                     className="mt-2 block break-all text-lg font-black text-slate-950 hover:underline"
                   >
                     {inquiry.email}
