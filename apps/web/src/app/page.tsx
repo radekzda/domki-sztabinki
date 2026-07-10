@@ -1,7 +1,35 @@
+import type { Metadata } from "next";
+
 import { InquiryForm } from "@/components/public/InquiryForm";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Domki Sztabinki — domki nad jeziorem koło Sejn",
+  description:
+    "Komfortowe domki letniskowe nad jeziorem w Sztabinkach koło Sejn. Spokojny wypoczynek dla rodzin, natura, wędkowanie, sprzęt wodny i zapytanie o wolny termin online.",
+  keywords: [
+    "Domki Sztabinki",
+    "domki nad jeziorem Sejny",
+    "domki letniskowe Sejny",
+    "noclegi Sejny",
+    "Sztabinki",
+    "Żegary",
+    "wypoczynek nad jeziorem",
+    "domki z widokiem na jezioro",
+    "Suwałki noclegi",
+    "wędkowanie Sejny",
+  ],
+  openGraph: {
+    title: "Domki Sztabinki — wypoczynek nad jeziorem koło Sejn",
+    description:
+      "Spokojne domki letniskowe w Sztabinkach koło Sejn. Idealne miejsce na rodzinny pobyt nad wodą, odpoczynek w naturze i wędkowanie.",
+    type: "website",
+    locale: "pl_PL",
+    siteName: "Domki Sztabinki",
+  },
+};
 
 async function getPublicCabins() {
   return prisma.cabin.findMany({
@@ -199,17 +227,18 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
             <p className="mb-5 text-sm font-semibold uppercase tracking-[0.3em] text-slate-300">
-              Domki Sztabinki
+              Domki letniskowe nad jeziorem koło Sejn
             </p>
 
             <h1 className="max-w-4xl text-4xl font-black tracking-tight md:text-6xl">
-              Wypoczynek nad jeziorem w ciszy i naturze
+              Domki Sztabinki — spokojny wypoczynek nad jeziorem
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
               Komfortowe domki letniskowe w miejscowości Sztabinki koło Sejn.
-              Idealne miejsce na spokojny rodzinny odpoczynek, pobyt nad wodą,
-              wędkowanie i oderwanie się od codziennego pośpiechu.
+              To miejsce dla osób, które szukają ciszy, natury, rodzinnego
+              odpoczynku, bliskości jeziora i swobodnego pobytu z dala od
+              zatłoczonych kurortów.
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -221,38 +250,39 @@ export default async function HomePage() {
               </a>
 
               <a
-                href="#domki"
+                href="#kontakt"
                 className="rounded-2xl border border-white px-8 py-5 text-center text-lg font-black text-white transition hover:bg-white/10"
               >
-                Zobacz domki
+                Zapytaj o wolny termin
               </a>
             </div>
           </div>
 
           <div className="rounded-[2rem] bg-white p-6 text-slate-950 shadow-2xl">
             <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
-              W skrócie
+              Dlaczego warto
             </p>
 
             <div className="mt-6 grid gap-4">
               <div className="rounded-2xl bg-slate-50 p-5">
-                <p className="text-3xl font-black">48 m²</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  wygodny domek z tarasem i widokiem na jezioro
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-slate-50 p-5">
-                <p className="text-3xl font-black">do 6 osób</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  salon z aneksem, dwie sypialnie i łazienka
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-slate-50 p-5">
                 <p className="text-3xl font-black">nad jeziorem</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  pomost, sprzęt wodny, grill i miejsce na ognisko
+                  pomost, widok na wodę, sprzęt wodny i bliskość natury
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-3xl font-black">dla rodzin</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  wygodne domki, spokojna okolica i przestrzeń do odpoczynku
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-3xl font-black">Sejny i Suwalszczyzna</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  dobra baza na wypoczynek i odkrywanie północno-wschodniej
+                  Polski
                 </p>
               </div>
             </div>
@@ -263,25 +293,25 @@ export default async function HomePage() {
       <section id="domki" className="bg-white px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-500">
-            Domki
+            Domki nad jeziorem
           </p>
 
           <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
-            Wybierz domek dla siebie
+            Wybierz domek na spokojny pobyt w Sztabinkach
           </h2>
 
           <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
-            Poniżej znajdują się aktywne domki dostępne w systemie PMS. Dane są
-            pobierane bezpośrednio z bazy, dlatego po zmianie domku w panelu
-            admina strona publiczna korzysta z aktualnych informacji.
+            Każdy domek jest przygotowany z myślą o wygodnym odpoczynku nad
+            wodą. To dobre miejsce na rodzinny urlop, wyjazd z dziećmi,
+            wędkowanie, grillowanie i spokojne wieczory z widokiem na jezioro.
           </p>
 
           {cabins.length === 0 ? (
             <div className="mt-12 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
               <h3 className="text-2xl font-black">Brak aktywnych domków</h3>
               <p className="mt-3 text-slate-600">
-                W panelu admina dodaj domek albo ustaw istniejący domek jako
-                aktywny, żeby pojawił się na stronie publicznej.
+                Aktualnie nie ma domków dostępnych do prezentacji na stronie.
+                W sprawie wolnych terminów prosimy o kontakt telefoniczny.
               </p>
             </div>
           ) : (
@@ -309,7 +339,7 @@ export default async function HomePage() {
                           <div className="relative aspect-[16/11] overflow-hidden bg-slate-100 lg:h-full lg:min-h-[31rem] lg:aspect-auto">
                             <img
                               src={mainImage}
-                              alt={cabin.name}
+                              alt={`${cabin.name} — domek letniskowy nad jeziorem w Sztabinkach koło Sejn`}
                               className="h-full w-full object-cover"
                             />
 
@@ -321,8 +351,7 @@ export default async function HomePage() {
                           </div>
                         ) : (
                           <div className="flex aspect-[16/11] items-center justify-center bg-slate-100 px-6 text-center text-slate-500 lg:h-full lg:min-h-[31rem] lg:aspect-auto">
-                            Zdjęcie domku będzie widoczne po dodaniu go w panelu
-                            admina.
+                            Zdjęcia domku będą widoczne po uzupełnieniu galerii.
                           </div>
                         )}
                       </div>
@@ -331,7 +360,7 @@ export default async function HomePage() {
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
-                              {cabin.shortName || "Domek"}
+                              {cabin.shortName || "Domek letniskowy"}
                             </p>
 
                             <h3 className="mt-2 text-3xl font-black">
@@ -368,7 +397,10 @@ export default async function HomePage() {
                                 >
                                   <img
                                     src={image.url}
-                                    alt={image.alt || cabin.name}
+                                    alt={
+                                      image.alt ||
+                                      `${cabin.name} — galeria domku nad jeziorem`
+                                    }
                                     className="h-full w-full object-cover"
                                   />
                                 </div>
@@ -462,7 +494,8 @@ export default async function HomePage() {
 
             <p className="mt-5 text-lg leading-8 text-slate-600">
               Ceny zależą od długości pobytu, terminu oraz wybranego domku.
-              Ostateczną dostępność i cenę najlepiej potwierdzić telefonicznie.
+              Najszybszym sposobem potwierdzenia dostępności i ceny jest
+              telefon albo zapytanie przez formularz.
             </p>
           </div>
 
@@ -475,7 +508,7 @@ export default async function HomePage() {
                 {formatMinimumNights(minimumNights)}
               </p>
               <p className="mt-3 leading-7 text-slate-600">
-                Minimalna liczba nocy jest pobierana z ustawień systemu.
+                Minimalny pobyt obowiązuje przy wysyłaniu zapytania o termin.
               </p>
             </div>
 
@@ -485,7 +518,7 @@ export default async function HomePage() {
               </p>
               <p className="mt-4 text-3xl font-black">{checkInTime}</p>
               <p className="mt-3 leading-7 text-slate-600">
-                Godzina zameldowania może być ustalana indywidualnie po
+                Godzina przyjazdu może być ustalana indywidualnie po
                 wcześniejszym kontakcie.
               </p>
             </div>
@@ -497,7 +530,7 @@ export default async function HomePage() {
               <p className="mt-4 text-3xl font-black">{checkOutTime}</p>
               <p className="mt-3 leading-7 text-slate-600">
                 Późniejsze wymeldowanie zależy od kolejnej rezerwacji i
-                harmonogramu sprzątania.
+                możliwości przygotowania domku.
               </p>
             </div>
 
@@ -507,7 +540,8 @@ export default async function HomePage() {
               </p>
               <p className="mt-4 text-3xl font-black">{seasonLabel}</p>
               <p className="mt-3 leading-7 text-slate-600">
-                Sezon pobytowy jest pobierany z ustawień systemu.
+                Zapytanie online można wysłać dla terminów mieszczących się w
+                sezonie pobytowym.
               </p>
             </div>
           </div>
@@ -520,13 +554,14 @@ export default async function HomePage() {
                 </p>
 
                 <h3 className="mt-4 text-3xl font-black">
-                  Obiekt jest miejscem spokojnego wypoczynku
+                  Miejsce dla osób szukających ciszy i odpoczynku
                 </h3>
 
                 <p className="mt-4 leading-8 text-slate-300">
-                  Domki Sztabinki są przeznaczone dla osób szukających ciszy,
-                  natury i rodzinnego odpoczynku. Nie jest to miejsce na głośne
-                  imprezy.
+                  Domki Sztabinki są przeznaczone dla gości, którzy chcą
+                  odpocząć w spokojnej okolicy nad jeziorem. To nie jest miejsce
+                  na głośne imprezy — zależy nam na komforcie wszystkich gości i
+                  sąsiadów.
                 </p>
               </div>
 
@@ -576,13 +611,13 @@ export default async function HomePage() {
             </p>
 
             <h2 className="mt-4 text-4xl font-black tracking-tight md:text-5xl">
-              Sztabinki koło Sejn
+              Sztabinki koło Sejn — jezioro, natura i spokój
             </h2>
 
             <p className="mt-5 text-lg leading-8 text-slate-600">
-              Domki znajdują się w spokojnej okolicy nad jeziorem, niedaleko
-              Sejn. To dobre miejsce na rodzinny urlop, odpoczynek nad wodą i
-              wyjazd z dala od tłumu.
+              Domki znajdują się w spokojnej okolicy niedaleko Sejn, na
+              Suwalszczyźnie. To dobre miejsce na rodzinny urlop, wypoczynek
+              nad wodą, wędkowanie oraz wyjazd z dala od tłumu.
             </p>
           </div>
 
@@ -605,7 +640,7 @@ export default async function HomePage() {
               <p className="text-sm font-semibold text-slate-500">
                 Dla rodzin
               </p>
-              <p className="mt-2 text-2xl font-black">plac zabaw i woda</p>
+              <p className="mt-2 text-2xl font-black">woda i przestrzeń</p>
             </div>
 
             <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
@@ -622,16 +657,17 @@ export default async function HomePage() {
       >
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-300">
-            Zapytanie
+            Zapytanie o pobyt
           </p>
 
           <h2 className="mt-4 text-4xl font-black tracking-tight md:text-5xl">
-            Zapytaj o wolny termin
+            Sprawdź wolny termin w Domkach Sztabinki
           </h2>
 
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-            Wypełnij formularz, wybierz domek i sprawdź widoczne zajęte
-            terminy. Po wysłaniu zapytania potwierdzimy dostępność i cenę.
+            Wypełnij formularz, wybierz domek i sprawdź zajęte terminy w
+            kalendarzu. Po wysłaniu zapytania potwierdzimy dostępność, cenę i
+            szczegóły pobytu.
           </p>
 
           <InquiryForm
@@ -656,7 +692,7 @@ export default async function HomePage() {
       <footer className="border-t border-slate-200 bg-white px-6 py-8 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p>© Domki Sztabinki</p>
-          <p>Spokojny wypoczynek nad jeziorem koło Sejn</p>
+          <p>Domki nad jeziorem koło Sejn — spokojny wypoczynek w naturze</p>
         </div>
       </footer>
     </main>
