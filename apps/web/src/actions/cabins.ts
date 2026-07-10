@@ -2,6 +2,7 @@
 
 import crypto from "crypto";
 import path from "path";
+import type { CabinImage } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -117,7 +118,7 @@ export async function toggleCabinStatus(id: string) {
 }
 
 export async function normalizeCabinImageOrder(cabinId: string) {
-  const images = await prisma.cabinImage.findMany({
+  const images: CabinImage[] = await prisma.cabinImage.findMany({
     where: {
       cabinId,
     },
@@ -132,7 +133,7 @@ export async function normalizeCabinImageOrder(cabinId: string) {
   });
 
   await Promise.all(
-    images.map((image, index) =>
+    images.map((image: CabinImage, index: number) =>
       prisma.cabinImage.update({
         where: {
           id: image.id,
@@ -140,8 +141,8 @@ export async function normalizeCabinImageOrder(cabinId: string) {
         data: {
           sortOrder: index,
         },
-      })
-    )
+      }),
+    ),
   );
 
   revalidatePath(`/admin/domki/${cabinId}/zdjecia`);
@@ -199,7 +200,7 @@ export async function uploadCabinImage(cabinId: string, formData: FormData) {
     "public",
     "uploads",
     "cabins",
-    cabinId
+    cabinId,
   );
 
   const filePath = path.join(uploadDir, fileName);
@@ -244,7 +245,7 @@ export async function uploadCabinImage(cabinId: string, formData: FormData) {
 }
 
 export async function setMainCabinImage(imageId: string) {
-  const image = await prisma.cabinImage.findUnique({
+  const image: CabinImage | null = await prisma.cabinImage.findUnique({
     where: {
       id: imageId,
     },
@@ -287,7 +288,7 @@ export async function setMainCabinImage(imageId: string) {
 }
 
 async function moveCabinImage(imageId: string, direction: "up" | "down") {
-  const image = await prisma.cabinImage.findUnique({
+  const image: CabinImage | null = await prisma.cabinImage.findUnique({
     where: {
       id: imageId,
     },
@@ -299,7 +300,7 @@ async function moveCabinImage(imageId: string, direction: "up" | "down") {
 
   await normalizeCabinImageOrder(image.cabinId);
 
-  const images = await prisma.cabinImage.findMany({
+  const images: CabinImage[] = await prisma.cabinImage.findMany({
     where: {
       cabinId: image.cabinId,
     },
@@ -313,7 +314,9 @@ async function moveCabinImage(imageId: string, direction: "up" | "down") {
     ],
   });
 
-  const currentIndex = images.findIndex((item) => item.id === imageId);
+  const currentIndex = images.findIndex(
+    (item: CabinImage) => item.id === imageId,
+  );
 
   if (currentIndex === -1) {
     return;
@@ -361,7 +364,7 @@ export async function moveCabinImageDown(imageId: string) {
 }
 
 export async function deleteCabinImage(imageId: string) {
-  const image = await prisma.cabinImage.findUnique({
+  const image: CabinImage | null = await prisma.cabinImage.findUnique({
     where: {
       id: imageId,
     },
@@ -384,7 +387,7 @@ export async function deleteCabinImage(imageId: string) {
     await fs.unlink(filePath).catch(() => {});
   }
 
-  const remainingImages = await prisma.cabinImage.findMany({
+  const remainingImages: CabinImage[] = await prisma.cabinImage.findMany({
     where: {
       cabinId: image.cabinId,
     },
