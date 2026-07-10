@@ -169,7 +169,10 @@ function parseDateInputValueToUtcDate(value: string) {
   return date;
 }
 
-function getStayNightsFromDateInputValues(dateFromValue: string, dateToValue: string) {
+function getStayNightsFromDateInputValues(
+  dateFromValue: string,
+  dateToValue: string,
+) {
   const dateFrom = parseDateInputValueToUtcDate(dateFromValue);
   const dateTo = parseDateInputValueToUtcDate(dateToValue);
 
@@ -187,7 +190,11 @@ function addUtcDays(date: Date, days: number) {
   return nextDate;
 }
 
-function isMonthInSeason(month: number, seasonStartMonth: number, seasonEndMonth: number) {
+function isMonthInSeason(
+  month: number,
+  seasonStartMonth: number,
+  seasonEndMonth: number,
+) {
   if (seasonStartMonth <= seasonEndMonth) {
     return month >= seasonStartMonth && month <= seasonEndMonth;
   }
@@ -579,6 +586,15 @@ export function InquiryForm({
   const selectedCabinName =
     cabins.find((cabin) => cabin.id === selectedCabinId)?.name || "";
 
+  const selectedCabinDisplayName =
+    selectedCabinName || "Dowolny domek / do ustalenia";
+
+  const dateSelectionHint = dateFromValue
+    ? dateToValue
+      ? "Termin został wybrany. Teraz możesz wysłać zapytanie albo zmienić daty."
+      : "Wybrano dzień przyjazdu. Teraz kliknij dzień wyjazdu."
+    : "Najpierw kliknij wolny dzień przyjazdu w kalendarzu.";
+
   const availabilityCalendarMonths = useMemo(
     () =>
       buildCalendarMonths({
@@ -643,7 +659,10 @@ export function InquiryForm({
 
   const hasDateCollision = collidingDateRanges.length > 0;
   const isSubmitDisabled =
-    isPending || hasDateCollision || Boolean(dateSelectionRuleMessage) || isSuccess;
+    isPending ||
+    hasDateCollision ||
+    Boolean(dateSelectionRuleMessage) ||
+    isSuccess;
 
   function scrollToMessage() {
     window.setTimeout(() => {
@@ -665,6 +684,11 @@ export function InquiryForm({
     setMessage("");
   }
 
+  function clearSelectedDates() {
+    setDateFromValue("");
+    setDateToValue("");
+  }
+
   function showCheckInBoundaryStartMessage() {
     showFormMessage({
       ok: false,
@@ -675,9 +699,14 @@ export function InquiryForm({
   function handlePrepareNextInquiry() {
     formRef.current?.reset();
     setSelectedCabinId(defaultCabinId);
-    setDateFromValue("");
-    setDateToValue("");
+    clearSelectedDates();
     clearFormMessage();
+  }
+
+  function handleCabinChange(nextCabinId: string) {
+    clearFormMessage();
+    setSelectedCabinId(nextCabinId);
+    clearSelectedDates();
   }
 
   function handleCalendarDayClick(day: CalendarDay) {
@@ -817,8 +846,7 @@ export function InquiryForm({
       if (result.ok) {
         form.reset();
         setSelectedCabinId(defaultCabinId);
-        setDateFromValue("");
-        setDateToValue("");
+        clearSelectedDates();
       }
     });
   }
@@ -998,7 +1026,8 @@ export function InquiryForm({
               </p>
               <p className="mt-3 leading-6">
                 Wybrany termin spełnia podstawowe zasady pobytu i nie nachodzi
-                na aktualnie zapisane rezerwacje tego domku. Ostateczną
+                na aktualnie zapisane rezerwacje domku{" "}
+                <strong>{selectedCabinDisplayName}</strong>. Ostateczną
                 dostępność i cenę potwierdzimy po kontakcie.
               </p>
             </div>
@@ -1150,10 +1179,7 @@ export function InquiryForm({
             <select
               name="cabinId"
               value={selectedCabinId}
-              onChange={(event) => {
-                clearFormMessage();
-                setSelectedCabinId(event.target.value);
-              }}
+              onChange={(event) => handleCabinChange(event.target.value)}
               className="rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-950"
             >
               {cabins.map((cabin) => (
@@ -1161,15 +1187,28 @@ export function InquiryForm({
                   {cabin.name}
                 </option>
               ))}
-              <option value="">Dowolny / do ustalenia</option>
+              <option value="">Dowolny domek / proszę dopasować</option>
             </select>
           </label>
 
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            Domyślnie wybrany jest pierwszy aktywny domek z listy. Jeżeli
-            chcesz, żeby zawsze był to „Domek 1”, ustaw mu najniższy numer
-            sortowania w panelu admina.
-          </p>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">
+            <p>
+              Aktualnie sprawdzasz:{" "}
+              <strong>{selectedCabinDisplayName}</strong>.
+            </p>
+
+            {selectedCabinId ? (
+              <p className="mt-2">
+                Po zmianie domku wybrane daty zostaną wyczyszczone, żeby nie
+                pomylić dostępności między domkami.
+              </p>
+            ) : (
+              <p className="mt-2">
+                Przy opcji dowolnej nie pokazujemy kalendarza jednego domku.
+                Dopasujemy najlepszy wolny domek po kontakcie.
+              </p>
+            )}
+          </div>
         </div>
 
         {selectedCabinId ? (
@@ -1179,12 +1218,16 @@ export function InquiryForm({
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
                   Kalendarz dostępności
                 </p>
+                <h3 className="mt-2 text-2xl font-black text-slate-950">
+                  {selectedCabinDisplayName}
+                </h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Kliknij pierwszy wolny dzień jako przyjazd, a następnie drugi
-                  dzień jako wyjazd. Dzień zameldowania kolejnych gości wygląda
-                  jak wolny, ale nie może być początkiem nowego pobytu. Jeżeli
-                  tego samego dnia jest wymeldowanie i zameldowanie, dzień jest
-                  zajęty.
+                  {dateSelectionHint}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Dzień zameldowania kolejnych gości wygląda jak wolny, ale nie
+                  może być początkiem nowego pobytu. Jeżeli tego samego dnia
+                  jest wymeldowanie i zameldowanie, dzień jest zajęty.
                 </p>
               </div>
 
@@ -1300,9 +1343,13 @@ export function InquiryForm({
             <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Kalendarz dostępności
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Przy opcji dowolnej / do ustalenia dostępność dobierzemy po
-              kontakcie.
+            <h3 className="mt-2 text-2xl font-black text-slate-950">
+              Dowolny domek / do ustalenia
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              W tej opcji nie wybierasz konkretnego domku. Wyślij zapytanie, a
+              my sprawdzimy, który domek najlepiej pasuje do terminu i liczby
+              osób.
             </p>
           </div>
         )}
