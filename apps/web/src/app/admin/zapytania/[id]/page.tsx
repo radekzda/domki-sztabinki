@@ -43,6 +43,30 @@ function getNightsCount(dateFrom: Date, dateTo: Date) {
   return Math.max(1, Math.round(difference / millisecondsPerDay));
 }
 
+function formatNights(nights: number) {
+  if (nights === 1) {
+    return "1 noc";
+  }
+
+  if (nights >= 2 && nights <= 4) {
+    return `${nights} noce`;
+  }
+
+  return `${nights} nocy`;
+}
+
+function formatPeople(count: number) {
+  if (count === 1) {
+    return "1 osoba";
+  }
+
+  if (count >= 2 && count <= 4) {
+    return `${count} osoby`;
+  }
+
+  return `${count} osób`;
+}
+
 function splitFullName(fullName: string) {
   const cleanedFullName = fullName.trim().replace(/\s+/g, " ");
 
@@ -84,6 +108,22 @@ function getStatusLabel(status: string) {
   return status;
 }
 
+function getStatusDescription(status: string) {
+  if (status === "NEW") {
+    return "Zapytanie wymaga sprawdzenia i kontaktu z gościem.";
+  }
+
+  if (status === "APPROVED" || status === "CONTACTED") {
+    return "Zapytanie zostało już obsłużone albo zatwierdzone.";
+  }
+
+  if (status === "ARCHIVED") {
+    return "Zapytanie jest odłożone do archiwum.";
+  }
+
+  return "Status zapytania wymaga sprawdzenia.";
+}
+
 function getStatusClassName(status: string) {
   if (status === "NEW") {
     return "bg-emerald-50 text-emerald-800 ring-emerald-200";
@@ -98,6 +138,22 @@ function getStatusClassName(status: string) {
   }
 
   return "bg-amber-50 text-amber-800 ring-amber-200";
+}
+
+function getStatusPanelClassName(status: string) {
+  if (status === "NEW") {
+    return "rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950";
+  }
+
+  if (status === "APPROVED" || status === "CONTACTED") {
+    return "rounded-3xl border border-sky-200 bg-sky-50 p-5 text-sky-950";
+  }
+
+  if (status === "ARCHIVED") {
+    return "rounded-3xl border border-slate-200 bg-slate-50 p-5 text-slate-950";
+  }
+
+  return "rounded-3xl border border-amber-200 bg-amber-50 p-5 text-amber-950";
 }
 
 function getActionButtonClassName(status: string) {
@@ -128,6 +184,58 @@ function getPhoneHref(phone: string) {
   }
 
   return `tel:${normalizedPhone}`;
+}
+
+function getMailHref(email: string, fullName: string) {
+  const subject = encodeURIComponent(`Domki Sztabinki — zapytanie ${fullName}`);
+
+  return `mailto:${email}?subject=${subject}`;
+}
+
+function getSourceLabel(source: string | null) {
+  if (source === "WWW" || source === "WEBSITE") {
+    return "Strona WWW";
+  }
+
+  if (source === "PHONE") {
+    return "Telefon";
+  }
+
+  if (source === "BOOKING") {
+    return "Booking";
+  }
+
+  if (source === "AIRBNB") {
+    return "Airbnb";
+  }
+
+  if (!source) {
+    return "Nie podano";
+  }
+
+  return source;
+}
+
+function getAddressText({
+  street,
+  postalCode,
+  city,
+  country,
+}: {
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+}) {
+  const firstLine = street || "";
+  const secondLine = [postalCode, city].filter(Boolean).join(" ");
+  const lines = [firstLine, secondLine, country || ""].filter(Boolean);
+
+  if (lines.length === 0) {
+    return "Nie podano adresu.";
+  }
+
+  return lines.join(", ");
 }
 
 function getCreateReservationHref({
@@ -174,7 +282,7 @@ function getCreateReservationHref({
   params.set("adults", String(adults));
   params.set("children", String(children));
   params.set("guests", String(adults + children));
-  params.set("source", "WEBSITE");
+  params.set("source", "WWW");
 
   if (cabinId) {
     params.set("cabinId", cabinId);
@@ -221,10 +329,6 @@ export default async function AdminInquiryDetailsPage({
         select: {
           id: true,
           name: true,
-          maxGuests: true,
-          bedrooms: true,
-          bathrooms: true,
-          pricePerNight: true,
         },
       },
     },
@@ -240,6 +344,14 @@ export default async function AdminInquiryDetailsPage({
   const selectedCabinName =
     inquiry.cabin?.name || inquiry.cabinName || "Dowolny / do ustalenia";
   const nights = getNightsCount(inquiry.dateFrom, inquiry.dateTo);
+  const sourceLabel = getSourceLabel(inquiry.source);
+  const addressText = getAddressText({
+    street: inquiry.street,
+    postalCode: inquiry.postalCode,
+    city: inquiry.city,
+    country: inquiry.country,
+  });
+
   const createReservationHref = getCreateReservationHref({
     inquiryId: inquiry.id,
     cabinId: inquiry.cabinId,
@@ -260,331 +372,300 @@ export default async function AdminInquiryDetailsPage({
 
   return (
     <main className="space-y-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <Link
-            href="/admin/zapytania"
-            className="inline-flex rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
-          >
-            Wróć do listy zapytań
-          </Link>
+      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0">
+            <Link
+              href="/admin/zapytania"
+              className="inline-flex rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+            >
+              Wróć do listy zapytań
+            </Link>
 
-          <p className="mt-6 text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
-            Szczegóły zapytania
-          </p>
+            <p className="mt-6 text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
+              Szczegóły zapytania
+            </p>
 
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-            {inquiry.fullName}
-          </h1>
+            <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center">
+              <h1 className="min-w-0 text-3xl font-black tracking-tight text-slate-950">
+                {inquiry.fullName}
+              </h1>
+
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex w-fit rounded-full px-4 py-2 text-sm font-black ring-1 ${getStatusClassName(
+                    inquiry.status,
+                  )}`}
+                >
+                  {getStatusLabel(inquiry.status)}
+                </span>
+
+                <span className="inline-flex w-fit rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-slate-200">
+                  Źródło: {sourceLabel}
+                </span>
+              </div>
+            </div>
+
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+              Zapytanie wysłane {formatDateTime(inquiry.createdAt)}. Sprawdź
+              termin, domek i dane kontaktowe, a następnie skontaktuj się z
+              gościem albo utwórz rezerwację z tego zapytania.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[32rem]">
+            <a
+              href={getPhoneHref(inquiry.phone)}
+              className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
+            >
+              Zadzwoń
+            </a>
+
+            {inquiry.email ? (
+              <a
+                href={getMailHref(inquiry.email, inquiry.fullName)}
+                className="rounded-2xl border border-slate-300 bg-white px-5 py-4 text-center text-sm font-black text-slate-800 transition hover:bg-slate-100"
+              >
+                Napisz e-mail
+              </a>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-center text-sm font-black text-slate-400">
+                Brak e-maila
+              </div>
+            )}
+
+            <Link
+              href={createReservationHref}
+              className="rounded-2xl bg-emerald-700 px-5 py-4 text-center text-sm font-black text-white transition hover:bg-emerald-800"
+            >
+              Utwórz rezerwację
+            </Link>
+
+            <Link
+              href={`/admin/zapytania/${inquiry.id}/usun`}
+              className="rounded-2xl bg-red-700 px-5 py-4 text-center text-sm font-black text-white transition hover:bg-red-800"
+            >
+              Usuń zapytanie
+            </Link>
+
+            <form
+              action={updateInquiryStatus}
+              className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2"
+            >
+              <input type="hidden" name="inquiryId" value={inquiry.id} />
+
+              {inquiry.status !== "APPROVED" &&
+              inquiry.status !== "CONTACTED" ? (
+                <button
+                  type="submit"
+                  name="status"
+                  value="APPROVED"
+                  className={getActionButtonClassName("APPROVED")}
+                >
+                  Oznacz jako zatwierdzone
+                </button>
+              ) : null}
+
+              {inquiry.status !== "NEW" ? (
+                <button
+                  type="submit"
+                  name="status"
+                  value="NEW"
+                  className={getActionButtonClassName("NEW")}
+                >
+                  Przywróć jako nowe
+                </button>
+              ) : null}
+
+              {inquiry.status !== "ARCHIVED" ? (
+                <button
+                  type="submit"
+                  name="status"
+                  value="ARCHIVED"
+                  className={getActionButtonClassName("ARCHIVED")}
+                >
+                  Archiwizuj
+                </button>
+              ) : null}
+            </form>
+          </div>
         </div>
 
-        <span
-          className={`inline-flex w-fit rounded-full px-4 py-2 text-sm font-black ring-1 ${getStatusClassName(
-            inquiry.status,
-          )}`}
-        >
-          {getStatusLabel(inquiry.status)}
-        </span>
-      </div>
+        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-3xl bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Termin
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {formatDate(inquiry.dateFrom)} – {formatDate(inquiry.dateTo)}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {formatNights(nights)}
+            </p>
+          </div>
 
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div>
+          <div className="rounded-3xl bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Domek
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {selectedCabinName}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {inquiry.cabin ? "wybrany konkretny domek" : "do dopasowania"}
+            </p>
+          </div>
+
+          <div className="rounded-3xl bg-slate-50 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Osoby
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">
+              {formatPeople(inquiry.guests)}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {inquiry.adults} dorosłych, {inquiry.children} dzieci
+            </p>
+          </div>
+
+          <div className={getStatusPanelClassName(inquiry.status)}>
+            <p className="text-xs font-black uppercase tracking-[0.16em] opacity-80">
+              Status
+            </p>
+            <p className="mt-2 text-lg font-black">
+              {getStatusLabel(inquiry.status)}
+            </p>
+            <p className="mt-1 text-sm leading-6">
+              {getStatusDescription(inquiry.status)}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="space-y-8">
+          <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             <h2 className="text-xl font-black text-slate-950">
               Dane kontaktowe
             </h2>
             <p className="mt-2 text-sm text-slate-600">
               Dane podane przez gościa w formularzu publicznym.
             </p>
-          </div>
 
-          <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Wysłano: <strong>{formatDateTime(inquiry.createdAt)}</strong>
-          </p>
-        </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Imię
+                </p>
+                <p className="mt-2 text-lg font-black text-slate-950">
+                  {firstName || "Nie podano"}
+                </p>
+              </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Imię
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {firstName || "Nie podano"}
-            </p>
-          </div>
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Nazwisko
+                </p>
+                <p className="mt-2 text-lg font-black text-slate-950">
+                  {lastName || "Nie podano"}
+                </p>
+              </div>
 
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Nazwisko
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {lastName || "Nie podano"}
-            </p>
-          </div>
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Telefon
+                </p>
+                <a
+                  href={getPhoneHref(inquiry.phone)}
+                  className="mt-2 block text-lg font-black text-slate-950 hover:underline"
+                >
+                  {inquiry.phone}
+                </a>
+              </div>
 
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Telefon
-            </p>
-            <a
-              href={getPhoneHref(inquiry.phone)}
-              className="mt-2 block text-lg font-black text-slate-950 hover:underline"
-            >
-              {inquiry.phone}
-            </a>
-          </div>
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  E-mail
+                </p>
+                {inquiry.email ? (
+                  <a
+                    href={getMailHref(inquiry.email, inquiry.fullName)}
+                    className="mt-2 block break-all text-lg font-black text-slate-950 hover:underline"
+                  >
+                    {inquiry.email}
+                  </a>
+                ) : (
+                  <p className="mt-2 text-lg font-black text-slate-500">
+                    Nie podano
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
 
-          <div className="rounded-2xl bg-slate-50 p-5 md:col-span-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              E-mail
-            </p>
-            {inquiry.email ? (
-              <a
-                href={`mailto:${inquiry.email}`}
-                className="mt-2 block break-all text-lg font-black text-slate-950 hover:underline"
-              >
-                {inquiry.email}
-              </a>
+          <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-xl font-black text-slate-950">
+              Wiadomość od gościa
+            </h2>
+
+            {inquiry.notes ? (
+              <p className="mt-4 whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700">
+                {inquiry.notes}
+              </p>
             ) : (
-              <p className="mt-2 text-lg font-black text-slate-500">
-                Nie podano
+              <p className="mt-4 rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">
+                Gość nie dodał dodatkowej wiadomości.
               </p>
             )}
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="text-xl font-black text-slate-950">Pobyt</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Termin i podstawowe informacje z zapytania.
-        </p>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Przyjazd
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {formatDate(inquiry.dateFrom)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Wyjazd
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {formatDate(inquiry.dateTo)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Liczba nocy
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">{nights}</p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Razem osób
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.guests}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Dorośli
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.adults}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Dzieci
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.children}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5 md:col-span-2">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Źródło zapytania
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.source}
-            </p>
-          </div>
+          </section>
         </div>
 
-        <div className="mt-4 rounded-2xl bg-slate-50 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-            Wybrany domek
-          </p>
-          <p className="mt-2 text-lg font-black text-slate-950">
-            {selectedCabinName}
-          </p>
-
-          {inquiry.cabin ? (
+        <div className="space-y-8">
+          <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-xl font-black text-slate-950">Adres</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Domek w bazie: do {inquiry.cabin.maxGuests} osób,{" "}
-              {inquiry.cabin.bedrooms} sypialnie, {inquiry.cabin.bathrooms}{" "}
-              łazienka, cena bazowa {String(inquiry.cabin.pricePerNight)} PLN
-              za dobę.
+              {addressText}
             </p>
-          ) : (
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Gość nie wybrał konkretnego aktywnego domku albo domek został
-              później usunięty z aktywnej listy.
-            </p>
-          )}
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50 p-5 md:col-span-2">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Ulica i numer
+                </p>
+                <p className="mt-2 text-lg font-black text-slate-950">
+                  {inquiry.street || "Nie podano"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Kod pocztowy
+                </p>
+                <p className="mt-2 text-lg font-black text-slate-950">
+                  {inquiry.postalCode || "Nie podano"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Miasto
+                </p>
+                <p className="mt-2 text-lg font-black text-slate-950">
+                  {inquiry.city || "Nie podano"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-5 md:col-span-2">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Kraj
+                </p>
+                <p className="mt-2 text-lg font-black text-slate-950">
+                  {inquiry.country || "Nie podano"}
+                </p>
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
-
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="text-xl font-black text-slate-950">Adres</h2>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl bg-slate-50 p-5 xl:col-span-2">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Ulica i numer
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.street || "Nie podano"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Kod pocztowy
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.postalCode || "Nie podano"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Miasto
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.city || "Nie podano"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-5 xl:col-span-4">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Kraj
-            </p>
-            <p className="mt-2 text-lg font-black text-slate-950">
-              {inquiry.country || "Nie podano"}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="text-xl font-black text-slate-950">
-          Wiadomość od gościa
-        </h2>
-
-        {inquiry.notes ? (
-          <p className="mt-4 whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700">
-            {inquiry.notes}
-          </p>
-        ) : (
-          <p className="mt-4 rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">
-            Gość nie dodał dodatkowej wiadomości.
-          </p>
-        )}
-      </section>
-
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="text-xl font-black text-slate-950">Dalsza obsługa</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Możesz przejść do formularza nowej rezerwacji z danymi tego zapytania.
-          Rezerwacja nie zostanie utworzona automatycznie — najpierw sprawdzisz
-          i zatwierdzisz formularz. Po zapisaniu rezerwacji zapytanie zostanie
-          oznaczone jako zatwierdzone.
-        </p>
-
-        <div className="mt-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <Link
-            href={createReservationHref}
-            className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
-          >
-            Utwórz rezerwację
-          </Link>
-
-          <Link
-            href="/admin/rezerwacje"
-            className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-100"
-          >
-            Przejdź do rezerwacji
-          </Link>
-
-          <Link
-            href={`/admin/zapytania/${inquiry.id}/usun`}
-            className="rounded-xl bg-red-700 px-5 py-3 text-sm font-black text-white transition hover:bg-red-800"
-          >
-            Usuń zapytanie
-          </Link>
-        </div>
-      </section>
-
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="text-xl font-black text-slate-950">
-          Status zapytania
-        </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Zmień status zapytania. To nadal nie tworzy rezerwacji.
-        </p>
-
-        <form
-          action={updateInquiryStatus}
-          className="mt-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"
-        >
-          <input type="hidden" name="inquiryId" value={inquiry.id} />
-
-          {inquiry.status !== "APPROVED" && inquiry.status !== "CONTACTED" ? (
-            <button
-              type="submit"
-              name="status"
-              value="APPROVED"
-              className={getActionButtonClassName("APPROVED")}
-            >
-              Oznacz jako zatwierdzone
-            </button>
-          ) : null}
-
-          {inquiry.status !== "NEW" ? (
-            <button
-              type="submit"
-              name="status"
-              value="NEW"
-              className={getActionButtonClassName("NEW")}
-            >
-              Przywróć jako nowe
-            </button>
-          ) : null}
-
-          {inquiry.status !== "ARCHIVED" ? (
-            <button
-              type="submit"
-              name="status"
-              value="ARCHIVED"
-              className={getActionButtonClassName("ARCHIVED")}
-            >
-              Archiwizuj
-            </button>
-          ) : null}
-        </form>
       </section>
     </main>
   );
