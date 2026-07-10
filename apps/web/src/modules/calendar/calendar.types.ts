@@ -24,6 +24,8 @@ export type CalendarStatusFilter = "ALL" | CalendarReservationStatus;
 
 export type CalendarSourceFilter = "ALL" | CalendarReservationSource;
 
+export type CalendarPaymentFilter = "ALL" | CalendarReservationPaymentStatus;
+
 export interface CalendarReservation {
   id: string;
   cabinId: string;
@@ -100,6 +102,7 @@ export interface CalendarActiveFilters {
   cabinId: string;
   status: CalendarStatusFilter;
   source: CalendarSourceFilter;
+  payment: CalendarPaymentFilter;
 }
 
 export interface ReservationBarPosition {

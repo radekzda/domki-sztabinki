@@ -3,6 +3,7 @@
 import type {
   CalendarActiveFilters,
   CalendarCabin,
+  CalendarReservationPaymentStatus,
   CalendarReservationSource,
   CalendarReservationStatus,
 } from "@/modules/calendar/calendar.types";
@@ -37,6 +38,17 @@ const sourceOptions: {
   { value: "MANUAL", label: "Ręcznie" },
 ];
 
+const paymentOptions: {
+  value: "ALL" | CalendarReservationPaymentStatus;
+  label: string;
+}[] = [
+  { value: "ALL", label: "Wszystkie płatności" },
+  { value: "PENDING", label: "Oczekuje" },
+  { value: "PAID", label: "Opłacona" },
+  { value: "PARTIAL", label: "Częściowa" },
+  { value: "REFUNDED", label: "Zwrócona" },
+];
+
 export default function CalendarToolbar({
   cabins,
   filters,
@@ -45,7 +57,8 @@ export default function CalendarToolbar({
   const hasActiveFilters =
     filters.cabinId !== "ALL" ||
     filters.status !== "ALL" ||
-    filters.source !== "ALL";
+    filters.source !== "ALL" ||
+    filters.payment !== "ALL";
 
   return (
     <div className="border-b bg-zinc-50 px-6 py-4">
@@ -121,6 +134,30 @@ export default function CalendarToolbar({
           </select>
         </div>
 
+        <div className="space-y-1">
+          <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Płatność
+          </label>
+
+          <select
+            value={filters.payment}
+            onChange={(event) => {
+              onFiltersChange({
+                ...filters,
+                payment:
+                  event.target.value as CalendarActiveFilters["payment"],
+              });
+            }}
+            className="h-10 min-w-[190px] rounded-lg border bg-white px-3 text-sm font-medium"
+          >
+            {paymentOptions.map((payment) => (
+              <option key={payment.value} value={payment.value}>
+                {payment.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
           type="button"
           disabled={!hasActiveFilters}
@@ -129,6 +166,7 @@ export default function CalendarToolbar({
               cabinId: "ALL",
               status: "ALL",
               source: "ALL",
+              payment: "ALL",
             });
           }}
           className="h-10 rounded-lg border bg-white px-4 text-sm font-semibold hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"

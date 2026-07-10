@@ -78,6 +78,11 @@ export default function CalendarLegend() {
               <span>Anulowany</span>
             </div>
           </div>
+
+          <div className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm leading-6 text-zinc-600">
+            <strong>Blokują termin:</strong> oczekujące, potwierdzone i
+            zameldowane. <strong>Nie blokują:</strong> wymeldowane i anulowane.
+          </div>
         </div>
 
         <div>
@@ -98,6 +103,20 @@ export default function CalendarLegend() {
                 !
               </span>
               <span>Do zapłaty</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800">
+                %
+              </span>
+              <span>Częściowa</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-sm font-bold text-zinc-700">
+                ↩
+              </span>
+              <span>Zwrócona</span>
             </div>
           </div>
         </div>

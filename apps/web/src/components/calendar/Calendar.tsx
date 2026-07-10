@@ -42,6 +42,13 @@ function filterReservations(
       return false;
     }
 
+    if (
+      filters.payment !== "ALL" &&
+      reservation.paymentStatus !== filters.payment
+    ) {
+      return false;
+    }
+
     return true;
   });
 }
@@ -231,6 +238,7 @@ export default function Calendar({ data }: CalendarProps) {
     cabinId: "ALL",
     status: "ALL",
     source: "ALL",
+    payment: "ALL",
   });
 
   const [selectedDate, setSelectedDate] =
@@ -372,10 +380,10 @@ export default function Calendar({ data }: CalendarProps) {
               {data.month.name} {data.month.year}
             </h2>
 
-            <p className="mt-2 text-sm text-zinc-500">
-              Dwuklik w pusty dzień dodaje rezerwację na 1 noc. Możesz też
-              kliknąć pierwszy dzień, a potem drugi dzień w tym samym domku, aby
-              utworzyć rezerwację z zakresem dat.
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500">
+              Kliknij pasek rezerwacji, aby otworzyć szczegóły. Dwuklik w pusty
+              dzień tworzy rezerwację na 1 noc. Kliknięcie pierwszego i drugiego
+              dnia w tym samym domku tworzy rezerwację z zakresem dat.
             </p>
           </div>
 
@@ -387,6 +395,14 @@ export default function Calendar({ data }: CalendarProps) {
           filters={filters}
           onFiltersChange={setFilters}
         />
+
+        {selectedDate ? (
+          <div className="border-b bg-green-50 px-6 py-4 text-sm text-green-900">
+            <span className="font-bold">Wybrano początek pobytu:</span>{" "}
+            {selectedDate.cabinName}, {formatDisplayDate(selectedDate.date)}.
+            Kliknij drugi dzień w tym samym domku, aby wybrać datę wyjazdu.
+          </div>
+        ) : null}
 
         <div className="overflow-x-auto p-4">
           <div className="grid min-w-max" style={{ gridTemplateColumns }}>
@@ -495,8 +511,10 @@ export default function Calendar({ data }: CalendarProps) {
           </div>
 
           <div className="rounded-lg border p-4">
-            <div className="text-sm text-zinc-500">Widok</div>
-            <div className="mt-1 text-2xl font-bold">Month</div>
+            <div className="text-sm text-zinc-500">Blokują termin</div>
+            <div className="mt-1 text-sm font-bold leading-6">
+              Oczekujące, potwierdzone i zameldowane
+            </div>
           </div>
         </div>
       </div>

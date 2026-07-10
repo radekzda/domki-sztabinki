@@ -235,22 +235,68 @@ export default async function KalendarzPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-6">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Kalendarz rezerwacji</h1>
 
-          <p className="mt-2 text-zinc-500">
-            Widok dostępności domków i rezerwacji oparty o Calendar Engine v1.
+          <p className="mt-2 max-w-3xl text-zinc-500">
+            Widok dostępności domków, przyjazdów, wyjazdów i płatności. Kliknij
+            pasek rezerwacji, aby przejść do szczegółów, albo wybierz wolny
+            termin bezpośrednio w kalendarzu.
           </p>
         </div>
 
-        <Link
-          href="/admin/rezerwacje/nowa"
-          className="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800"
-        >
-          + Dodaj rezerwację
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/admin/rezerwacje"
+            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-zinc-50"
+          >
+            Lista rezerwacji
+          </Link>
+
+          <Link
+            href="/admin/rezerwacje/nowa"
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800"
+          >
+            + Dodaj rezerwację
+          </Link>
+        </div>
       </div>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <div className="text-sm font-semibold text-zinc-900">
+            Blokują dostępność
+          </div>
+
+          <p className="mt-2 text-sm leading-6 text-zinc-600">
+            Oczekujące, potwierdzone i zameldowane rezerwacje blokują termin
+            przy dodawaniu kolejnej rezerwacji.
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <div className="text-sm font-semibold text-zinc-900">
+            Widoczne, ale nie blokują
+          </div>
+
+          <p className="mt-2 text-sm leading-6 text-zinc-600">
+            Wymeldowane i anulowane rezerwacje są pokazywane informacyjnie, ale
+            nie blokują tworzenia nowych terminów.
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <div className="text-sm font-semibold text-zinc-900">
+            Szybka obsługa
+          </div>
+
+          <p className="mt-2 text-sm leading-6 text-zinc-600">
+            Dwuklik w wolny dzień tworzy rezerwację na 1 noc. Kliknij pierwszy
+            dzień i drugi dzień, aby utworzyć zakres pobytu.
+          </p>
+        </div>
+      </section>
 
       <Calendar data={calendarData} />
     </div>
