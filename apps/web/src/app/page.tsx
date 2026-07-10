@@ -182,104 +182,106 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-white text-slate-950">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <a
             href="/"
-            className="text-2xl font-black tracking-tight text-slate-950"
+            className="text-center text-2xl font-black tracking-tight text-slate-950 lg:text-left"
           >
             Domki Sztabinki
           </a>
 
-          <nav className="flex flex-col gap-3 text-base font-bold sm:flex-row sm:items-center">
+          <nav className="grid grid-cols-2 gap-2 text-sm font-bold sm:grid-cols-4 lg:flex lg:items-center lg:text-base">
             <a
               href="#domki"
-              className="rounded-xl border border-slate-300 px-5 py-3 text-center text-slate-900 transition hover:bg-slate-100"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-center text-slate-900 transition hover:bg-slate-100"
             >
-              Zobacz domki
+              Domki
             </a>
 
             <a
               href="#cennik"
-              className="rounded-xl border border-slate-300 px-5 py-3 text-center text-slate-900 transition hover:bg-slate-100"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-center text-slate-900 transition hover:bg-slate-100"
             >
               Cennik
             </a>
 
             <a
               href="#kontakt"
-              className="rounded-xl border border-slate-300 px-5 py-3 text-center text-slate-900 transition hover:bg-slate-100"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-center text-slate-900 transition hover:bg-slate-100"
             >
               Kontakt
             </a>
 
             <a
               href={contactPhoneHref}
-              className="rounded-xl bg-slate-950 px-6 py-3 text-center text-white shadow-sm transition hover:bg-slate-800"
+              className="rounded-xl bg-slate-950 px-4 py-3 text-center text-white shadow-sm transition hover:bg-slate-800"
             >
-              Zadzwoń: {contactPhone}
+              Zadzwoń
             </a>
           </nav>
         </div>
       </header>
 
-      <section className="bg-slate-950 px-6 py-24 text-white lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+      <section className="bg-slate-950 px-4 py-16 text-white sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-12">
           <div>
-            <p className="mb-5 text-sm font-semibold uppercase tracking-[0.3em] text-slate-300">
+            <p className="mb-5 text-sm font-semibold uppercase tracking-[0.25em] text-slate-300 sm:tracking-[0.3em]">
               Domki letniskowe nad jeziorem koło Sejn
             </p>
 
-            <h1 className="max-w-4xl text-4xl font-black tracking-tight md:text-6xl">
+            <h1 className="max-w-4xl text-4xl font-black tracking-tight sm:text-5xl md:text-6xl">
               Domki Sztabinki — spokojny wypoczynek nad jeziorem
             </h1>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
               Komfortowe domki letniskowe w miejscowości Sztabinki koło Sejn.
               To miejsce dla osób, które szukają ciszy, natury, rodzinnego
               odpoczynku, bliskości jeziora i swobodnego pobytu z dala od
               zatłoczonych kurortów.
             </p>
 
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+            <div className="mt-8 grid gap-3 sm:mt-10 sm:flex sm:flex-row">
               <a
                 href={contactPhoneHref}
-                className="rounded-2xl bg-white px-8 py-5 text-center text-lg font-black text-slate-950 shadow-sm transition hover:bg-slate-100"
+                className="rounded-2xl bg-white px-6 py-4 text-center text-base font-black text-slate-950 shadow-sm transition hover:bg-slate-100 sm:px-8 sm:py-5 sm:text-lg"
               >
                 Zadzwoń teraz: {contactPhone}
               </a>
 
               <a
                 href="#kontakt"
-                className="rounded-2xl border border-white px-8 py-5 text-center text-lg font-black text-white transition hover:bg-white/10"
+                className="rounded-2xl border border-white px-6 py-4 text-center text-base font-black text-white transition hover:bg-white/10 sm:px-8 sm:py-5 sm:text-lg"
               >
                 Zapytaj o wolny termin
               </a>
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-white p-6 text-slate-950 shadow-2xl">
+          <div className="rounded-[1.5rem] bg-white p-5 text-slate-950 shadow-2xl sm:rounded-[2rem] sm:p-6">
             <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
               Dlaczego warto
             </p>
 
-            <div className="mt-6 grid gap-4">
-              <div className="rounded-2xl bg-slate-50 p-5">
-                <p className="text-3xl font-black">nad jeziorem</p>
+            <div className="mt-5 grid gap-3 sm:mt-6 sm:gap-4">
+              <div className="rounded-2xl bg-slate-50 p-4 sm:p-5">
+                <p className="text-2xl font-black sm:text-3xl">nad jeziorem</p>
                 <p className="mt-1 text-sm text-slate-600">
                   pomost, widok na wodę, sprzęt wodny i bliskość natury
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-slate-50 p-5">
-                <p className="text-3xl font-black">dla rodzin</p>
+              <div className="rounded-2xl bg-slate-50 p-4 sm:p-5">
+                <p className="text-2xl font-black sm:text-3xl">dla rodzin</p>
                 <p className="mt-1 text-sm text-slate-600">
                   wygodne domki, spokojna okolica i przestrzeń do odpoczynku
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-slate-50 p-5">
-                <p className="text-3xl font-black">Sejny i Suwalszczyzna</p>
+              <div className="rounded-2xl bg-slate-50 p-4 sm:p-5">
+                <p className="text-2xl font-black sm:text-3xl">
+                  Sejny i Suwalszczyzna
+                </p>
                 <p className="mt-1 text-sm text-slate-600">
                   dobra baza na wypoczynek i odkrywanie północno-wschodniej
                   Polski
@@ -290,24 +292,24 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="domki" className="bg-white px-6 py-24 lg:px-8">
+      <section id="domki" className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-500">
             Domki nad jeziorem
           </p>
 
-          <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
+          <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
             Wybierz domek na spokojny pobyt w Sztabinkach
           </h2>
 
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
+          <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600 sm:text-lg">
             Każdy domek jest przygotowany z myślą o wygodnym odpoczynku nad
             wodą. To dobre miejsce na rodzinny urlop, wyjazd z dziećmi,
             wędkowanie, grillowanie i spokojne wieczory z widokiem na jezioro.
           </p>
 
           {cabins.length === 0 ? (
-            <div className="mt-12 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+            <div className="mt-10 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center sm:mt-12 sm:p-8">
               <h3 className="text-2xl font-black">Brak aktywnych domków</h3>
               <p className="mt-3 text-slate-600">
                 Aktualnie nie ma domków dostępnych do prezentacji na stronie.
@@ -315,7 +317,7 @@ export default async function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="mt-12 grid gap-10">
+            <div className="mt-10 grid gap-8 sm:mt-12 lg:gap-10">
               {cabins.map((cabin) => {
                 const orderedImages = cabin.images;
                 const mainImage =
@@ -331,7 +333,7 @@ export default async function HomePage() {
                 return (
                   <article
                     key={cabin.id}
-                    className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm"
+                    className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm sm:rounded-[2rem]"
                   >
                     <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
                       <div className="bg-slate-100">
@@ -343,7 +345,7 @@ export default async function HomePage() {
                               className="h-full w-full object-cover"
                             />
 
-                            <div className="absolute left-4 top-4 rounded-full bg-white/95 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950 shadow-sm">
+                            <div className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-slate-950 shadow-sm sm:left-4 sm:top-4 sm:px-4">
                               {imageCount === 1
                                 ? "1 zdjęcie"
                                 : `${imageCount} zdjęć`}
@@ -356,19 +358,19 @@ export default async function HomePage() {
                         )}
                       </div>
 
-                      <div className="flex flex-col p-6 lg:p-8">
+                      <div className="flex flex-col p-5 sm:p-6 lg:p-8">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
                               {cabin.shortName || "Domek letniskowy"}
                             </p>
 
-                            <h3 className="mt-2 text-3xl font-black">
+                            <h3 className="mt-2 text-2xl font-black sm:text-3xl">
                               {cabin.name}
                             </h3>
                           </div>
 
-                          <div className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-white">
+                          <div className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-white sm:min-w-32">
                             <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">
                               od
                             </p>
@@ -389,11 +391,11 @@ export default async function HomePage() {
                               Galeria
                             </p>
 
-                            <div className="mt-3 grid grid-cols-4 gap-3">
+                            <div className="mt-3 grid grid-cols-4 gap-2 sm:gap-3">
                               {galleryImages.map((image) => (
                                 <div
                                   key={image.id}
-                                  className="aspect-square overflow-hidden rounded-2xl bg-slate-100"
+                                  className="aspect-square overflow-hidden rounded-xl bg-slate-100 sm:rounded-2xl"
                                 >
                                   <img
                                     src={image.url}
@@ -426,7 +428,7 @@ export default async function HomePage() {
                           </div>
                         </div>
 
-                        <div className="mt-6 rounded-3xl bg-slate-50 p-5">
+                        <div className="mt-6 rounded-3xl bg-slate-50 p-4 sm:p-5">
                           <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">
                             Cennik orientacyjny
                           </p>
@@ -456,7 +458,7 @@ export default async function HomePage() {
                           </div>
                         </div>
 
-                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                        <div className="mt-6 grid gap-3 sm:grid-cols-2">
                           <a
                             href="#kontakt"
                             className="rounded-2xl bg-slate-950 px-6 py-4 text-center text-sm font-black text-white transition hover:bg-slate-800"
@@ -481,26 +483,26 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="cennik" className="bg-slate-50 px-6 py-24 lg:px-8">
+      <section id="cennik" className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
             <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-500">
               Cennik i zasady pobytu
             </p>
 
-            <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-5xl">
+            <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl md:text-5xl">
               Najważniejsze informacje przed rezerwacją
             </h2>
 
-            <p className="mt-5 text-lg leading-8 text-slate-600">
+            <p className="mt-5 text-base leading-8 text-slate-600 sm:text-lg">
               Ceny zależą od długości pobytu, terminu oraz wybranego domku.
               Najszybszym sposobem potwierdzenia dostępności i ceny jest
               telefon albo zapytanie przez formularz.
             </p>
           </div>
 
-          <div className="mt-12 grid gap-6 lg:grid-cols-4">
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
+          <div className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            <div className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
                 Minimum pobytu
               </p>
@@ -512,7 +514,7 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <div className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
                 Zameldowanie
               </p>
@@ -523,7 +525,7 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <div className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
                 Wymeldowanie
               </p>
@@ -534,7 +536,7 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <div className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
                 Sezon
               </p>
@@ -546,14 +548,14 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-[2rem] bg-slate-950 p-6 text-white shadow-sm md:p-8">
+          <div className="mt-8 rounded-[1.5rem] bg-slate-950 p-5 text-white shadow-sm sm:rounded-[2rem] sm:p-6 md:p-8">
             <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
               <div>
                 <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-300">
                   Ważne
                 </p>
 
-                <h3 className="mt-4 text-3xl font-black">
+                <h3 className="mt-4 text-2xl font-black sm:text-3xl">
                   Miejsce dla osób szukających ciszy i odpoczynku
                 </h3>
 
@@ -603,18 +605,18 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-white px-6 py-24 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.85fr_1.15fr]">
+      <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-10">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-500">
               Lokalizacja
             </p>
 
-            <h2 className="mt-4 text-4xl font-black tracking-tight md:text-5xl">
+            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl md:text-5xl">
               Sztabinki koło Sejn — jezioro, natura i spokój
             </h2>
 
-            <p className="mt-5 text-lg leading-8 text-slate-600">
+            <p className="mt-5 text-base leading-8 text-slate-600 sm:text-lg">
               Domki znajdują się w spokojnej okolicy niedaleko Sejn, na
               Suwalszczyźnie. To dobre miejsce na rodzinny urlop, wypoczynek
               nad wodą, wędkowanie oraz wyjazd z dala od tłumu.
@@ -622,28 +624,28 @@ export default async function HomePage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
+            <div className="rounded-3xl bg-slate-50 p-5 shadow-sm sm:p-6">
               <p className="text-sm font-semibold text-slate-500">
                 Najbliższa okolica
               </p>
               <p className="mt-2 text-2xl font-black">jezioro i natura</p>
             </div>
 
-            <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
+            <div className="rounded-3xl bg-slate-50 p-5 shadow-sm sm:p-6">
               <p className="text-sm font-semibold text-slate-500">
                 Charakter pobytu
               </p>
               <p className="mt-2 text-2xl font-black">spokojny wypoczynek</p>
             </div>
 
-            <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
+            <div className="rounded-3xl bg-slate-50 p-5 shadow-sm sm:p-6">
               <p className="text-sm font-semibold text-slate-500">
                 Dla rodzin
               </p>
               <p className="mt-2 text-2xl font-black">woda i przestrzeń</p>
             </div>
 
-            <div className="rounded-3xl bg-slate-50 p-6 shadow-sm">
+            <div className="rounded-3xl bg-slate-50 p-5 shadow-sm sm:p-6">
               <p className="text-sm font-semibold text-slate-500">Kontakt</p>
               <p className="mt-2 text-2xl font-black">{contactPhone}</p>
             </div>
@@ -653,18 +655,18 @@ export default async function HomePage() {
 
       <section
         id="kontakt"
-        className="bg-slate-950 px-6 py-24 text-white lg:px-8"
+        className="bg-slate-950 px-4 py-16 text-white sm:px-6 sm:py-20 lg:px-8 lg:py-24"
       >
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.25em] text-slate-300">
             Zapytanie o pobyt
           </p>
 
-          <h2 className="mt-4 text-4xl font-black tracking-tight md:text-5xl">
+          <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl md:text-5xl">
             Sprawdź wolny termin w Domkach Sztabinki
           </h2>
 
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
             Wypełnij formularz, wybierz domek i sprawdź zajęte terminy w
             kalendarzu. Po wysłaniu zapytania potwierdzimy dostępność, cenę i
             szczegóły pobytu.
@@ -689,8 +691,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 bg-white px-6 py-8 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+      <footer className="border-t border-slate-200 bg-white px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 text-center text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:text-left">
           <p>© Domki Sztabinki</p>
           <p>Domki nad jeziorem koło Sejn — spokojny wypoczynek w naturze</p>
         </div>

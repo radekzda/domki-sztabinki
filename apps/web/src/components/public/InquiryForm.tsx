@@ -52,6 +52,9 @@ const blockingReservationStatuses = ["PENDING", "CONFIRMED", "CHECKED_IN"];
 
 const millisecondsInDay = 24 * 60 * 60 * 1000;
 
+const inputClassName =
+  "w-full min-w-0 rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950";
+
 function getStringValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
@@ -855,10 +858,10 @@ export function InquiryForm({
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      className="mt-10 grid gap-8 rounded-[2rem] bg-white p-6 text-left text-slate-950 shadow-xl lg:grid-cols-[0.9fr_1.1fr] md:p-8"
+      className="mx-auto mt-10 grid w-full max-w-full min-w-0 gap-6 overflow-hidden rounded-[1.5rem] bg-white p-4 text-left text-slate-950 shadow-xl sm:gap-8 sm:rounded-[2rem] sm:p-6 md:p-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
     >
-      <div className="space-y-5">
-        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+      <div className="min-w-0 space-y-5">
+        <div className="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-5">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
             Dane zapytania
           </p>
@@ -868,8 +871,8 @@ export function InquiryForm({
           </p>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <label className="grid gap-2">
+        <div className="grid min-w-0 gap-5 md:grid-cols-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Imię
             </span>
@@ -877,12 +880,12 @@ export function InquiryForm({
               name="firstName"
               type="text"
               required
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="Jan"
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Nazwisko
             </span>
@@ -890,12 +893,12 @@ export function InquiryForm({
               name="lastName"
               type="text"
               required
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="Kowalski"
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Telefon
             </span>
@@ -903,24 +906,24 @@ export function InquiryForm({
               name="phone"
               type="tel"
               required
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="502 286 724"
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               E-mail
             </span>
             <input
               name="email"
               type="email"
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="adres@email.com"
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Dorośli
             </span>
@@ -931,11 +934,11 @@ export function InquiryForm({
               min={1}
               max={20}
               defaultValue={2}
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Dzieci
             </span>
@@ -945,11 +948,11 @@ export function InquiryForm({
               min={0}
               max={20}
               defaultValue={0}
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Pobyt od
             </span>
@@ -962,11 +965,11 @@ export function InquiryForm({
                 clearFormMessage();
                 setDateFromValue(event.target.value);
               }}
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Pobyt do
             </span>
@@ -979,12 +982,12 @@ export function InquiryForm({
                 clearFormMessage();
                 setDateToValue(event.target.value);
               }}
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
             />
           </label>
 
           {hasDateCollision ? (
-            <div className="rounded-3xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 md:col-span-2">
+            <div className="min-w-0 rounded-3xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 md:col-span-2">
               <p className="font-black uppercase tracking-[0.14em]">
                 Uwaga: wybrany termin jest zajęty
               </p>
@@ -995,11 +998,11 @@ export function InquiryForm({
                 albo opcję dowolną / do ustalenia.
               </p>
 
-              <div className="mt-4 grid gap-2">
+              <div className="mt-4 grid min-w-0 gap-2">
                 {collidingDateRanges.map((dateRange) => (
                   <div
                     key={dateRange.id}
-                    className="rounded-2xl border border-red-200 bg-white px-4 py-3"
+                    className="min-w-0 rounded-2xl border border-red-200 bg-white px-4 py-3"
                   >
                     <span className="font-black">
                       {formatDate(dateRange.dateFrom)} –{" "}
@@ -1013,14 +1016,14 @@ export function InquiryForm({
               </div>
             </div>
           ) : dateSelectionRuleMessage ? (
-            <div className="rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950 md:col-span-2">
+            <div className="min-w-0 rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950 md:col-span-2">
               <p className="font-black uppercase tracking-[0.14em]">
                 Termin nie spełnia zasad pobytu
               </p>
               <p className="mt-3 leading-6">{dateSelectionRuleMessage}</p>
             </div>
           ) : selectedCabinId && dateFromValue && dateToValue ? (
-            <div className="rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-900 md:col-span-2">
+            <div className="min-w-0 rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-900 md:col-span-2">
               <p className="font-black uppercase tracking-[0.14em]">
                 Brak kolizji z zajętymi terminami
               </p>
@@ -1033,43 +1036,43 @@ export function InquiryForm({
             </div>
           ) : null}
 
-          <label className="grid gap-2 md:col-span-2">
+          <label className="grid min-w-0 gap-2 md:col-span-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Ulica i numer
             </span>
             <input
               name="street"
               type="text"
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="Leśna 23"
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Kod pocztowy
             </span>
             <input
               name="postalCode"
               type="text"
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="16-500"
             />
           </label>
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Miasto
             </span>
             <input
               name="city"
               type="text"
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="Sejny"
             />
           </label>
 
-          <label className="grid gap-2 md:col-span-2">
+          <label className="grid min-w-0 gap-2 md:col-span-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Kraj
             </span>
@@ -1077,25 +1080,25 @@ export function InquiryForm({
               name="country"
               type="text"
               defaultValue="Polska"
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="Polska"
             />
           </label>
 
-          <label className="grid gap-2 md:col-span-2">
+          <label className="grid min-w-0 gap-2 md:col-span-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Wiadomość
             </span>
             <textarea
               name="notes"
               rows={5}
-              className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-950"
+              className={inputClassName}
               placeholder="Napisz dodatkowe informacje, np. przyjazd z dziećmi, pytanie o późniejsze wymeldowanie albo konkretny domek."
             />
           </label>
         </div>
 
-        <div className="rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-600">
+        <div className="min-w-0 rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-600">
           Minimalny pobyt: <strong>{minimumNightsLabel}</strong>. Sezon:{" "}
           <strong>{seasonLabel}</strong>. Zameldowanie od{" "}
           <strong>{checkInTime}</strong>, wymeldowanie do{" "}
@@ -1109,8 +1112,8 @@ export function InquiryForm({
             role={isSuccess ? "status" : "alert"}
             className={
               isSuccess
-                ? "rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-950"
-                : "rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950"
+                ? "min-w-0 rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-950"
+                : "min-w-0 rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950"
             }
           >
             {isSuccess ? (
@@ -1130,7 +1133,7 @@ export function InquiryForm({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="grid min-w-0 gap-3 sm:flex sm:flex-row">
           <button
             type="submit"
             disabled={isSubmitDisabled}
@@ -1170,9 +1173,9 @@ export function InquiryForm({
         </div>
       </div>
 
-      <aside className="space-y-5">
-        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-          <label className="grid gap-2">
+      <aside className="min-w-0 space-y-5">
+        <div className="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Wybierz domek
             </span>
@@ -1180,7 +1183,7 @@ export function InquiryForm({
               name="cabinId"
               value={selectedCabinId}
               onChange={(event) => handleCabinChange(event.target.value)}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-950"
+              className={`${inputClassName} bg-white`}
             >
               {cabins.map((cabin) => (
                 <option key={cabin.id} value={cabin.id}>
@@ -1191,7 +1194,7 @@ export function InquiryForm({
             </select>
           </label>
 
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">
+          <div className="mt-4 min-w-0 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">
             <p>
               Aktualnie sprawdzasz:{" "}
               <strong>{selectedCabinDisplayName}</strong>.
@@ -1212,9 +1215,9 @@ export function InquiryForm({
         </div>
 
         {selectedCabinId ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
+          <div className="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
                   Kalendarz dostępności
                 </p>
@@ -1245,7 +1248,7 @@ export function InquiryForm({
             </div>
 
             {dateFromValue ? (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+              <div className="mt-4 min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
                 <strong>Wybrany termin:</strong>{" "}
                 {formatDate(`${dateFromValue}T12:00:00.000Z`)}
                 {dateToValue
@@ -1254,17 +1257,17 @@ export function InquiryForm({
               </div>
             ) : null}
 
-            <div className="mt-6 grid gap-5">
+            <div className="mt-6 grid min-w-0 gap-5">
               {availabilityCalendarMonths.map((calendarMonth) => (
                 <div
                   key={calendarMonth.key}
-                  className="rounded-3xl border border-slate-200 bg-slate-50 p-4"
+                  className="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-3 sm:p-4"
                 >
                   <p className="text-center text-sm font-black uppercase tracking-[0.16em] text-slate-700">
                     {calendarMonth.label}
                   </p>
 
-                  <div className="mt-4 grid grid-cols-7 gap-1 text-center">
+                  <div className="mt-4 grid min-w-0 grid-cols-7 gap-1 text-center">
                     {weekDayLabels.map((weekDayLabel) => (
                       <div
                         key={weekDayLabel}
@@ -1275,7 +1278,7 @@ export function InquiryForm({
                     ))}
 
                     {calendarMonth.emptyDaysBeforeMonth.map((emptyDay) => (
-                      <div key={emptyDay} className="h-9" />
+                      <div key={emptyDay} className="h-9 min-w-0" />
                     ))}
 
                     {calendarMonth.days.map((day) => {
@@ -1339,7 +1342,7 @@ export function InquiryForm({
             </div>
           </div>
         ) : (
-          <div className="rounded-3xl border border-slate-200 bg-white p-5">
+          <div className="min-w-0 rounded-3xl border border-slate-200 bg-white p-5">
             <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Kalendarz dostępności
             </p>
