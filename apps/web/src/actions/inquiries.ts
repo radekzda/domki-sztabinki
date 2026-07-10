@@ -42,6 +42,8 @@ const blockingReservationStatuses = [
   "CHECKED_IN",
 ] as const;
 
+const millisecondsInDay = 24 * 60 * 60 * 1000;
+
 type InquiryStatus = (typeof allowedInquiryStatuses)[number];
 
 function normalizeText(value: string) {
@@ -144,6 +146,102 @@ function parsePeopleCount(value: string, fallback: number) {
   return parsedValue;
 }
 
+function normalizePositiveInteger(value: number, fallback: number) {
+  if (!Number.isInteger(value) || value < 1) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function normalizeSeasonMonth(value: number, fallback: number) {
+  if (!Number.isInteger(value) || value < 1 || value > 12) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function getMonthName(month: number) {
+  const monthNames = [
+    "styczeń",
+    "luty",
+    "marzec",
+    "kwiecień",
+    "maj",
+    "czerwiec",
+    "lipiec",
+    "sierpień",
+    "wrzesień",
+    "październik",
+    "listopad",
+    "grudzień",
+  ];
+
+  if (month < 1 || month > 12) {
+    return "maj";
+  }
+
+  return monthNames[month - 1];
+}
+
+function formatNights(nights: number) {
+  if (nights === 1) {
+    return "1 noc";
+  }
+
+  if (nights >= 2 && nights <= 4) {
+    return `${nights} noce`;
+  }
+
+  return `${nights} nocy`;
+}
+
+function getStayNights(dateFrom: Date, dateTo: Date) {
+  return Math.round((dateTo.getTime() - dateFrom.getTime()) / millisecondsInDay);
+}
+
+function addUtcDays(date: Date, days: number) {
+  const nextDate = new Date(date.getTime());
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+
+  return nextDate;
+}
+
+function isMonthInSeason(month: number, seasonStartMonth: number, seasonEndMonth: number) {
+  if (seasonStartMonth <= seasonEndMonth) {
+    return month >= seasonStartMonth && month <= seasonEndMonth;
+  }
+
+  return month >= seasonStartMonth || month <= seasonEndMonth;
+}
+
+function isStayInsideSeason({
+  dateFrom,
+  dateTo,
+  seasonStartMonth,
+  seasonEndMonth,
+}: {
+  dateFrom: Date;
+  dateTo: Date;
+  seasonStartMonth: number;
+  seasonEndMonth: number;
+}) {
+  for (
+    let currentDate = new Date(dateFrom.getTime());
+    currentDate < dateTo;
+    currentDate = addUtcDays(currentDate, 1)
+  ) {
+    const currentMonth = currentDate.getUTCMonth() + 1;
+
+    if (!isMonthInSeason(currentMonth, seasonStartMonth, seasonEndMonth)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function dateInputRangesOverlap({
   selectedDateFrom,
   selectedDateTo,
@@ -240,6 +338,49 @@ export async function createPublicInquiry(
     return {
       ok: false,
       message: "Data wyjazdu musi być późniejsza niż data przyjazdu.",
+    };
+  }
+
+  const settings = await prisma.systemSettings.findUnique({
+    where: {
+      id: "main",
+    },
+    select: {
+      minimumNights: true,
+      seasonStartMonth: true,
+      seasonEndMonth: true,
+    },
+  });
+
+  const minimumNights = normalizePositiveInteger(settings?.minimumNights ?? 1, 1);
+  const seasonStartMonth = normalizeSeasonMonth(settings?.seasonStartMonth ?? 5, 5);
+  const seasonEndMonth = normalizeSeasonMonth(settings?.seasonEndMonth ?? 9, 9);
+  const seasonLabel = `${getMonthName(seasonStartMonth)} — ${getMonthName(
+    seasonEndMonth,
+  )}`;
+
+  const stayNights = getStayNights(parsedDateFrom, parsedDateTo);
+
+  if (stayNights < minimumNights) {
+    return {
+      ok: false,
+      message: `Minimalny pobyt to ${formatNights(
+        minimumNights,
+      )}. Wybrany termin ma ${formatNights(stayNights)}.`,
+    };
+  }
+
+  if (
+    !isStayInsideSeason({
+      dateFrom: parsedDateFrom,
+      dateTo: parsedDateTo,
+      seasonStartMonth,
+      seasonEndMonth,
+    })
+  ) {
+    return {
+      ok: false,
+      message: `Wybrany termin wykracza poza sezon (${seasonLabel}). Wybierz termin w sezonie.`,
     };
   }
 

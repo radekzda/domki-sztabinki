@@ -37,7 +37,11 @@ type InquiryFormProps = {
   phoneNumber: string;
   cabins: PublicCabinOption[];
   occupiedDateRanges: OccupiedDateRange[];
+  minimumNights: number;
   minimumNightsLabel: string;
+  seasonStartMonth: number;
+  seasonEndMonth: number;
+  seasonLabel: string;
   checkInTime: string;
   checkOutTime: string;
 };
@@ -45,6 +49,8 @@ type InquiryFormProps = {
 const weekDayLabels = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
 
 const blockingReservationStatuses = ["PENDING", "CONFIRMED", "CHECKED_IN"];
+
+const millisecondsInDay = 24 * 60 * 60 * 1000;
 
 function getStringValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -131,6 +137,154 @@ function getReservationStatusLabel(status: string) {
   }
 
   return "zajęty";
+}
+
+function formatNights(nights: number) {
+  if (nights === 1) {
+    return "1 noc";
+  }
+
+  if (nights >= 2 && nights <= 4) {
+    return `${nights} noce`;
+  }
+
+  return `${nights} nocy`;
+}
+
+function parseDateInputValueToUtcDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  if (date.toISOString().slice(0, 10) !== value) {
+    return null;
+  }
+
+  return date;
+}
+
+function getStayNightsFromDateInputValues(dateFromValue: string, dateToValue: string) {
+  const dateFrom = parseDateInputValueToUtcDate(dateFromValue);
+  const dateTo = parseDateInputValueToUtcDate(dateToValue);
+
+  if (!dateFrom || !dateTo) {
+    return null;
+  }
+
+  return Math.round((dateTo.getTime() - dateFrom.getTime()) / millisecondsInDay);
+}
+
+function addUtcDays(date: Date, days: number) {
+  const nextDate = new Date(date.getTime());
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+
+  return nextDate;
+}
+
+function isMonthInSeason(month: number, seasonStartMonth: number, seasonEndMonth: number) {
+  if (seasonStartMonth <= seasonEndMonth) {
+    return month >= seasonStartMonth && month <= seasonEndMonth;
+  }
+
+  return month >= seasonStartMonth || month <= seasonEndMonth;
+}
+
+function isStayInsideSeason({
+  dateFromValue,
+  dateToValue,
+  seasonStartMonth,
+  seasonEndMonth,
+}: {
+  dateFromValue: string;
+  dateToValue: string;
+  seasonStartMonth: number;
+  seasonEndMonth: number;
+}) {
+  const dateFrom = parseDateInputValueToUtcDate(dateFromValue);
+  const dateTo = parseDateInputValueToUtcDate(dateToValue);
+
+  if (!dateFrom || !dateTo) {
+    return false;
+  }
+
+  for (
+    let currentDate = new Date(dateFrom.getTime());
+    currentDate < dateTo;
+    currentDate = addUtcDays(currentDate, 1)
+  ) {
+    const currentMonth = currentDate.getUTCMonth() + 1;
+
+    if (!isMonthInSeason(currentMonth, seasonStartMonth, seasonEndMonth)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function getTodayDateInputValue() {
+  return getDateInputValueFromDate(new Date());
+}
+
+function getDateSelectionRuleMessage({
+  dateFromValue,
+  dateToValue,
+  minimumNights,
+  minimumNightsLabel,
+  seasonStartMonth,
+  seasonEndMonth,
+  seasonLabel,
+}: {
+  dateFromValue: string;
+  dateToValue: string;
+  minimumNights: number;
+  minimumNightsLabel: string;
+  seasonStartMonth: number;
+  seasonEndMonth: number;
+  seasonLabel: string;
+}) {
+  if (!dateFromValue || !dateToValue) {
+    return "";
+  }
+
+  if (dateFromValue < getTodayDateInputValue()) {
+    return "Data przyjazdu nie może być wcześniejsza niż dzisiejsza data.";
+  }
+
+  const stayNights = getStayNightsFromDateInputValues(dateFromValue, dateToValue);
+
+  if (stayNights === null) {
+    return "Podaj poprawny termin pobytu.";
+  }
+
+  if (stayNights <= 0) {
+    return "Data wyjazdu musi być późniejsza niż data przyjazdu.";
+  }
+
+  if (stayNights < minimumNights) {
+    return `Minimalny pobyt to ${minimumNightsLabel}. Wybrany termin ma ${formatNights(
+      stayNights,
+    )}.`;
+  }
+
+  if (
+    !isStayInsideSeason({
+      dateFromValue,
+      dateToValue,
+      seasonStartMonth,
+      seasonEndMonth,
+    })
+  ) {
+    return `Wybrany termin wykracza poza sezon (${seasonLabel}). Wybierz termin w sezonie.`;
+  }
+
+  return "";
 }
 
 function dateInputRangesOverlap({
@@ -382,7 +536,11 @@ export function InquiryForm({
   phoneNumber,
   cabins,
   occupiedDateRanges,
+  minimumNights,
   minimumNightsLabel,
+  seasonStartMonth,
+  seasonEndMonth,
+  seasonLabel,
   checkInTime,
   checkOutTime,
 }: InquiryFormProps) {
@@ -430,6 +588,28 @@ export function InquiryForm({
     [selectedCabinOccupiedDateRanges],
   );
 
+  const dateSelectionRuleMessage = useMemo(
+    () =>
+      getDateSelectionRuleMessage({
+        dateFromValue,
+        dateToValue,
+        minimumNights,
+        minimumNightsLabel,
+        seasonStartMonth,
+        seasonEndMonth,
+        seasonLabel,
+      }),
+    [
+      dateFromValue,
+      dateToValue,
+      minimumNights,
+      minimumNightsLabel,
+      seasonStartMonth,
+      seasonEndMonth,
+      seasonLabel,
+    ],
+  );
+
   const collidingDateRanges = useMemo(() => {
     if (!selectedCabinId || !dateFromValue || !dateToValue) {
       return [];
@@ -462,7 +642,8 @@ export function InquiryForm({
   ]);
 
   const hasDateCollision = collidingDateRanges.length > 0;
-  const isSubmitDisabled = isPending || hasDateCollision || isSuccess;
+  const isSubmitDisabled =
+    isPending || hasDateCollision || Boolean(dateSelectionRuleMessage) || isSuccess;
 
   function scrollToMessage() {
     window.setTimeout(() => {
@@ -473,13 +654,7 @@ export function InquiryForm({
     }, 0);
   }
 
-  function showFormMessage({
-    ok,
-    text,
-  }: {
-    ok: boolean;
-    text: string;
-  }) {
+  function showFormMessage({ ok, text }: { ok: boolean; text: string }) {
     setIsSuccess(ok);
     setMessage(text);
     scrollToMessage();
@@ -595,6 +770,14 @@ export function InquiryForm({
       showFormMessage({
         ok: false,
         text: "Uzupełnij imię, nazwisko, telefon oraz termin pobytu.",
+      });
+      return;
+    }
+
+    if (dateSelectionRuleMessage) {
+      showFormMessage({
+        ok: false,
+        text: dateSelectionRuleMessage,
       });
       return;
     }
@@ -801,15 +984,22 @@ export function InquiryForm({
                 ))}
               </div>
             </div>
+          ) : dateSelectionRuleMessage ? (
+            <div className="rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950 md:col-span-2">
+              <p className="font-black uppercase tracking-[0.14em]">
+                Termin nie spełnia zasad pobytu
+              </p>
+              <p className="mt-3 leading-6">{dateSelectionRuleMessage}</p>
+            </div>
           ) : selectedCabinId && dateFromValue && dateToValue ? (
             <div className="rounded-3xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-900 md:col-span-2">
               <p className="font-black uppercase tracking-[0.14em]">
                 Brak kolizji z zajętymi terminami
               </p>
               <p className="mt-3 leading-6">
-                Wybrany termin nie nachodzi na aktualnie zapisane rezerwacje
-                tego domku. Ostateczną dostępność i cenę potwierdzimy po
-                kontakcie.
+                Wybrany termin spełnia podstawowe zasady pobytu i nie nachodzi
+                na aktualnie zapisane rezerwacje tego domku. Ostateczną
+                dostępność i cenę potwierdzimy po kontakcie.
               </p>
             </div>
           ) : null}
@@ -877,8 +1067,9 @@ export function InquiryForm({
         </div>
 
         <div className="rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-600">
-          Minimalny pobyt: <strong>{minimumNightsLabel}</strong>. Zameldowanie
-          od <strong>{checkInTime}</strong>, wymeldowanie do{" "}
+          Minimalny pobyt: <strong>{minimumNightsLabel}</strong>. Sezon:{" "}
+          <strong>{seasonLabel}</strong>. Zameldowanie od{" "}
+          <strong>{checkInTime}</strong>, wymeldowanie do{" "}
           <strong>{checkOutTime}</strong>. Ostateczną dostępność i cenę
           potwierdzamy po kontakcie.
         </div>
@@ -926,7 +1117,9 @@ export function InquiryForm({
                 ? "Zapytanie zapisane"
                 : hasDateCollision
                   ? "Termin zajęty — wybierz inny"
-                  : "Wyślij zapytanie"}
+                  : dateSelectionRuleMessage
+                    ? "Termin nie spełnia zasad"
+                    : "Wyślij zapytanie"}
           </button>
 
           {isSuccess ? (
@@ -1051,11 +1244,10 @@ export function InquiryForm({
                         Boolean(dateToValue) &&
                         day.dateInputValue > dateFromValue &&
                         day.dateInputValue < dateToValue;
-                      const isCheckInBoundary =
-                        isDateCheckInBoundaryOfRanges(
-                          day.dateInputValue,
-                          selectedCabinOccupiedDateRanges,
-                        );
+                      const isCheckInBoundary = isDateCheckInBoundaryOfRanges(
+                        day.dateInputValue,
+                        selectedCabinOccupiedDateRanges,
+                      );
                       const isTurnoverBlockedDay = isDateTurnoverBlockedDay({
                         dateInputValue: day.dateInputValue,
                         allDateRanges: selectedCabinAllDateRanges,

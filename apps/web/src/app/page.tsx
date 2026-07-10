@@ -147,6 +147,7 @@ export default async function HomePage() {
   const seasonEndMonth = settings?.seasonEndMonth ?? 9;
   const seasonStartLabel = getMonthName(seasonStartMonth);
   const seasonEndLabel = getMonthName(seasonEndMonth);
+  const seasonLabel = `${seasonStartLabel} — ${seasonEndLabel}`;
   const contactPhone = settings?.ownerPhone || "502 286 724";
   const contactPhoneHref = getPhoneHref(contactPhone);
   const contactEmail = settings?.ownerEmail || "";
@@ -504,9 +505,7 @@ export default async function HomePage() {
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
                 Sezon
               </p>
-              <p className="mt-4 text-3xl font-black">
-                {seasonStartLabel} — {seasonEndLabel}
-              </p>
+              <p className="mt-4 text-3xl font-black">{seasonLabel}</p>
               <p className="mt-3 leading-7 text-slate-600">
                 Sezon pobytowy jest pobierany z ustawień systemu.
               </p>
@@ -643,7 +642,11 @@ export default async function HomePage() {
               name: cabin.name,
             }))}
             occupiedDateRanges={occupiedDateRanges}
+            minimumNights={minimumNights}
             minimumNightsLabel={formatMinimumNights(minimumNights)}
+            seasonStartMonth={seasonStartMonth}
+            seasonEndMonth={seasonEndMonth}
+            seasonLabel={seasonLabel}
             checkInTime={checkInTime}
             checkOutTime={checkOutTime}
           />
