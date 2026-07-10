@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarDays,
   CalendarRange,
+  FileText,
   LayoutDashboard,
   MessageSquare,
   Settings,
@@ -43,6 +44,11 @@ const menuItems = [
     label: "Zapytania",
     href: "/admin/zapytania",
     icon: MessageSquare,
+  },
+  {
+    label: "Szablony",
+    href: "/admin/szablony",
+    icon: FileText,
   },
   {
     label: "Ustawienia",

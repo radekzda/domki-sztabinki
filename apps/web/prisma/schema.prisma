@@ -148,6 +148,23 @@ model Inquiry {
   @@index([createdAt])
 }
 
+model ResponseTemplate {
+  id String @id @default(cuid())
+
+  name    String
+  subject String
+  body    String
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
 model User {
   id       String @id @default(cuid())
   email    String @unique
