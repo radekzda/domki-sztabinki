@@ -12,6 +12,18 @@ type AdminInquiryDetailsPageProps = {
   }>;
 };
 
+type InquiryCabin = {
+  id: string;
+  name: string;
+  priceOneNight: number;
+  priceTwoNights: number;
+  priceThreeNights: number;
+  priceFourNights: number;
+  priceFiveNights: number;
+  priceSixNights: number;
+  priceSevenPlusNights: number;
+};
+
 type TemplateVariables = {
   firstName: string;
   lastName: string;
@@ -23,6 +35,8 @@ type TemplateVariables = {
   phone: string;
   email: string;
   address: string;
+  pricePerNight: string;
+  totalPrice: string;
 };
 
 function formatDate(date: Date) {
@@ -78,6 +92,16 @@ function formatPeople(count: number) {
   }
 
   return `${count} osób`;
+}
+
+function formatMoney(amount: number | null) {
+  if (amount === null) {
+    return "[KWOTA]";
+  }
+
+  return new Intl.NumberFormat("pl-PL", {
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 function splitFullName(fullName: string) {
@@ -245,6 +269,38 @@ function getAddressText({
   return lines.join(", ");
 }
 
+function getPricePerNightForNights(cabin: InquiryCabin | null, nights: number) {
+  if (!cabin) {
+    return null;
+  }
+
+  if (nights === 1) {
+    return cabin.priceOneNight;
+  }
+
+  if (nights === 2) {
+    return cabin.priceTwoNights;
+  }
+
+  if (nights === 3) {
+    return cabin.priceThreeNights;
+  }
+
+  if (nights === 4) {
+    return cabin.priceFourNights;
+  }
+
+  if (nights === 5) {
+    return cabin.priceFiveNights;
+  }
+
+  if (nights === 6) {
+    return cabin.priceSixNights;
+  }
+
+  return cabin.priceSevenPlusNights;
+}
+
 function replaceTemplateVariables(content: string, variables: TemplateVariables) {
   const replacements: Record<string, string> = {
     "[IMIE]": variables.firstName || variables.fullName,
@@ -254,7 +310,8 @@ function replaceTemplateVariables(content: string, variables: TemplateVariables)
     "[DOMEK]": variables.cabinName,
     "[LICZBA_NOCY]": String(variables.nights),
     "[LICZBA_OSOB]": String(variables.guests),
-    "[KWOTA]": "[KWOTA]",
+    "[KWOTA]": variables.totalPrice,
+    "[CENA_ZA_NOC]": variables.pricePerNight,
     "[TELEFON]": variables.phone,
     "[EMAIL]": variables.email,
     "[ADRES]": variables.address,
@@ -383,6 +440,13 @@ export default async function AdminInquiryDetailsPage({
           select: {
             id: true,
             name: true,
+            priceOneNight: true,
+            priceTwoNights: true,
+            priceThreeNights: true,
+            priceFourNights: true,
+            priceFiveNights: true,
+            priceSixNights: true,
+            priceSevenPlusNights: true,
           },
         },
       },
@@ -419,6 +483,8 @@ export default async function AdminInquiryDetailsPage({
     city: inquiry.city,
     country: inquiry.country,
   });
+  const pricePerNight = getPricePerNightForNights(inquiry.cabin, nights);
+  const totalPrice = pricePerNight === null ? null : pricePerNight * nights;
 
   const templateVariables: TemplateVariables = {
     firstName,
@@ -431,6 +497,8 @@ export default async function AdminInquiryDetailsPage({
     phone: inquiry.phone,
     email: inquiry.email || "",
     address: addressText,
+    pricePerNight: formatMoney(pricePerNight),
+    totalPrice: formatMoney(totalPrice),
   };
 
   const templatesWithMailto = responseTemplates.map((template) => {
@@ -662,10 +730,22 @@ export default async function AdminInquiryDetailsPage({
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
               Wybierz jeden z aktywnych szablonów. System automatycznie podstawi
-              dane z zapytania: termin, domek, liczbę nocy, liczbę osób i dane
-              gościa. Kwotę zostawiamy jako <strong>[KWOTA]</strong> do
-              ręcznego uzupełnienia.
+              dane z zapytania: termin, domek, liczbę nocy, liczbę osób oraz
+              kwotę pobytu.
             </p>
+
+            {pricePerNight !== null && totalPrice !== null ? (
+              <p className="mt-3 max-w-3xl rounded-2xl bg-emerald-50 p-4 text-sm font-bold leading-6 text-emerald-900 ring-1 ring-emerald-200">
+                Wyliczona kwota: {formatMoney(totalPrice)} zł ={" "}
+                {formatNights(nights)} × {formatMoney(pricePerNight)} zł za
+                noc.
+              </p>
+            ) : (
+              <p className="mt-3 max-w-3xl rounded-2xl bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-900 ring-1 ring-amber-200">
+                Nie można automatycznie wyliczyć kwoty, ponieważ zapytanie nie
+                ma wybranego konkretnego domku. W szablonie pozostanie [KWOTA].
+              </p>
+            )}
           </div>
 
           <Link
