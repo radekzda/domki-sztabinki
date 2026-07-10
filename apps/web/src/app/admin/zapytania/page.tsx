@@ -56,6 +56,10 @@ function formatDateTime(date: Date) {
   }).format(date);
 }
 
+function formatDateForInput(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 function getSingleSearchParam(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return value[0] || "";
@@ -84,6 +88,31 @@ function getStatusFilter(value: string | string[] | undefined) {
 
 function normalizeSearchQuery(value: string | string[] | undefined) {
   return getSingleSearchParam(value).trim();
+}
+
+function splitFullName(fullName: string) {
+  const cleanedFullName = fullName.trim().replace(/\s+/g, " ");
+
+  if (!cleanedFullName) {
+    return {
+      firstName: "",
+      lastName: "",
+    };
+  }
+
+  const parts = cleanedFullName.split(" ");
+
+  if (parts.length === 1) {
+    return {
+      firstName: parts[0],
+      lastName: "",
+    };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
 }
 
 function getStatusLabel(status: string) {
@@ -217,6 +246,89 @@ function getEmptyStateText(
   }
 
   return "Gdy ktoś wyśle formularz ze strony publicznej, zapytanie pojawi się tutaj.";
+}
+
+function getCreateReservationHref({
+  inquiryId,
+  cabinId,
+  fullName,
+  firstName,
+  lastName,
+  email,
+  phone,
+  dateFrom,
+  dateTo,
+  adults,
+  children,
+  street,
+  postalCode,
+  city,
+  country,
+  notes,
+}: {
+  inquiryId: string;
+  cabinId: string | null;
+  fullName: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phone: string;
+  dateFrom: Date;
+  dateTo: Date;
+  adults: number;
+  children: number;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+  notes: string | null;
+}) {
+  const fallbackNameParts = splitFullName(fullName);
+  const finalFirstName = firstName || fallbackNameParts.firstName;
+  const finalLastName = lastName || fallbackNameParts.lastName;
+
+  const params = new URLSearchParams();
+
+  params.set("inquiryId", inquiryId);
+  params.set("firstName", finalFirstName);
+  params.set("lastName", finalLastName);
+  params.set("phone", phone);
+  params.set("startDate", formatDateForInput(dateFrom));
+  params.set("endDate", formatDateForInput(dateTo));
+  params.set("adults", String(adults));
+  params.set("children", String(children));
+  params.set("guests", String(adults + children));
+  params.set("source", "WWW");
+
+  if (cabinId) {
+    params.set("cabinId", cabinId);
+  }
+
+  if (email) {
+    params.set("email", email);
+  }
+
+  if (street) {
+    params.set("street", street);
+  }
+
+  if (postalCode) {
+    params.set("postalCode", postalCode);
+  }
+
+  if (city) {
+    params.set("city", city);
+  }
+
+  if (country) {
+    params.set("country", country);
+  }
+
+  if (notes) {
+    params.set("notes", notes);
+  }
+
+  return `/admin/rezerwacje/nowa?${params.toString()}`;
 }
 
 export default async function AdminInquiriesPage({
@@ -488,6 +600,25 @@ export default async function AdminInquiriesPage({
                 inquiry.cabinName ||
                 "Dowolny / do ustalenia";
 
+              const createReservationHref = getCreateReservationHref({
+                inquiryId: inquiry.id,
+                cabinId: inquiry.cabinId,
+                fullName: inquiry.fullName,
+                firstName: inquiry.firstName,
+                lastName: inquiry.lastName,
+                email: inquiry.email,
+                phone: inquiry.phone,
+                dateFrom: inquiry.dateFrom,
+                dateTo: inquiry.dateTo,
+                adults: inquiry.adults,
+                children: inquiry.children,
+                street: inquiry.street,
+                postalCode: inquiry.postalCode,
+                city: inquiry.city,
+                country: inquiry.country,
+                notes: inquiry.notes,
+              });
+
               return (
                 <article key={inquiry.id} className="p-6">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -536,12 +667,12 @@ export default async function AdminInquiriesPage({
                         E-mail
                       </p>
                       {inquiry.email ? (
-                        <a
-                          href={`mailto:${inquiry.email}`}
+                        <Link
+                          href={`/admin/zapytania/${inquiry.id}#wybierz-odpowiedz`}
                           className="mt-2 block break-all text-base font-bold text-slate-950 hover:underline"
                         >
                           {inquiry.email}
-                        </a>
+                        </Link>
                       ) : (
                         <p className="mt-2 text-base font-bold text-slate-500">
                           Nie podano
@@ -581,6 +712,22 @@ export default async function AdminInquiriesPage({
 
                   <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-wrap gap-3">
+                      {inquiry.email ? (
+                        <Link
+                          href={`/admin/zapytania/${inquiry.id}#wybierz-odpowiedz`}
+                          className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-slate-800"
+                        >
+                          Odpowiedz
+                        </Link>
+                      ) : null}
+
+                      <Link
+                        href={createReservationHref}
+                        className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-800"
+                      >
+                        Utwórz rezerwację
+                      </Link>
+
                       <Link
                         href={`/admin/zapytania/${inquiry.id}`}
                         className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-800 transition hover:bg-slate-100"
