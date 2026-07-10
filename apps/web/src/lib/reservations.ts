@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-const blockingReservationStatuses = ["PENDING", "CONFIRMED"];
+const blockingReservationStatuses = ["PENDING", "CONFIRMED", "CHECKED_IN"];
 
 type ReservationAvailabilityCheck = {
   cabinId: string;
