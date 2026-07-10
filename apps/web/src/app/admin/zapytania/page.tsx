@@ -27,7 +27,7 @@ const statusFilters: {
     status: "NEW",
   },
   {
-    label: "Zatwierdzone",
+    label: "Obsłużone",
     status: "APPROVED",
   },
   {
@@ -92,7 +92,7 @@ function getStatusLabel(status: string) {
   }
 
   if (status === "APPROVED" || status === "CONTACTED") {
-    return "Zatwierdzone";
+    return "Obsłużone";
   }
 
   if (status === "ARCHIVED") {
@@ -144,7 +144,7 @@ function getFilterLinkClassName(isActive: boolean) {
 
 function getFilterHref(
   status: InquiryStatusFilter | null,
-  searchQuery: string
+  searchQuery: string,
 ) {
   const params = new URLSearchParams();
 
@@ -175,7 +175,7 @@ function getClearSearchHref(activeStatus: InquiryStatusFilter | null) {
 
 function getExportHref(
   activeStatus: InquiryStatusFilter | null,
-  searchQuery: string
+  searchQuery: string,
 ) {
   const params = new URLSearchParams();
 
@@ -198,7 +198,7 @@ function getExportHref(
 
 function getEmptyStateText(
   activeStatus: InquiryStatusFilter | null,
-  searchQuery: string
+  searchQuery: string,
 ) {
   if (searchQuery) {
     return `Brak zapytań pasujących do wyszukiwania: "${searchQuery}".`;
@@ -209,7 +209,7 @@ function getEmptyStateText(
   }
 
   if (activeStatus === "APPROVED") {
-    return "Nie ma obecnie zapytań zatwierdzonych.";
+    return "Nie ma obecnie zapytań obsłużonych.";
   }
 
   if (activeStatus === "ARCHIVED") {
@@ -347,8 +347,9 @@ export default async function AdminInquiriesPage({
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
               Tutaj trafiają wiadomości wysłane przez formularz kontaktowy na
-              stronie głównej. Zapytanie można zatwierdzić ręcznie albo
-              automatycznie po utworzeniu z niego rezerwacji.
+              stronie głównej. Zapytanie można obsłużyć ręcznie, odpowiedzieć
+              szablonem albo automatycznie oznaczyć jako obsłużone po utworzeniu
+              z niego rezerwacji.
             </p>
           </div>
 
@@ -363,16 +364,12 @@ export default async function AdminInquiriesPage({
             </div>
 
             <div className="rounded-2xl bg-emerald-600 px-5 py-4 text-white">
-              <p className="text-sm font-semibold text-emerald-100">
-                Nowe
-              </p>
+              <p className="text-sm font-semibold text-emerald-100">Nowe</p>
               <p className="mt-1 text-3xl font-black">{newInquiriesCount}</p>
             </div>
 
             <div className="rounded-2xl bg-sky-600 px-5 py-4 text-white">
-              <p className="text-sm font-semibold text-sky-100">
-                Zatwierdzone
-              </p>
+              <p className="text-sm font-semibold text-sky-100">Obsłużone</p>
               <p className="mt-1 text-3xl font-black">
                 {approvedInquiriesCount}
               </p>
@@ -502,7 +499,7 @@ export default async function AdminInquiriesPage({
 
                         <span
                           className={`inline-flex rounded-full px-3 py-1 text-xs font-black ring-1 ${getStatusClassName(
-                            inquiry.status
+                            inquiry.status,
                           )}`}
                         >
                           {getStatusLabel(inquiry.status)}
@@ -617,7 +614,7 @@ export default async function AdminInquiriesPage({
                           value="APPROVED"
                           className={getActionButtonClassName("APPROVED")}
                         >
-                          Oznacz jako zatwierdzone
+                          Oznacz jako obsłużone
                         </button>
                       ) : null}
 
