@@ -20,20 +20,7 @@ $statusLabels = [
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
-            <aside class="admin-sidebar">
-                <p class="admin-sidebar__title">Panel PMS</p>
-
-                <nav class="admin-menu" aria-label="Nawigacja panelu">
-                    <a href="/admin">Dashboard</a>
-                    <a href="/admin/domki">Domki</a>
-                    <a href="/admin/rezerwacje">Rezerwacje</a>
-                    <a href="/admin/goscie">Goście</a>
-                    <a href="/admin/zapytania">Zapytania</a>
-                    <a href="/admin/kalendarz">Kalendarz</a>
-                    <a href="/admin/ustawienia">Ustawienia</a>
-                    <a class="is-active" href="/admin/system">System</a>
-                </nav>
-            </aside>
+            <?php View::partial('partials/admin_sidebar', ['active' => 'system']); ?>
 
             <div class="admin-content">
                 <div class="panel">

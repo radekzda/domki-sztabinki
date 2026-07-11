@@ -33,4 +33,17 @@ final class View
 
         return $layout;
     }
+
+    public static function partial(string $view, array $data = []): void
+    {
+        $viewPath = dirname(__DIR__) . '/Views/' . $view . '.php';
+
+        if (!is_file($viewPath)) {
+            throw new RuntimeException('Część widoku nie istnieje: ' . $view);
+        }
+
+        extract($data, EXTR_SKIP);
+
+        require $viewPath;
+    }
 }
