@@ -1,0 +1,443 @@
+<?php
+
+declare(strict_types=1);
+
+function defaultCabinForm(): array
+{
+    return [
+        'name' => '',
+        'short_name' => '',
+        'description' => '',
+        'max_guests' => '6',
+        'bedrooms' => '2',
+        'bathrooms' => '1',
+        'price_per_night' => '440',
+        'price_one_night' => '800',
+        'price_two_nights' => '440',
+        'price_three_nights' => '430',
+        'price_four_nights' => '420',
+        'price_five_nights' => '410',
+        'price_six_nights' => '400',
+        'price_seven_plus_nights' => '350',
+        'is_active' => '1',
+        'sort_order' => '0',
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function cabinFormFromPost(): array
+{
+    $defaults = defaultCabinForm();
+    $form = [];
+
+    foreach ($defaults as $key => $defaultValue) {
+        $value = $_POST[$key] ?? $defaultValue;
+        $form[$key] = is_string($value) ? trim($value) : $defaultValue;
+    }
+
+    return $form;
+}
+
+/**
+ * @param array{
+ *     id: int,
+ *     name: string,
+ *     short_name: string|null,
+ *     description: string,
+ *     max_guests: int,
+ *     bedrooms: int,
+ *     bathrooms: int,
+ *     price_per_night: int,
+ *     price_one_night: int,
+ *     price_two_nights: int,
+ *     price_three_nights: int,
+ *     price_four_nights: int,
+ *     price_five_nights: int,
+ *     price_six_nights: int,
+ *     price_seven_plus_nights: int,
+ *     is_active: int,
+ *     sort_order: int,
+ *     created_at: string
+ * } $cabin
+ * @return array<string, string>
+ */
+function cabinFormFromCabin(array $cabin): array
+{
+    return [
+        'name' => $cabin['name'],
+        'short_name' => $cabin['short_name'] ?? '',
+        'description' => $cabin['description'],
+        'max_guests' => (string) $cabin['max_guests'],
+        'bedrooms' => (string) $cabin['bedrooms'],
+        'bathrooms' => (string) $cabin['bathrooms'],
+        'price_per_night' => (string) $cabin['price_per_night'],
+        'price_one_night' => (string) $cabin['price_one_night'],
+        'price_two_nights' => (string) $cabin['price_two_nights'],
+        'price_three_nights' => (string) $cabin['price_three_nights'],
+        'price_four_nights' => (string) $cabin['price_four_nights'],
+        'price_five_nights' => (string) $cabin['price_five_nights'],
+        'price_six_nights' => (string) $cabin['price_six_nights'],
+        'price_seven_plus_nights' => (string) $cabin['price_seven_plus_nights'],
+        'is_active' => (string) $cabin['is_active'],
+        'sort_order' => (string) $cabin['sort_order'],
+    ];
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array<string, string>
+ */
+function validateCabinForm(array $form): array
+{
+    $errors = [];
+
+    if ($form['name'] === '') {
+        $errors['name'] = 'Podaj nazwę domku.';
+    }
+
+    if ($form['description'] === '') {
+        $errors['description'] = 'Podaj opis domku.';
+    }
+
+    $integerFields = [
+        'max_guests' => 'Maksymalna liczba osób',
+        'bedrooms' => 'Liczba sypialni',
+        'bathrooms' => 'Liczba łazienek',
+        'price_per_night' => 'Cena domyślna',
+        'price_one_night' => 'Cena za 1 noc',
+        'price_two_nights' => 'Cena za 2 noce',
+        'price_three_nights' => 'Cena za 3 noce',
+        'price_four_nights' => 'Cena za 4 noce',
+        'price_five_nights' => 'Cena za 5 nocy',
+        'price_six_nights' => 'Cena za 6 nocy',
+        'price_seven_plus_nights' => 'Cena za 7+ nocy',
+        'sort_order' => 'Kolejność',
+    ];
+
+    foreach ($integerFields as $field => $label) {
+        if (!ctype_digit($form[$field])) {
+            $errors[$field] = $label . ' musi być liczbą całkowitą.';
+        }
+    }
+
+    if (isset($errors['max_guests']) === false && (int) $form['max_guests'] < 1) {
+        $errors['max_guests'] = 'Maksymalna liczba osób musi być większa od zera.';
+    }
+
+    if (!in_array($form['is_active'], ['0', '1'], true)) {
+        $errors['is_active'] = 'Nieprawidłowy status widoczności.';
+    }
+
+    return $errors;
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array{
+ *     name: string,
+ *     short_name: string|null,
+ *     description: string,
+ *     max_guests: int,
+ *     bedrooms: int,
+ *     bathrooms: int,
+ *     price_per_night: int,
+ *     price_one_night: int,
+ *     price_two_nights: int,
+ *     price_three_nights: int,
+ *     price_four_nights: int,
+ *     price_five_nights: int,
+ *     price_six_nights: int,
+ *     price_seven_plus_nights: int,
+ *     is_active: int,
+ *     sort_order: int
+ * }
+ */
+function cabinDataFromForm(array $form): array
+{
+    return [
+        'name' => $form['name'],
+        'short_name' => $form['short_name'] !== '' ? $form['short_name'] : null,
+        'description' => $form['description'],
+        'max_guests' => (int) $form['max_guests'],
+        'bedrooms' => (int) $form['bedrooms'],
+        'bathrooms' => (int) $form['bathrooms'],
+        'price_per_night' => (int) $form['price_per_night'],
+        'price_one_night' => (int) $form['price_one_night'],
+        'price_two_nights' => (int) $form['price_two_nights'],
+        'price_three_nights' => (int) $form['price_three_nights'],
+        'price_four_nights' => (int) $form['price_four_nights'],
+        'price_five_nights' => (int) $form['price_five_nights'],
+        'price_six_nights' => (int) $form['price_six_nights'],
+        'price_seven_plus_nights' => (int) $form['price_seven_plus_nights'],
+        'is_active' => (int) $form['is_active'],
+        'sort_order' => (int) $form['sort_order'],
+    ];
+}
+
+function cabinIdFromQuery(): ?int
+{
+    $value = $_GET['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function cabinIdFromPost(): ?int
+{
+    $value = $_POST['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function activeStatusFromPost(): ?bool
+{
+    $value = $_POST['is_active'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    if ((string) $value === '1') {
+        return true;
+    }
+
+    if ((string) $value === '0') {
+        return false;
+    }
+
+    return null;
+}
+
+function defaultReservationForm(): array
+{
+    return [
+        'cabin_id' => '',
+        'guest_name' => '',
+        'email' => '',
+        'phone' => '',
+        'start_date' => '',
+        'end_date' => '',
+        'adults' => '2',
+        'children' => '0',
+        'status' => 'PENDING',
+        'payment_status' => 'PENDING',
+        'paid_amount' => '0',
+        'source' => 'MANUAL',
+        'notes' => '',
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function reservationFormFromPost(): array
+{
+    $defaults = defaultReservationForm();
+    $form = [];
+
+    foreach ($defaults as $key => $defaultValue) {
+        $value = $_POST[$key] ?? $defaultValue;
+        $form[$key] = is_string($value) ? trim($value) : $defaultValue;
+    }
+
+    return $form;
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array<string, string>
+ */
+function validateReservationForm(array $form): array
+{
+    $errors = [];
+
+    if ($form['cabin_id'] === '' || !ctype_digit($form['cabin_id'])) {
+        $errors['cabin_id'] = 'Wybierz domek.';
+    }
+
+    if ($form['guest_name'] === '') {
+        $errors['guest_name'] = 'Podaj imię i nazwisko gościa.';
+    }
+
+    if ($form['email'] === '' || filter_var($form['email'], FILTER_VALIDATE_EMAIL) === false) {
+        $errors['email'] = 'Podaj prawidłowy adres e-mail.';
+    }
+
+    if ($form['start_date'] === '') {
+        $errors['start_date'] = 'Podaj datę rozpoczęcia pobytu.';
+    }
+
+    if ($form['end_date'] === '') {
+        $errors['end_date'] = 'Podaj datę zakończenia pobytu.';
+    }
+
+    $nights = calculateReservationNights($form['start_date'], $form['end_date']);
+
+    if ($nights === null) {
+        $errors['end_date'] = 'Data zakończenia musi być późniejsza niż data rozpoczęcia.';
+    }
+
+    if (!ctype_digit($form['adults']) || (int) $form['adults'] < 1) {
+        $errors['adults'] = 'Liczba dorosłych musi być większa od zera.';
+    }
+
+    if (!ctype_digit($form['children'])) {
+        $errors['children'] = 'Liczba dzieci musi być liczbą całkowitą.';
+    }
+
+    if (!ctype_digit($form['paid_amount'])) {
+        $errors['paid_amount'] = 'Wpłacona kwota musi być liczbą całkowitą.';
+    }
+
+    $allowedStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'];
+
+    if (!in_array($form['status'], $allowedStatuses, true)) {
+        $errors['status'] = 'Nieprawidłowy status rezerwacji.';
+    }
+
+    $allowedPaymentStatuses = ['PENDING', 'PAID', 'PARTIAL', 'REFUNDED'];
+
+    if (!in_array($form['payment_status'], $allowedPaymentStatuses, true)) {
+        $errors['payment_status'] = 'Nieprawidłowy status płatności.';
+    }
+
+    return $errors;
+}
+
+function calculateReservationNights(string $startDate, string $endDate): ?int
+{
+    if ($startDate === '' || $endDate === '') {
+        return null;
+    }
+
+    $start = DateTimeImmutable::createFromFormat('!Y-m-d', $startDate);
+    $end = DateTimeImmutable::createFromFormat('!Y-m-d', $endDate);
+
+    if (!$start instanceof DateTimeImmutable || !$end instanceof DateTimeImmutable) {
+        return null;
+    }
+
+    if ($end <= $start) {
+        return null;
+    }
+
+    return (int) $start->diff($end)->days;
+}
+
+/**
+ * @param array{
+ *     id: int,
+ *     name: string,
+ *     short_name: string|null,
+ *     description: string,
+ *     max_guests: int,
+ *     bedrooms: int,
+ *     bathrooms: int,
+ *     price_per_night: int,
+ *     price_one_night: int,
+ *     price_two_nights: int,
+ *     price_three_nights: int,
+ *     price_four_nights: int,
+ *     price_five_nights: int,
+ *     price_six_nights: int,
+ *     price_seven_plus_nights: int,
+ *     is_active: int,
+ *     sort_order: int,
+ *     created_at: string
+ * } $cabin
+ */
+function getReservationNightPrice(int $nights, array $cabin): int
+{
+    if ($nights <= 1) {
+        return $cabin['price_one_night'];
+    }
+
+    if ($nights === 2) {
+        return $cabin['price_two_nights'];
+    }
+
+    if ($nights === 3) {
+        return $cabin['price_three_nights'];
+    }
+
+    if ($nights === 4) {
+        return $cabin['price_four_nights'];
+    }
+
+    if ($nights === 5) {
+        return $cabin['price_five_nights'];
+    }
+
+    if ($nights === 6) {
+        return $cabin['price_six_nights'];
+    }
+
+    return $cabin['price_seven_plus_nights'];
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array{
+ *     cabin_id: int,
+ *     guest_name: string,
+ *     email: string,
+ *     phone: string|null,
+ *     start_date: string,
+ *     end_date: string,
+ *     nights: int,
+ *     guests: int,
+ *     adults: int,
+ *     children: int,
+ *     status: string,
+ *     source: string,
+ *     payment_status: string,
+ *     total_price: int,
+ *     paid_amount: int,
+ *     notes: string|null
+ * }
+ */
+function reservationDataFromForm(array $form, int $nights, int $totalPrice): array
+{
+    $adults = (int) $form['adults'];
+    $children = (int) $form['children'];
+
+    return [
+        'cabin_id' => (int) $form['cabin_id'],
+        'guest_name' => $form['guest_name'],
+        'email' => $form['email'],
+        'phone' => $form['phone'] !== '' ? $form['phone'] : null,
+        'start_date' => $form['start_date'],
+        'end_date' => $form['end_date'],
+        'nights' => $nights,
+        'guests' => $adults + $children,
+        'adults' => $adults,
+        'children' => $children,
+        'status' => $form['status'],
+        'source' => $form['source'],
+        'payment_status' => $form['payment_status'],
+        'total_price' => $totalPrice,
+        'paid_amount' => (int) $form['paid_amount'],
+        'notes' => $form['notes'] !== '' ? $form['notes'] : null,
+    ];
+}
