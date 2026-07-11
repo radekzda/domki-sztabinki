@@ -43,30 +43,6 @@ $paymentLabels = [
     'PARTIAL' => 'Częściowa',
     'REFUNDED' => 'Zwrócona',
 ];
-
-function formatReservationDate(string $date): string
-{
-    if ($date === '') {
-        return '—';
-    }
-
-    $timestamp = strtotime($date);
-
-    if ($timestamp === false) {
-        return $date;
-    }
-
-    return date('d.m.Y', $timestamp);
-}
-
-function formatReservationMoney(?string $amount): string
-{
-    if ($amount === null || $amount === '') {
-        return '—';
-    }
-
-    return number_format((float) $amount, 0, ',', ' ') . ' zł';
-}
 ?>
 <section class="page-section">
     <div class="container">
@@ -82,8 +58,8 @@ function formatReservationMoney(?string $amount): string
                             <h1>Rezerwacje</h1>
 
                             <p>
-                                Lista rezerwacji będzie pobierana z bazy MySQL. Możesz dodawać pobyty ręcznie
-                                z panelu administratora.
+                                Lista rezerwacji pobierana z bazy MySQL. Możesz dodawać, edytować,
+                                anulować i obsługiwać płatności.
                             </p>
                         </div>
 
@@ -132,6 +108,7 @@ function formatReservationMoney(?string $amount): string
                                         <th>Płatność</th>
                                         <th>Kwota</th>
                                         <th>Źródło</th>
+                                        <th>Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -145,9 +122,9 @@ function formatReservationMoney(?string $amount): string
                                         <tr>
                                             <td>
                                                 <strong>
-                                                    <?= htmlspecialchars(formatReservationDate($reservation['start_date']), ENT_QUOTES, 'UTF-8') ?>
+                                                    <?= htmlspecialchars(formatDateForDisplay($reservation['start_date']), ENT_QUOTES, 'UTF-8') ?>
                                                     —
-                                                    <?= htmlspecialchars(formatReservationDate($reservation['end_date']), ENT_QUOTES, 'UTF-8') ?>
+                                                    <?= htmlspecialchars(formatDateForDisplay($reservation['end_date']), ENT_QUOTES, 'UTF-8') ?>
                                                 </strong>
 
                                                 <br>
@@ -201,10 +178,6 @@ function formatReservationMoney(?string $amount): string
                                                     <span class="status-pill status-pill--success">
                                                         <?= htmlspecialchars($statusLabels[$status] ?? $status, ENT_QUOTES, 'UTF-8') ?>
                                                     </span>
-                                                <?php elseif ($status === 'CANCELLED'): ?>
-                                                    <span class="status-pill status-pill--muted">
-                                                        <?= htmlspecialchars($statusLabels[$status] ?? $status, ENT_QUOTES, 'UTF-8') ?>
-                                                    </span>
                                                 <?php else: ?>
                                                     <span class="status-pill status-pill--muted">
                                                         <?= htmlspecialchars($statusLabels[$status] ?? $status, ENT_QUOTES, 'UTF-8') ?>
@@ -218,19 +191,119 @@ function formatReservationMoney(?string $amount): string
 
                                             <td>
                                                 <strong>
-                                                    <?= htmlspecialchars(formatReservationMoney($reservation['total_price']), ENT_QUOTES, 'UTF-8') ?>
+                                                    <?= htmlspecialchars(formatMoneyForDisplay($reservation['total_price']), ENT_QUOTES, 'UTF-8') ?>
                                                 </strong>
 
                                                 <br>
 
                                                 <span>
                                                     wpłacono:
-                                                    <?= htmlspecialchars(formatReservationMoney($reservation['paid_amount']), ENT_QUOTES, 'UTF-8') ?>
+                                                    <?= htmlspecialchars(formatMoneyForDisplay($reservation['paid_amount']), ENT_QUOTES, 'UTF-8') ?>
                                                 </span>
                                             </td>
 
                                             <td>
                                                 <?= htmlspecialchars($reservation['source'], ENT_QUOTES, 'UTF-8') ?>
+                                            </td>
+
+                                            <td>
+                                                <div class="table-actions">
+                                                    <a
+                                                        class="button button--secondary button--small"
+                                                        href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Szczegóły
+                                                    </a>
+
+                                                    <a
+                                                        class="button button--secondary button--small"
+                                                        href="/admin/rezerwacje/edytuj?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Edytuj
+                                                    </a>
+
+                                                    <form method="post" action="/admin/rezerwacje/status">
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <select name="status">
+                                                            <?php foreach ($statusLabels as $statusValue => $statusLabel): ?>
+                                                                <?php if ($statusValue !== 'COMPLETED'): ?>
+                                                                    <option
+                                                                        value="<?= htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8') ?>"
+                                                                        <?= $reservation['status'] === $statusValue ? 'selected' : '' ?>
+                                                                    >
+                                                                        <?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?>
+                                                                    </option>
+                                                                <?php endif; ?>
+                                                            <?php endforeach; ?>
+                                                        </select>
+
+                                                        <button class="button button--primary button--small" type="submit">
+                                                            Status
+                                                        </button>
+                                                    </form>
+
+                                                    <form method="post" action="/admin/rezerwacje/platnosc">
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <select name="payment_status">
+                                                            <?php foreach ($paymentLabels as $paymentValue => $paymentLabel): ?>
+                                                                <option
+                                                                    value="<?= htmlspecialchars($paymentValue, ENT_QUOTES, 'UTF-8') ?>"
+                                                                    <?= $reservation['payment_status'] === $paymentValue ? 'selected' : '' ?>
+                                                                >
+                                                                    <?= htmlspecialchars($paymentLabel, ENT_QUOTES, 'UTF-8') ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+
+                                                        <button class="button button--primary button--small" type="submit">
+                                                            Płatność
+                                                        </button>
+                                                    </form>
+
+                                                    <?php if ($reservation['status'] !== 'CANCELLED'): ?>
+                                                        <form
+                                                            method="post"
+                                                            action="/admin/rezerwacje/anuluj"
+                                                            onsubmit="return confirm('Czy na pewno anulować tę rezerwację?')"
+                                                        >
+                                                            <input
+                                                                type="hidden"
+                                                                name="id"
+                                                                value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                            >
+
+                                                            <button class="button button--secondary button--small" type="submit">
+                                                                Anuluj
+                                                            </button>
+                                                        </form>
+                                                    <?php endif; ?>
+
+                                                    <form
+                                                        method="post"
+                                                        action="/admin/rezerwacje/usun"
+                                                        onsubmit="return confirm('Czy na pewno trwale usunąć tę rezerwację? Tej operacji nie można cofnąć.')"
+                                                    >
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <button class="button button--secondary button--small" type="submit">
+                                                            Usuń
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

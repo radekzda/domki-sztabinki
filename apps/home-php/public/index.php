@@ -332,7 +332,31 @@ $router->get('/admin/rezerwacje', function (): void {
 
     $reservations = [];
     $databaseMessage = null;
-    $successMessage = isset($_GET['created']) ? 'Rezerwacja została zapisana.' : null;
+    $successMessage = null;
+
+    if (isset($_GET['created'])) {
+        $successMessage = 'Rezerwacja została zapisana.';
+    }
+
+    if (isset($_GET['updated'])) {
+        $successMessage = 'Rezerwacja została zaktualizowana.';
+    }
+
+    if (isset($_GET['status_changed'])) {
+        $successMessage = 'Status rezerwacji został zmieniony.';
+    }
+
+    if (isset($_GET['payment_changed'])) {
+        $successMessage = 'Status płatności został zmieniony.';
+    }
+
+    if (isset($_GET['cancelled'])) {
+        $successMessage = 'Rezerwacja została anulowana.';
+    }
+
+    if (isset($_GET['deleted'])) {
+        $successMessage = 'Rezerwacja została trwale usunięta.';
+    }
 
     if (!Database::canAttemptConnection()) {
         $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista rezerwacji zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
@@ -431,14 +455,16 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
         }
 
         if ($selectedCabin !== null && $calculatedNights !== null) {
-            $hasOverlap = ReservationRepository::hasBlockingOverlap(
-                (int) $form['cabin_id'],
-                $form['start_date'],
-                $form['end_date']
-            );
+            if (reservationStatusBlocks($form['status'])) {
+                $hasOverlap = ReservationRepository::hasBlockingOverlap(
+                    (int) $form['cabin_id'],
+                    $form['start_date'],
+                    $form['end_date']
+                );
 
-            if ($hasOverlap) {
-                $errors['start_date'] = 'Ten domek ma już rezerwację blokującą w wybranym terminie.';
+                if ($hasOverlap) {
+                    $errors['start_date'] = 'Ten domek ma już rezerwację blokującą w wybranym terminie.';
+                }
             }
 
             $calculatedTotalPrice = $calculatedNights * getReservationNightPrice($calculatedNights, $selectedCabin);
@@ -474,6 +500,410 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
+        ]), 500);
+    }
+});
+
+$router->get('/admin/rezerwacje/pokaz', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora rezerwacji.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można pokazać szczegółów rezerwacji.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $reservation = ReservationRepository::find($id);
+
+        if ($reservation === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono rezerwacji',
+                'message' => 'Rezerwacja o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        Response::html(View::render('pages/admin_reservations_show', [
+            'title' => 'Szczegóły rezerwacji',
+            'reservation' => $reservation,
+        ]));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się pobrać rezerwacji',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->get('/admin/rezerwacje/edytuj', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora rezerwacji.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_reservations_edit', [
+            'title' => 'Edytuj rezerwację',
+            'id' => $id,
+            'form' => defaultReservationForm(),
+            'errors' => [],
+            'cabins' => [],
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Edycja zostanie odblokowana po ustawieniu MySQL w pliku .env.',
+            'canSave' => false,
+            'calculatedNights' => null,
+            'calculatedTotalPrice' => null,
+        ]));
+
+        return;
+    }
+
+    try {
+        $reservation = ReservationRepository::find($id);
+
+        if ($reservation === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono rezerwacji',
+                'message' => 'Rezerwacja o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        $cabins = CabinRepository::all();
+
+        Response::html(View::render('pages/admin_reservations_edit', [
+            'title' => 'Edytuj rezerwację',
+            'id' => $id,
+            'form' => reservationFormFromReservation($reservation),
+            'errors' => [],
+            'cabins' => $cabins,
+            'databaseMessage' => null,
+            'canSave' => $cabins !== [],
+            'calculatedNights' => $reservation['nights'],
+            'calculatedTotalPrice' => $reservation['total_price'] !== null ? (int) $reservation['total_price'] : null,
+        ]));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_reservations_edit', [
+            'title' => 'Edytuj rezerwację',
+            'id' => $id,
+            'form' => defaultReservationForm(),
+            'errors' => [],
+            'cabins' => [],
+            'databaseMessage' => 'Nie udało się pobrać rezerwacji: ' . $exception->getMessage(),
+            'canSave' => false,
+            'calculatedNights' => null,
+            'calculatedTotalPrice' => null,
+        ]), 500);
+    }
+});
+
+$router->post('/admin/rezerwacje/edytuj', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora rezerwacji.',
+        ]), 400);
+
+        return;
+    }
+
+    $form = reservationFormFromPost();
+    $errors = validateReservationForm($form);
+    $cabins = [];
+    $databaseMessage = null;
+    $calculatedNights = null;
+    $calculatedTotalPrice = null;
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_reservations_edit', [
+            'title' => 'Edytuj rezerwację',
+            'id' => $id,
+            'form' => $form,
+            'errors' => $errors,
+            'cabins' => [],
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać zmian.',
+            'canSave' => false,
+            'calculatedNights' => null,
+            'calculatedTotalPrice' => null,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $cabins = CabinRepository::all();
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_reservations_edit', [
+            'title' => 'Edytuj rezerwację',
+            'id' => $id,
+            'form' => $form,
+            'errors' => $errors,
+            'cabins' => [],
+            'databaseMessage' => 'Nie udało się pobrać listy domków: ' . $exception->getMessage(),
+            'canSave' => false,
+            'calculatedNights' => null,
+            'calculatedTotalPrice' => null,
+        ]), 500);
+
+        return;
+    }
+
+    if ($errors === []) {
+        $selectedCabin = CabinRepository::find((int) $form['cabin_id']);
+        $calculatedNights = calculateReservationNights($form['start_date'], $form['end_date']);
+
+        if ($selectedCabin === null) {
+            $errors['cabin_id'] = 'Wybrany domek nie istnieje.';
+        }
+
+        if ($selectedCabin !== null && $calculatedNights !== null) {
+            if (reservationStatusBlocks($form['status'])) {
+                $hasOverlap = ReservationRepository::hasBlockingOverlap(
+                    (int) $form['cabin_id'],
+                    $form['start_date'],
+                    $form['end_date'],
+                    $id
+                );
+
+                if ($hasOverlap) {
+                    $errors['start_date'] = 'Ten domek ma już rezerwację blokującą w wybranym terminie.';
+                }
+            }
+
+            $calculatedTotalPrice = $calculatedNights * getReservationNightPrice($calculatedNights, $selectedCabin);
+        }
+    }
+
+    if ($errors !== [] || $calculatedNights === null || $calculatedTotalPrice === null) {
+        Response::html(View::render('pages/admin_reservations_edit', [
+            'title' => 'Edytuj rezerwację',
+            'id' => $id,
+            'form' => $form,
+            'errors' => $errors,
+            'cabins' => $cabins,
+            'databaseMessage' => $databaseMessage,
+            'canSave' => true,
+            'calculatedNights' => $calculatedNights,
+            'calculatedTotalPrice' => $calculatedTotalPrice,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        ReservationRepository::update($id, reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice));
+
+        Response::redirect('/admin/rezerwacje?updated=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_reservations_edit', [
+            'title' => 'Edytuj rezerwację',
+            'id' => $id,
+            'form' => $form,
+            'errors' => [],
+            'cabins' => $cabins,
+            'databaseMessage' => 'Nie udało się zapisać rezerwacji: ' . $exception->getMessage(),
+            'canSave' => true,
+            'calculatedNights' => $calculatedNights,
+            'calculatedTotalPrice' => $calculatedTotalPrice,
+        ]), 500);
+    }
+});
+
+$router->post('/admin/rezerwacje/status', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromPost();
+    $status = reservationStatusFromPost();
+
+    if ($id === null || $status === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można zmienić statusu rezerwacji, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zmienić statusu rezerwacji.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $reservation = ReservationRepository::find($id);
+
+        if ($reservation === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono rezerwacji',
+                'message' => 'Rezerwacja o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        if (reservationStatusBlocks($status)) {
+            $hasOverlap = ReservationRepository::hasBlockingOverlap(
+                $reservation['cabin_id'],
+                substr($reservation['start_date'], 0, 10),
+                substr($reservation['end_date'], 0, 10),
+                $id
+            );
+
+            if ($hasOverlap) {
+                Response::html(View::render('pages/error', [
+                    'title' => 'Kolizja terminu',
+                    'message' => 'Nie można ustawić statusu blokującego, ponieważ ten domek ma już inną rezerwację w tym terminie.',
+                ]), 422);
+
+                return;
+            }
+        }
+
+        ReservationRepository::setStatus($id, $status);
+
+        Response::redirect('/admin/rezerwacje?status_changed=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się zmienić statusu',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/rezerwacje/platnosc', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromPost();
+    $paymentStatus = paymentStatusFromPost();
+
+    if ($id === null || $paymentStatus === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można zmienić statusu płatności, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zmienić statusu płatności.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        ReservationRepository::setPaymentStatus($id, $paymentStatus);
+
+        Response::redirect('/admin/rezerwacje?payment_changed=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się zmienić płatności',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/rezerwacje/anuluj', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromPost();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można anulować rezerwacji, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można anulować rezerwacji.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        ReservationRepository::cancel($id);
+
+        Response::redirect('/admin/rezerwacje?cancelled=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się anulować rezerwacji',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/rezerwacje/usun', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromPost();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można usunąć rezerwacji, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można usunąć rezerwacji.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        ReservationRepository::delete($id);
+
+        Response::redirect('/admin/rezerwacje?deleted=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się usunąć rezerwacji',
+            'message' => $exception->getMessage(),
         ]), 500);
     }
 });

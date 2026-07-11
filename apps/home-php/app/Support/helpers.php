@@ -265,6 +265,49 @@ function reservationFormFromPost(): array
 }
 
 /**
+ * @param array{
+ *     id: int,
+ *     cabin_id: int,
+ *     cabin_name: string|null,
+ *     guest_name: string,
+ *     email: string,
+ *     phone: string|null,
+ *     start_date: string,
+ *     end_date: string,
+ *     nights: int,
+ *     guests: int,
+ *     adults: int,
+ *     children: int,
+ *     status: string,
+ *     source: string,
+ *     payment_status: string|null,
+ *     total_price: string|null,
+ *     paid_amount: string|null,
+ *     notes: string|null,
+ *     created_at: string
+ * } $reservation
+ * @return array<string, string>
+ */
+function reservationFormFromReservation(array $reservation): array
+{
+    return [
+        'cabin_id' => (string) $reservation['cabin_id'],
+        'guest_name' => $reservation['guest_name'],
+        'email' => $reservation['email'],
+        'phone' => $reservation['phone'] ?? '',
+        'start_date' => substr($reservation['start_date'], 0, 10),
+        'end_date' => substr($reservation['end_date'], 0, 10),
+        'adults' => (string) $reservation['adults'],
+        'children' => (string) $reservation['children'],
+        'status' => $reservation['status'],
+        'payment_status' => $reservation['payment_status'] ?? 'PENDING',
+        'paid_amount' => $reservation['paid_amount'] !== null ? (string) (int) $reservation['paid_amount'] : '0',
+        'source' => $reservation['source'],
+        'notes' => $reservation['notes'] ?? '',
+    ];
+}
+
+/**
  * @param array<string, string> $form
  * @return array<string, string>
  */
@@ -320,6 +363,12 @@ function validateReservationForm(array $form): array
 
     if (!in_array($form['payment_status'], $allowedPaymentStatuses, true)) {
         $errors['payment_status'] = 'Nieprawidłowy status płatności.';
+    }
+
+    $allowedSources = ['MANUAL', 'WWW', 'BOOKING', 'PHONE', 'AIRBNB'];
+
+    if (!in_array($form['source'], $allowedSources, true)) {
+        $errors['source'] = 'Nieprawidłowe źródło rezerwacji.';
     }
 
     return $errors;
@@ -440,4 +489,101 @@ function reservationDataFromForm(array $form, int $nights, int $totalPrice): arr
         'paid_amount' => (int) $form['paid_amount'],
         'notes' => $form['notes'] !== '' ? $form['notes'] : null,
     ];
+}
+
+function reservationIdFromQuery(): ?int
+{
+    $value = $_GET['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function reservationIdFromPost(): ?int
+{
+    $value = $_POST['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function reservationStatusFromPost(): ?string
+{
+    $value = $_POST['status'] ?? null;
+
+    if (!is_string($value)) {
+        return null;
+    }
+
+    $allowedStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'];
+
+    if (!in_array($value, $allowedStatuses, true)) {
+        return null;
+    }
+
+    return $value;
+}
+
+function paymentStatusFromPost(): ?string
+{
+    $value = $_POST['payment_status'] ?? null;
+
+    if (!is_string($value)) {
+        return null;
+    }
+
+    $allowedStatuses = ['PENDING', 'PAID', 'PARTIAL', 'REFUNDED'];
+
+    if (!in_array($value, $allowedStatuses, true)) {
+        return null;
+    }
+
+    return $value;
+}
+
+function reservationStatusBlocks(string $status): bool
+{
+    return in_array($status, ['PENDING', 'CONFIRMED', 'CHECKED_IN'], true);
+}
+
+function formatDateForDisplay(string $date): string
+{
+    if ($date === '') {
+        return '—';
+    }
+
+    $timestamp = strtotime($date);
+
+    if ($timestamp === false) {
+        return $date;
+    }
+
+    return date('d.m.Y', $timestamp);
+}
+
+function formatMoneyForDisplay(string|int|float|null $amount): string
+{
+    if ($amount === null || $amount === '') {
+        return '—';
+    }
+
+    return number_format((float) $amount, 0, ',', ' ') . ' zł';
 }
