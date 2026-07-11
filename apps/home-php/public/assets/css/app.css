@@ -181,6 +181,12 @@ h2 {
     opacity: 0.5;
 }
 
+.button--small {
+    min-height: 34px;
+    padding: 0 14px;
+    font-size: 12px;
+}
+
 .button--primary {
     background: var(--color-primary);
     color: #ffffff;
@@ -523,7 +529,7 @@ h2 {
 .data-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 820px;
+    min-width: 920px;
 }
 
 .data-table th,
@@ -550,6 +556,17 @@ h2 {
 
 .data-table tr:last-child td {
     border-bottom: 0;
+}
+
+.table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.table-actions form {
+    margin: 0;
 }
 
 .site-footer {

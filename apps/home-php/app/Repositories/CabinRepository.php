@@ -318,4 +318,20 @@ final class CabinRepository
             'sort_order' => $data['sort_order'],
         ]);
     }
+
+    public static function setActive(int $id, bool $isActive): void
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'UPDATE cabins
+            SET is_active = :is_active
+            WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+            'is_active' => $isActive ? 1 : 0,
+        ]);
+    }
 }

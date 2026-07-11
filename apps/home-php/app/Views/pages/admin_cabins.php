@@ -137,12 +137,36 @@ declare(strict_types=1);
                                             </td>
 
                                             <td>
-                                                <a
-                                                    class="button button--secondary"
-                                                    href="/admin/domki/edytuj?id=<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                                >
-                                                    Edytuj
-                                                </a>
+                                                <div class="table-actions">
+                                                    <a
+                                                        class="button button--secondary button--small"
+                                                        href="/admin/domki/edytuj?id=<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Edytuj
+                                                    </a>
+
+                                                    <form method="post" action="/admin/domki/status">
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <?php if ($cabin['is_active'] === 1): ?>
+                                                            <input type="hidden" name="is_active" value="0">
+
+                                                            <button class="button button--secondary button--small" type="submit">
+                                                                Ukryj
+                                                            </button>
+                                                        <?php else: ?>
+                                                            <input type="hidden" name="is_active" value="1">
+
+                                                            <button class="button button--primary button--small" type="submit">
+                                                                Aktywuj
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    </form>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

@@ -208,6 +208,42 @@ function cabinIdFromQuery(): ?int
     return $id;
 }
 
+function cabinIdFromPost(): ?int
+{
+    $value = $_POST['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function activeStatusFromPost(): ?bool
+{
+    $value = $_POST['is_active'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    if ((string) $value === '1') {
+        return true;
+    }
+
+    if ((string) $value === '0') {
+        return false;
+    }
+
+    return null;
+}
+
 $router = new Router();
 
 $router->get('/', function (): void {
@@ -279,6 +315,10 @@ $router->get('/admin/domki', function (): void {
 
     if (isset($_GET['updated'])) {
         $successMessage = 'Domek został zaktualizowany.';
+    }
+
+    if (isset($_GET['status_changed'])) {
+        $successMessage = 'Status domku został zmieniony.';
     }
 
     if (!Database::canAttemptConnection()) {
@@ -354,6 +394,42 @@ $router->post('/admin/domki/nowy', function (): void {
             'errors' => [],
             'databaseMessage' => 'Nie udało się zapisać domku: ' . $exception->getMessage(),
             'canSave' => true,
+        ]), 500);
+    }
+});
+
+$router->post('/admin/domki/status', function (): void {
+    Auth::requireAdmin();
+
+    $id = cabinIdFromPost();
+    $isActive = activeStatusFromPost();
+
+    if ($id === null || $isActive === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można zmienić statusu domku, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zmienić statusu domku.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        CabinRepository::setActive($id, $isActive);
+
+        Response::redirect('/admin/domki?status_changed=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się zmienić statusu',
+            'message' => $exception->getMessage(),
         ]), 500);
     }
 });
