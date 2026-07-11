@@ -112,4 +112,42 @@ $router->get('/admin/system/database', function (): void {
     ]));
 });
 
+$router->get('/admin/system/database/install', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/database_install', [
+        'title' => 'Instalator bazy MySQL',
+        'canInstall' => Database::canAttemptConnection(),
+        'message' => null,
+        'messageType' => 'warning',
+        'checks' => Database::diagnostics(),
+    ]));
+});
+
+$router->post('/admin/system/database/install', function (): void {
+    Auth::requireAdmin();
+
+    $message = '';
+    $messageType = 'warning';
+
+    try {
+        $schemaPath = dirname(__DIR__) . '/database/schema.sql';
+        $executedStatements = Database::installSchema($schemaPath);
+
+        $message = 'Instalator zakończył pracę poprawnie. Wykonano poleceń SQL: ' . $executedStatements . '.';
+        $messageType = 'success';
+    } catch (Throwable $exception) {
+        $message = 'Nie udało się uruchomić instalatora: ' . $exception->getMessage();
+        $messageType = 'danger';
+    }
+
+    Response::html(View::render('pages/database_install', [
+        'title' => 'Instalator bazy MySQL',
+        'canInstall' => Database::canAttemptConnection(),
+        'message' => $message,
+        'messageType' => $messageType,
+        'checks' => Database::diagnostics(),
+    ]));
+});
+
 $router->dispatch($_SERVER['REQUEST_METHOD'] ?? 'GET', $_SERVER['REQUEST_URI'] ?? '/');

@@ -48,11 +48,15 @@ $statusLabels = [
             </div>
 
             <div class="admin-actions">
+                <a class="button button--primary" href="/admin/system/database/install">
+                    Instalator struktury bazy
+                </a>
+
                 <a class="button button--secondary" href="/admin/system">
                     Wróć do statusu środowiska
                 </a>
 
-                <a class="button button--primary" href="/admin">
+                <a class="button button--secondary" href="/admin">
                     Wróć do panelu
                 </a>
             </div>

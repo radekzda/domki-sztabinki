@@ -63,6 +63,16 @@ final class Database
         return true;
     }
 
+    public static function hasRequiredExtensions(): bool
+    {
+        return extension_loaded('pdo') && extension_loaded('pdo_mysql');
+    }
+
+    public static function canAttemptConnection(): bool
+    {
+        return self::isConfigured() && self::hasRequiredExtensions();
+    }
+
     /**
      * @return array<int, array{label: string, status: string, value: string}>
      */
@@ -100,7 +110,7 @@ final class Database
             return $checks;
         }
 
-        if (!extension_loaded('pdo') || !extension_loaded('pdo_mysql')) {
+        if (!self::hasRequiredExtensions()) {
             $checks[] = [
                 'label' => 'Połączenie z MySQL',
                 'status' => 'danger',
@@ -134,5 +144,54 @@ final class Database
         }
 
         return $checks;
+    }
+
+    public static function installSchema(string $schemaPath): int
+    {
+        if (!self::canAttemptConnection()) {
+            throw new RuntimeException('Nie można uruchomić instalatora — brakuje konfiguracji lub rozszerzenia pdo_mysql.');
+        }
+
+        if (!is_file($schemaPath)) {
+            throw new RuntimeException('Nie znaleziono pliku schema.sql.');
+        }
+
+        $schema = file_get_contents($schemaPath);
+
+        if ($schema === false || trim($schema) === '') {
+            throw new RuntimeException('Plik schema.sql jest pusty albo nie można go odczytać.');
+        }
+
+        $connection = self::connection();
+        $statements = self::splitSqlStatements($schema);
+        $executedStatements = 0;
+
+        foreach ($statements as $statement) {
+            $trimmedStatement = trim($statement);
+
+            if ($trimmedStatement === '') {
+                continue;
+            }
+
+            $connection->exec($trimmedStatement);
+            $executedStatements++;
+        }
+
+        return $executedStatements;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function splitSqlStatements(string $schema): array
+    {
+        $schema = str_replace("\r\n", "\n", $schema);
+        $schema = str_replace("\r", "\n", $schema);
+
+        $statements = explode(';', $schema);
+
+        return array_values(array_filter(array_map('trim', $statements), static function (string $statement): bool {
+            return $statement !== '';
+        }));
     }
 }

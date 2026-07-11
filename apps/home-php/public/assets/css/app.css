@@ -170,12 +170,17 @@ h2 {
     text-decoration: none;
 }
 
+.button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 .button--primary {
     background: var(--color-primary);
     color: #ffffff;
 }
 
-.button--primary:hover {
+.button--primary:hover:not(:disabled) {
     background: var(--color-primary-dark);
 }
 
@@ -322,6 +327,11 @@ h2 {
     font-size: 14px;
     font-weight: 700;
     line-height: 1.6;
+}
+
+.alert--success {
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
 }
 
 .alert--warning {
