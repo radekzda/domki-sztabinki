@@ -22,6 +22,10 @@ declare(strict_types=1);
                 <a class="button button--primary" href="/admin/system">
                     Sprawdź środowisko PHP
                 </a>
+
+                <a class="button button--secondary" href="/admin/system/database">
+                    Sprawdź bazę MySQL
+                </a>
             </div>
         </div>
     </div>

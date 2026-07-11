@@ -42,6 +42,8 @@ $router->get('/admin/system', function () use ($config): void {
         'Debug' => !empty($config['debug']) ? 'włączony' : 'wyłączony',
         'Strefa czasowa' => date_default_timezone_get(),
         'APP_URL' => Env::get('APP_URL', 'brak'),
+        'PDO' => extension_loaded('pdo') ? 'dostępne' : 'brak',
+        'PDO MySQL' => extension_loaded('pdo_mysql') ? 'dostępne' : 'brak',
         'DB_DATABASE' => $dbDatabase !== '' && $dbDatabase !== 'CHANGE_ME_DATABASE' ? 'ustawione' : 'brak',
         'DB_USERNAME' => $dbUsername !== '' && $dbUsername !== 'CHANGE_ME_USERNAME' ? 'ustawione' : 'brak',
         'storage/uploads istnieje' => is_dir($uploadsPath) ? 'tak' : 'nie',
@@ -51,6 +53,13 @@ $router->get('/admin/system', function () use ($config): void {
     Response::html(View::render('pages/system', [
         'title' => 'Status środowiska',
         'checks' => $checks,
+    ]));
+});
+
+$router->get('/admin/system/database', function (): void {
+    Response::html(View::render('pages/database', [
+        'title' => 'Połączenie z bazą MySQL',
+        'checks' => Database::diagnostics(),
     ]));
 });
 

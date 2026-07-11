@@ -27,6 +27,16 @@ declare(strict_types=1);
                     </div>
                 <?php endforeach; ?>
             </div>
+
+            <div class="admin-actions">
+                <a class="button button--secondary" href="/admin/system/database">
+                    Sprawdź bazę MySQL
+                </a>
+
+                <a class="button button--primary" href="/admin">
+                    Wróć do panelu
+                </a>
+            </div>
         </div>
     </div>
 </section>
