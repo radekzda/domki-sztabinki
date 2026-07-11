@@ -18,6 +18,7 @@ require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
+require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
 
 $router = new Router();
 
@@ -911,8 +912,23 @@ $router->post('/admin/rezerwacje/usun', function (): void {
 $router->get('/admin/goscie', function (): void {
     Auth::requireAdmin();
 
+    $guests = [];
+    $databaseMessage = null;
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista gości zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
+    } else {
+        try {
+            $guests = GuestRepository::all();
+        } catch (Throwable $exception) {
+            $databaseMessage = 'Nie udało się pobrać listy gości z bazy: ' . $exception->getMessage();
+        }
+    }
+
     Response::html(View::render('pages/admin_guests', [
         'title' => 'Goście',
+        'guests' => $guests,
+        'databaseMessage' => $databaseMessage,
     ]));
 });
 
