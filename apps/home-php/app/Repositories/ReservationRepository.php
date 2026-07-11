@@ -88,4 +88,88 @@ final class ReservationRepository
             ];
         }, $rows);
     }
+
+    /**
+     * @param array{
+     *     cabin_id: int,
+     *     guest_name: string,
+     *     email: string,
+     *     phone: string|null,
+     *     start_date: string,
+     *     end_date: string,
+     *     nights: int,
+     *     guests: int,
+     *     adults: int,
+     *     children: int,
+     *     status: string,
+     *     source: string,
+     *     payment_status: string,
+     *     total_price: int,
+     *     paid_amount: int,
+     *     notes: string|null
+     * } $data
+     */
+    public static function create(array $data): int
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'INSERT INTO reservations (
+                cabin_id,
+                guest_name,
+                email,
+                phone,
+                start_date,
+                end_date,
+                nights,
+                guests,
+                adults,
+                children,
+                status,
+                source,
+                payment_status,
+                total_price,
+                paid_amount,
+                notes
+            ) VALUES (
+                :cabin_id,
+                :guest_name,
+                :email,
+                :phone,
+                :start_date,
+                :end_date,
+                :nights,
+                :guests,
+                :adults,
+                :children,
+                :status,
+                :source,
+                :payment_status,
+                :total_price,
+                :paid_amount,
+                :notes
+            )'
+        );
+
+        $statement->execute([
+            'cabin_id' => $data['cabin_id'],
+            'guest_name' => $data['guest_name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'],
+            'start_date' => $data['start_date'],
+            'end_date' => $data['end_date'],
+            'nights' => $data['nights'],
+            'guests' => $data['guests'],
+            'adults' => $data['adults'],
+            'children' => $data['children'],
+            'status' => $data['status'],
+            'source' => $data['source'],
+            'payment_status' => $data['payment_status'],
+            'total_price' => $data['total_price'],
+            'paid_amount' => $data['paid_amount'],
+            'notes' => $data['notes'],
+        ]);
+
+        return (int) $connection->lastInsertId();
+    }
 }

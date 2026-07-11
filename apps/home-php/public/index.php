@@ -245,6 +245,219 @@ function activeStatusFromPost(): ?bool
     return null;
 }
 
+function defaultReservationForm(): array
+{
+    return [
+        'cabin_id' => '',
+        'guest_name' => '',
+        'email' => '',
+        'phone' => '',
+        'start_date' => '',
+        'end_date' => '',
+        'adults' => '2',
+        'children' => '0',
+        'status' => 'PENDING',
+        'payment_status' => 'PENDING',
+        'paid_amount' => '0',
+        'source' => 'MANUAL',
+        'notes' => '',
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function reservationFormFromPost(): array
+{
+    $defaults = defaultReservationForm();
+    $form = [];
+
+    foreach ($defaults as $key => $defaultValue) {
+        $value = $_POST[$key] ?? $defaultValue;
+        $form[$key] = is_string($value) ? trim($value) : $defaultValue;
+    }
+
+    return $form;
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array<string, string>
+ */
+function validateReservationForm(array $form): array
+{
+    $errors = [];
+
+    if ($form['cabin_id'] === '' || !ctype_digit($form['cabin_id'])) {
+        $errors['cabin_id'] = 'Wybierz domek.';
+    }
+
+    if ($form['guest_name'] === '') {
+        $errors['guest_name'] = 'Podaj imię i nazwisko gościa.';
+    }
+
+    if ($form['email'] === '' || filter_var($form['email'], FILTER_VALIDATE_EMAIL) === false) {
+        $errors['email'] = 'Podaj prawidłowy adres e-mail.';
+    }
+
+    if ($form['start_date'] === '') {
+        $errors['start_date'] = 'Podaj datę rozpoczęcia pobytu.';
+    }
+
+    if ($form['end_date'] === '') {
+        $errors['end_date'] = 'Podaj datę zakończenia pobytu.';
+    }
+
+    $nights = calculateReservationNights($form['start_date'], $form['end_date']);
+
+    if ($nights === null) {
+        $errors['end_date'] = 'Data zakończenia musi być późniejsza niż data rozpoczęcia.';
+    }
+
+    if (!ctype_digit($form['adults']) || (int) $form['adults'] < 1) {
+        $errors['adults'] = 'Liczba dorosłych musi być większa od zera.';
+    }
+
+    if (!ctype_digit($form['children'])) {
+        $errors['children'] = 'Liczba dzieci musi być liczbą całkowitą.';
+    }
+
+    if (!ctype_digit($form['paid_amount'])) {
+        $errors['paid_amount'] = 'Wpłacona kwota musi być liczbą całkowitą.';
+    }
+
+    $allowedStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'];
+
+    if (!in_array($form['status'], $allowedStatuses, true)) {
+        $errors['status'] = 'Nieprawidłowy status rezerwacji.';
+    }
+
+    $allowedPaymentStatuses = ['PENDING', 'PAID', 'PARTIAL', 'REFUNDED'];
+
+    if (!in_array($form['payment_status'], $allowedPaymentStatuses, true)) {
+        $errors['payment_status'] = 'Nieprawidłowy status płatności.';
+    }
+
+    return $errors;
+}
+
+function calculateReservationNights(string $startDate, string $endDate): ?int
+{
+    if ($startDate === '' || $endDate === '') {
+        return null;
+    }
+
+    $start = DateTimeImmutable::createFromFormat('!Y-m-d', $startDate);
+    $end = DateTimeImmutable::createFromFormat('!Y-m-d', $endDate);
+
+    if (!$start instanceof DateTimeImmutable || !$end instanceof DateTimeImmutable) {
+        return null;
+    }
+
+    if ($end <= $start) {
+        return null;
+    }
+
+    return (int) $start->diff($end)->days;
+}
+
+/**
+ * @param array{
+ *     id: int,
+ *     name: string,
+ *     short_name: string|null,
+ *     description: string,
+ *     max_guests: int,
+ *     bedrooms: int,
+ *     bathrooms: int,
+ *     price_per_night: int,
+ *     price_one_night: int,
+ *     price_two_nights: int,
+ *     price_three_nights: int,
+ *     price_four_nights: int,
+ *     price_five_nights: int,
+ *     price_six_nights: int,
+ *     price_seven_plus_nights: int,
+ *     is_active: int,
+ *     sort_order: int,
+ *     created_at: string
+ * } $cabin
+ */
+function getReservationNightPrice(int $nights, array $cabin): int
+{
+    if ($nights <= 1) {
+        return $cabin['price_one_night'];
+    }
+
+    if ($nights === 2) {
+        return $cabin['price_two_nights'];
+    }
+
+    if ($nights === 3) {
+        return $cabin['price_three_nights'];
+    }
+
+    if ($nights === 4) {
+        return $cabin['price_four_nights'];
+    }
+
+    if ($nights === 5) {
+        return $cabin['price_five_nights'];
+    }
+
+    if ($nights === 6) {
+        return $cabin['price_six_nights'];
+    }
+
+    return $cabin['price_seven_plus_nights'];
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array{
+ *     cabin_id: int,
+ *     guest_name: string,
+ *     email: string,
+ *     phone: string|null,
+ *     start_date: string,
+ *     end_date: string,
+ *     nights: int,
+ *     guests: int,
+ *     adults: int,
+ *     children: int,
+ *     status: string,
+ *     source: string,
+ *     payment_status: string,
+ *     total_price: int,
+ *     paid_amount: int,
+ *     notes: string|null
+ * }
+ */
+function reservationDataFromForm(array $form, int $nights, int $totalPrice): array
+{
+    $adults = (int) $form['adults'];
+    $children = (int) $form['children'];
+
+    return [
+        'cabin_id' => (int) $form['cabin_id'],
+        'guest_name' => $form['guest_name'],
+        'email' => $form['email'],
+        'phone' => $form['phone'] !== '' ? $form['phone'] : null,
+        'start_date' => $form['start_date'],
+        'end_date' => $form['end_date'],
+        'nights' => $nights,
+        'guests' => $adults + $children,
+        'adults' => $adults,
+        'children' => $children,
+        'status' => $form['status'],
+        'source' => $form['source'],
+        'payment_status' => $form['payment_status'],
+        'total_price' => $totalPrice,
+        'paid_amount' => (int) $form['paid_amount'],
+        'notes' => $form['notes'] !== '' ? $form['notes'] : null,
+    ];
+}
+
 $router = new Router();
 
 $router->get('/', function (): void {
@@ -558,6 +771,7 @@ $router->get('/admin/rezerwacje', function (): void {
 
     $reservations = [];
     $databaseMessage = null;
+    $successMessage = isset($_GET['created']) ? 'Rezerwacja została zapisana.' : null;
 
     if (!Database::canAttemptConnection()) {
         $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista rezerwacji zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
@@ -573,7 +787,124 @@ $router->get('/admin/rezerwacje', function (): void {
         'title' => 'Rezerwacje',
         'reservations' => $reservations,
         'databaseMessage' => $databaseMessage,
+        'successMessage' => $successMessage,
     ]));
+});
+
+$router->get('/admin/rezerwacje/nowa', function (): void {
+    Auth::requireAdmin();
+
+    $cabins = [];
+    $databaseMessage = null;
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Formularz jest widoczny, ale zapis zostanie odblokowany po ustawieniu MySQL w pliku .env.';
+    } else {
+        try {
+            $cabins = CabinRepository::all();
+        } catch (Throwable $exception) {
+            $databaseMessage = 'Nie udało się pobrać listy domków: ' . $exception->getMessage();
+        }
+    }
+
+    Response::html(View::render('pages/admin_reservations_new', [
+        'title' => 'Dodaj rezerwację',
+        'form' => defaultReservationForm(),
+        'errors' => [],
+        'cabins' => $cabins,
+        'databaseMessage' => $databaseMessage,
+        'canSave' => Database::canAttemptConnection() && $cabins !== [],
+        'calculatedNights' => null,
+        'calculatedTotalPrice' => null,
+    ]));
+});
+
+$router->post('/admin/rezerwacje/nowa', function (): void {
+    Auth::requireAdmin();
+
+    $form = reservationFormFromPost();
+    $errors = validateReservationForm($form);
+    $cabins = [];
+    $databaseMessage = null;
+    $calculatedNights = null;
+    $calculatedTotalPrice = null;
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_reservations_new', [
+            'title' => 'Dodaj rezerwację',
+            'form' => $form,
+            'errors' => $errors,
+            'cabins' => [],
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać rezerwacji.',
+            'canSave' => false,
+            'calculatedNights' => null,
+            'calculatedTotalPrice' => null,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $cabins = CabinRepository::all();
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_reservations_new', [
+            'title' => 'Dodaj rezerwację',
+            'form' => $form,
+            'errors' => $errors,
+            'cabins' => [],
+            'databaseMessage' => 'Nie udało się pobrać listy domków: ' . $exception->getMessage(),
+            'canSave' => false,
+            'calculatedNights' => null,
+            'calculatedTotalPrice' => null,
+        ]), 500);
+
+        return;
+    }
+
+    if ($errors === []) {
+        $selectedCabin = CabinRepository::find((int) $form['cabin_id']);
+        $calculatedNights = calculateReservationNights($form['start_date'], $form['end_date']);
+
+        if ($selectedCabin === null) {
+            $errors['cabin_id'] = 'Wybrany domek nie istnieje.';
+        }
+
+        if ($selectedCabin !== null && $calculatedNights !== null) {
+            $calculatedTotalPrice = $calculatedNights * getReservationNightPrice($calculatedNights, $selectedCabin);
+        }
+    }
+
+    if ($errors !== [] || $calculatedNights === null || $calculatedTotalPrice === null) {
+        Response::html(View::render('pages/admin_reservations_new', [
+            'title' => 'Dodaj rezerwację',
+            'form' => $form,
+            'errors' => $errors,
+            'cabins' => $cabins,
+            'databaseMessage' => $databaseMessage,
+            'canSave' => true,
+            'calculatedNights' => $calculatedNights,
+            'calculatedTotalPrice' => $calculatedTotalPrice,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        ReservationRepository::create(reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice));
+
+        Response::redirect('/admin/rezerwacje?created=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_reservations_new', [
+            'title' => 'Dodaj rezerwację',
+            'form' => $form,
+            'errors' => [],
+            'cabins' => $cabins,
+            'databaseMessage' => 'Nie udało się zapisać rezerwacji: ' . $exception->getMessage(),
+            'canSave' => true,
+            'calculatedNights' => $calculatedNights,
+            'calculatedTotalPrice' => $calculatedTotalPrice,
+        ]), 500);
+    }
 });
 
 $router->get('/admin/goscie', function (): void {

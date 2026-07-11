@@ -25,6 +25,7 @@ declare(strict_types=1);
  *     created_at: string
  * }> $reservations
  * @var string|null $databaseMessage
+ * @var string|null $successMessage
  */
 
 $statusLabels = [
@@ -81,17 +82,27 @@ function formatReservationMoney(?string $amount): string
                             <h1>Rezerwacje</h1>
 
                             <p>
-                                Lista rezerwacji będzie pobierana z bazy MySQL. W kolejnym kroku dodamy
-                                formularz tworzenia rezerwacji.
+                                Lista rezerwacji będzie pobierana z bazy MySQL. Możesz dodawać pobyty ręcznie
+                                z panelu administratora.
                             </p>
                         </div>
 
                         <div class="page-header__actions">
+                            <a class="button button--primary" href="/admin/rezerwacje/nowa">
+                                Dodaj rezerwację
+                            </a>
+
                             <a class="button button--secondary" href="/admin/system/database">
                                 Sprawdź bazę
                             </a>
                         </div>
                     </div>
+
+                    <?php if (isset($successMessage) && is_string($successMessage) && $successMessage !== ''): ?>
+                        <div class="alert alert--success">
+                            <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                    <?php endif; ?>
 
                     <?php if (isset($databaseMessage) && is_string($databaseMessage) && $databaseMessage !== ''): ?>
                         <div class="alert alert--warning">
