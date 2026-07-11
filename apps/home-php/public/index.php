@@ -17,6 +17,135 @@ require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 
+function defaultCabinForm(): array
+{
+    return [
+        'name' => '',
+        'short_name' => '',
+        'description' => '',
+        'max_guests' => '6',
+        'bedrooms' => '2',
+        'bathrooms' => '1',
+        'price_per_night' => '450',
+        'price_one_night' => '800',
+        'price_two_nights' => '450',
+        'price_three_nights' => '440',
+        'price_four_nights' => '430',
+        'price_five_nights' => '420',
+        'price_six_nights' => '410',
+        'price_seven_plus_nights' => '350',
+        'is_active' => '1',
+        'sort_order' => '0',
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function cabinFormFromPost(): array
+{
+    $defaults = defaultCabinForm();
+    $form = [];
+
+    foreach ($defaults as $key => $defaultValue) {
+        $value = $_POST[$key] ?? $defaultValue;
+        $form[$key] = is_string($value) ? trim($value) : $defaultValue;
+    }
+
+    return $form;
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array<string, string>
+ */
+function validateCabinForm(array $form): array
+{
+    $errors = [];
+
+    if ($form['name'] === '') {
+        $errors['name'] = 'Podaj nazwę domku.';
+    }
+
+    if ($form['description'] === '') {
+        $errors['description'] = 'Podaj opis domku.';
+    }
+
+    $integerFields = [
+        'max_guests' => 'Maksymalna liczba osób',
+        'bedrooms' => 'Liczba sypialni',
+        'bathrooms' => 'Liczba łazienek',
+        'price_per_night' => 'Cena domyślna',
+        'price_one_night' => 'Cena za 1 noc',
+        'price_two_nights' => 'Cena za 2 noce',
+        'price_three_nights' => 'Cena za 3 noce',
+        'price_four_nights' => 'Cena za 4 noce',
+        'price_five_nights' => 'Cena za 5 nocy',
+        'price_six_nights' => 'Cena za 6 nocy',
+        'price_seven_plus_nights' => 'Cena za 7+ nocy',
+        'sort_order' => 'Kolejność',
+    ];
+
+    foreach ($integerFields as $field => $label) {
+        if (!ctype_digit($form[$field])) {
+            $errors[$field] = $label . ' musi być liczbą całkowitą.';
+        }
+    }
+
+    if (isset($errors['max_guests']) === false && (int) $form['max_guests'] < 1) {
+        $errors['max_guests'] = 'Maksymalna liczba osób musi być większa od zera.';
+    }
+
+    if (!in_array($form['is_active'], ['0', '1'], true)) {
+        $errors['is_active'] = 'Nieprawidłowy status widoczności.';
+    }
+
+    return $errors;
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array{
+ *     name: string,
+ *     short_name: string|null,
+ *     description: string,
+ *     max_guests: int,
+ *     bedrooms: int,
+ *     bathrooms: int,
+ *     price_per_night: int,
+ *     price_one_night: int,
+ *     price_two_nights: int,
+ *     price_three_nights: int,
+ *     price_four_nights: int,
+ *     price_five_nights: int,
+ *     price_six_nights: int,
+ *     price_seven_plus_nights: int,
+ *     is_active: int,
+ *     sort_order: int
+ * }
+ */
+function cabinDataFromForm(array $form): array
+{
+    return [
+        'name' => $form['name'],
+        'short_name' => $form['short_name'] !== '' ? $form['short_name'] : null,
+        'description' => $form['description'],
+        'max_guests' => (int) $form['max_guests'],
+        'bedrooms' => (int) $form['bedrooms'],
+        'bathrooms' => (int) $form['bathrooms'],
+        'price_per_night' => (int) $form['price_per_night'],
+        'price_one_night' => (int) $form['price_one_night'],
+        'price_two_nights' => (int) $form['price_two_nights'],
+        'price_three_nights' => (int) $form['price_three_nights'],
+        'price_four_nights' => (int) $form['price_four_nights'],
+        'price_five_nights' => (int) $form['price_five_nights'],
+        'price_six_nights' => (int) $form['price_six_nights'],
+        'price_seven_plus_nights' => (int) $form['price_seven_plus_nights'],
+        'is_active' => (int) $form['is_active'],
+        'sort_order' => (int) $form['sort_order'],
+    ];
+}
+
 $router = new Router();
 
 $router->get('/', function (): void {
@@ -80,6 +209,7 @@ $router->get('/admin/domki', function (): void {
 
     $cabins = [];
     $databaseMessage = null;
+    $successMessage = isset($_GET['created']) ? 'Domek został zapisany.' : null;
 
     if (!Database::canAttemptConnection()) {
         $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista domków zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
@@ -95,7 +225,67 @@ $router->get('/admin/domki', function (): void {
         'title' => 'Domki',
         'cabins' => $cabins,
         'databaseMessage' => $databaseMessage,
+        'successMessage' => $successMessage,
     ]));
+});
+
+$router->get('/admin/domki/nowy', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/admin_cabins_new', [
+        'title' => 'Dodaj domek',
+        'form' => defaultCabinForm(),
+        'errors' => [],
+        'databaseMessage' => Database::canAttemptConnection()
+            ? null
+            : 'Baza danych nie jest jeszcze skonfigurowana. Formularz jest widoczny, ale zapis zostanie odblokowany po ustawieniu MySQL w pliku .env.',
+        'canSave' => Database::canAttemptConnection(),
+    ]));
+});
+
+$router->post('/admin/domki/nowy', function (): void {
+    Auth::requireAdmin();
+
+    $form = cabinFormFromPost();
+    $errors = validateCabinForm($form);
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_cabins_new', [
+            'title' => 'Dodaj domek',
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać domku.',
+            'canSave' => false,
+        ]), 422);
+
+        return;
+    }
+
+    if ($errors !== []) {
+        Response::html(View::render('pages/admin_cabins_new', [
+            'title' => 'Dodaj domek',
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => null,
+            'canSave' => true,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        CabinRepository::create(cabinDataFromForm($form));
+
+        Response::redirect('/admin/domki?created=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_cabins_new', [
+            'title' => 'Dodaj domek',
+            'form' => $form,
+            'errors' => [],
+            'databaseMessage' => 'Nie udało się zapisać domku: ' . $exception->getMessage(),
+            'canSave' => true,
+        ]), 500);
+    }
 });
 
 $router->get('/admin/rezerwacje', function (): void {

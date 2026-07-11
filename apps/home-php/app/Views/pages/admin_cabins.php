@@ -24,6 +24,7 @@ declare(strict_types=1);
  *     created_at: string
  * }> $cabins
  * @var string|null $databaseMessage
+ * @var string|null $successMessage
  */
 ?>
 <section class="page-section">
@@ -46,11 +47,21 @@ declare(strict_types=1);
                         </div>
 
                         <div class="page-header__actions">
+                            <a class="button button--primary" href="/admin/domki/nowy">
+                                Dodaj domek
+                            </a>
+
                             <a class="button button--secondary" href="/admin/system/database">
                                 Sprawdź bazę
                             </a>
                         </div>
                     </div>
+
+                    <?php if (isset($successMessage) && is_string($successMessage) && $successMessage !== ''): ?>
+                        <div class="alert alert--success">
+                            <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                    <?php endif; ?>
 
                     <?php if (isset($databaseMessage) && is_string($databaseMessage) && $databaseMessage !== ''): ?>
                         <div class="alert alert--warning">
@@ -64,8 +75,7 @@ declare(strict_types=1);
 
                             <p>
                                 Jeżeli baza danych nie jest jeszcze skonfigurowana, ustaw dane MySQL w pliku
-                                <strong>.env</strong>, uruchom instalator struktury bazy i później dodamy formularz
-                                tworzenia domków.
+                                <strong>.env</strong>, uruchom instalator struktury bazy i później dodasz pierwszy domek.
                             </p>
                         </div>
                     <?php else: ?>

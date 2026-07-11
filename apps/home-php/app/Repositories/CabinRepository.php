@@ -84,4 +84,88 @@ final class CabinRepository
             ];
         }, $rows);
     }
+
+    /**
+     * @param array{
+     *     name: string,
+     *     short_name: string|null,
+     *     description: string,
+     *     max_guests: int,
+     *     bedrooms: int,
+     *     bathrooms: int,
+     *     price_per_night: int,
+     *     price_one_night: int,
+     *     price_two_nights: int,
+     *     price_three_nights: int,
+     *     price_four_nights: int,
+     *     price_five_nights: int,
+     *     price_six_nights: int,
+     *     price_seven_plus_nights: int,
+     *     is_active: int,
+     *     sort_order: int
+     * } $data
+     */
+    public static function create(array $data): int
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'INSERT INTO cabins (
+                name,
+                short_name,
+                description,
+                max_guests,
+                bedrooms,
+                bathrooms,
+                price_per_night,
+                price_one_night,
+                price_two_nights,
+                price_three_nights,
+                price_four_nights,
+                price_five_nights,
+                price_six_nights,
+                price_seven_plus_nights,
+                is_active,
+                sort_order
+            ) VALUES (
+                :name,
+                :short_name,
+                :description,
+                :max_guests,
+                :bedrooms,
+                :bathrooms,
+                :price_per_night,
+                :price_one_night,
+                :price_two_nights,
+                :price_three_nights,
+                :price_four_nights,
+                :price_five_nights,
+                :price_six_nights,
+                :price_seven_plus_nights,
+                :is_active,
+                :sort_order
+            )'
+        );
+
+        $statement->execute([
+            'name' => $data['name'],
+            'short_name' => $data['short_name'],
+            'description' => $data['description'],
+            'max_guests' => $data['max_guests'],
+            'bedrooms' => $data['bedrooms'],
+            'bathrooms' => $data['bathrooms'],
+            'price_per_night' => $data['price_per_night'],
+            'price_one_night' => $data['price_one_night'],
+            'price_two_nights' => $data['price_two_nights'],
+            'price_three_nights' => $data['price_three_nights'],
+            'price_four_nights' => $data['price_four_nights'],
+            'price_five_nights' => $data['price_five_nights'],
+            'price_six_nights' => $data['price_six_nights'],
+            'price_seven_plus_nights' => $data['price_seven_plus_nights'],
+            'is_active' => $data['is_active'],
+            'sort_order' => $data['sort_order'],
+        ]);
+
+        return (int) $connection->lastInsertId();
+    }
 }
