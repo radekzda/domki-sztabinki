@@ -90,6 +90,7 @@ declare(strict_types=1);
                                         <th>Cena domyślna</th>
                                         <th>7+ nocy</th>
                                         <th>Status</th>
+                                        <th>Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -133,6 +134,15 @@ declare(strict_types=1);
                                                 <?php else: ?>
                                                     <span class="status-pill status-pill--muted">Ukryty</span>
                                                 <?php endif; ?>
+                                            </td>
+
+                                            <td>
+                                                <a
+                                                    class="button button--secondary"
+                                                    href="/admin/domki/edytuj?id=<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                >
+                                                    Edytuj
+                                                </a>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

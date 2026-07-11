@@ -56,6 +56,51 @@ function cabinFormFromPost(): array
 }
 
 /**
+ * @param array{
+ *     id: int,
+ *     name: string,
+ *     short_name: string|null,
+ *     description: string,
+ *     max_guests: int,
+ *     bedrooms: int,
+ *     bathrooms: int,
+ *     price_per_night: int,
+ *     price_one_night: int,
+ *     price_two_nights: int,
+ *     price_three_nights: int,
+ *     price_four_nights: int,
+ *     price_five_nights: int,
+ *     price_six_nights: int,
+ *     price_seven_plus_nights: int,
+ *     is_active: int,
+ *     sort_order: int,
+ *     created_at: string
+ * } $cabin
+ * @return array<string, string>
+ */
+function cabinFormFromCabin(array $cabin): array
+{
+    return [
+        'name' => $cabin['name'],
+        'short_name' => $cabin['short_name'] ?? '',
+        'description' => $cabin['description'],
+        'max_guests' => (string) $cabin['max_guests'],
+        'bedrooms' => (string) $cabin['bedrooms'],
+        'bathrooms' => (string) $cabin['bathrooms'],
+        'price_per_night' => (string) $cabin['price_per_night'],
+        'price_one_night' => (string) $cabin['price_one_night'],
+        'price_two_nights' => (string) $cabin['price_two_nights'],
+        'price_three_nights' => (string) $cabin['price_three_nights'],
+        'price_four_nights' => (string) $cabin['price_four_nights'],
+        'price_five_nights' => (string) $cabin['price_five_nights'],
+        'price_six_nights' => (string) $cabin['price_six_nights'],
+        'price_seven_plus_nights' => (string) $cabin['price_seven_plus_nights'],
+        'is_active' => (string) $cabin['is_active'],
+        'sort_order' => (string) $cabin['sort_order'],
+    ];
+}
+
+/**
  * @param array<string, string> $form
  * @return array<string, string>
  */
@@ -146,6 +191,23 @@ function cabinDataFromForm(array $form): array
     ];
 }
 
+function cabinIdFromQuery(): ?int
+{
+    $value = $_GET['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
 $router = new Router();
 
 $router->get('/', function (): void {
@@ -209,7 +271,15 @@ $router->get('/admin/domki', function (): void {
 
     $cabins = [];
     $databaseMessage = null;
-    $successMessage = isset($_GET['created']) ? 'Domek został zapisany.' : null;
+    $successMessage = null;
+
+    if (isset($_GET['created'])) {
+        $successMessage = 'Domek został zapisany.';
+    }
+
+    if (isset($_GET['updated'])) {
+        $successMessage = 'Domek został zaktualizowany.';
+    }
 
     if (!Database::canAttemptConnection()) {
         $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista domków zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
@@ -283,6 +353,124 @@ $router->post('/admin/domki/nowy', function (): void {
             'form' => $form,
             'errors' => [],
             'databaseMessage' => 'Nie udało się zapisać domku: ' . $exception->getMessage(),
+            'canSave' => true,
+        ]), 500);
+    }
+});
+
+$router->get('/admin/domki/edytuj', function (): void {
+    Auth::requireAdmin();
+
+    $id = cabinIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora domku.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_cabins_edit', [
+            'title' => 'Edytuj domek',
+            'id' => $id,
+            'form' => defaultCabinForm(),
+            'errors' => [],
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Edycja zostanie odblokowana po ustawieniu MySQL w pliku .env.',
+            'canSave' => false,
+        ]));
+
+        return;
+    }
+
+    try {
+        $cabin = CabinRepository::find($id);
+
+        if ($cabin === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono domku',
+                'message' => 'Domek o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        Response::html(View::render('pages/admin_cabins_edit', [
+            'title' => 'Edytuj domek',
+            'id' => $id,
+            'form' => cabinFormFromCabin($cabin),
+            'errors' => [],
+            'databaseMessage' => null,
+            'canSave' => true,
+        ]));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_cabins_edit', [
+            'title' => 'Edytuj domek',
+            'id' => $id,
+            'form' => defaultCabinForm(),
+            'errors' => [],
+            'databaseMessage' => 'Nie udało się pobrać danych domku: ' . $exception->getMessage(),
+            'canSave' => false,
+        ]), 500);
+    }
+});
+
+$router->post('/admin/domki/edytuj', function (): void {
+    Auth::requireAdmin();
+
+    $id = cabinIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora domku.',
+        ]), 400);
+
+        return;
+    }
+
+    $form = cabinFormFromPost();
+    $errors = validateCabinForm($form);
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_cabins_edit', [
+            'title' => 'Edytuj domek',
+            'id' => $id,
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać zmian.',
+            'canSave' => false,
+        ]), 422);
+
+        return;
+    }
+
+    if ($errors !== []) {
+        Response::html(View::render('pages/admin_cabins_edit', [
+            'title' => 'Edytuj domek',
+            'id' => $id,
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => null,
+            'canSave' => true,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        CabinRepository::update($id, cabinDataFromForm($form));
+
+        Response::redirect('/admin/domki?updated=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_cabins_edit', [
+            'title' => 'Edytuj domek',
+            'id' => $id,
+            'form' => $form,
+            'errors' => [],
+            'databaseMessage' => 'Nie udało się zapisać zmian: ' . $exception->getMessage(),
             'canSave' => true,
         ]), 500);
     }
