@@ -148,22 +148,32 @@ final class Database
 
     public static function installSchema(string $schemaPath): int
     {
+        return self::runSqlFile($schemaPath, 'schema.sql');
+    }
+
+    public static function seedDefaultData(string $seedPath): int
+    {
+        return self::runSqlFile($seedPath, 'seed.sql');
+    }
+
+    private static function runSqlFile(string $path, string $label): int
+    {
         if (!self::canAttemptConnection()) {
-            throw new RuntimeException('Nie można uruchomić instalatora — brakuje konfiguracji lub rozszerzenia pdo_mysql.');
+            throw new RuntimeException('Nie można uruchomić pliku SQL — brakuje konfiguracji lub rozszerzenia pdo_mysql.');
         }
 
-        if (!is_file($schemaPath)) {
-            throw new RuntimeException('Nie znaleziono pliku schema.sql.');
+        if (!is_file($path)) {
+            throw new RuntimeException('Nie znaleziono pliku ' . $label . '.');
         }
 
-        $schema = file_get_contents($schemaPath);
+        $sql = file_get_contents($path);
 
-        if ($schema === false || trim($schema) === '') {
-            throw new RuntimeException('Plik schema.sql jest pusty albo nie można go odczytać.');
+        if ($sql === false || trim($sql) === '') {
+            throw new RuntimeException('Plik ' . $label . ' jest pusty albo nie można go odczytać.');
         }
 
         $connection = self::connection();
-        $statements = self::splitSqlStatements($schema);
+        $statements = self::splitSqlStatements($sql);
         $executedStatements = 0;
 
         foreach ($statements as $statement) {

@@ -56,6 +56,10 @@ $statusLabels = [
                             Instalator struktury bazy
                         </a>
 
+                        <a class="button button--primary" href="/admin/system/database/seed">
+                            Dane startowe
+                        </a>
+
                         <a class="button button--secondary" href="/admin/system">
                             Wróć do statusu środowiska
                         </a>
