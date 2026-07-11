@@ -104,7 +104,8 @@ h2 {
     line-height: 1.6;
 }
 
-.hero__actions {
+.hero__actions,
+.admin-actions {
     display: flex;
     margin-top: 32px;
     gap: 16px;
@@ -157,6 +158,35 @@ h2 {
     line-height: 1.7;
 }
 
+.status-list {
+    display: grid;
+    margin-top: 28px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 18px;
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--color-border);
+    background: #ffffff;
+}
+
+.status-row:last-child {
+    border-bottom: 0;
+}
+
+.status-row span {
+    color: var(--color-muted);
+}
+
+.status-row strong {
+    text-align: right;
+}
+
 .site-footer {
     border-top: 1px solid var(--color-border);
     padding: 24px 0;
@@ -182,5 +212,14 @@ h2 {
 
     .hero__lead {
         font-size: 17px;
+    }
+
+    .status-row {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .status-row strong {
+        text-align: left;
     }
 }

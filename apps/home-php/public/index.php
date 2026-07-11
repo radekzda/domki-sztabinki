@@ -29,4 +29,29 @@ $router->get('/admin', function (): void {
     ]));
 });
 
+$router->get('/admin/system', function () use ($config): void {
+    $uploadsPath = dirname(__DIR__) . '/storage/uploads';
+
+    $dbDatabase = Env::get('DB_DATABASE', '');
+    $dbUsername = Env::get('DB_USERNAME', '');
+
+    $checks = [
+        'PHP' => PHP_VERSION,
+        'Aplikacja' => (string) ($config['app_name'] ?? 'Domki Sztabinki PMS'),
+        'Środowisko' => (string) ($config['environment'] ?? 'production'),
+        'Debug' => !empty($config['debug']) ? 'włączony' : 'wyłączony',
+        'Strefa czasowa' => date_default_timezone_get(),
+        'APP_URL' => Env::get('APP_URL', 'brak'),
+        'DB_DATABASE' => $dbDatabase !== '' && $dbDatabase !== 'CHANGE_ME_DATABASE' ? 'ustawione' : 'brak',
+        'DB_USERNAME' => $dbUsername !== '' && $dbUsername !== 'CHANGE_ME_USERNAME' ? 'ustawione' : 'brak',
+        'storage/uploads istnieje' => is_dir($uploadsPath) ? 'tak' : 'nie',
+        'storage/uploads zapisywalny' => is_writable($uploadsPath) ? 'tak' : 'nie',
+    ];
+
+    Response::html(View::render('pages/system', [
+        'title' => 'Status środowiska',
+        'checks' => $checks,
+    ]));
+});
+
 $router->dispatch($_SERVER['REQUEST_METHOD'] ?? 'GET', $_SERVER['REQUEST_URI'] ?? '/');

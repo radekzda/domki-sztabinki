@@ -17,6 +17,12 @@ declare(strict_types=1);
                 To jest tymczasowy ekran panelu. W kolejnych krokach dodamy logowanie,
                 bazę MySQL, domki, rezerwacje, gości i zapytania.
             </p>
+
+            <div class="admin-actions">
+                <a class="button button--primary" href="/admin/system">
+                    Sprawdź środowisko PHP
+                </a>
+            </div>
         </div>
     </div>
 </section>
