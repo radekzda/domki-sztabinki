@@ -74,6 +74,54 @@ $router->get('/admin', function (): void {
     ]));
 });
 
+$router->get('/admin/domki', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/admin_cabins', [
+        'title' => 'Domki',
+    ]));
+});
+
+$router->get('/admin/rezerwacje', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/admin_reservations', [
+        'title' => 'Rezerwacje',
+    ]));
+});
+
+$router->get('/admin/goscie', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/admin_guests', [
+        'title' => 'Goście',
+    ]));
+});
+
+$router->get('/admin/zapytania', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/admin_inquiries', [
+        'title' => 'Zapytania',
+    ]));
+});
+
+$router->get('/admin/kalendarz', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/admin_calendar', [
+        'title' => 'Kalendarz',
+    ]));
+});
+
+$router->get('/admin/ustawienia', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/admin_settings', [
+        'title' => 'Ustawienia',
+    ]));
+});
+
 $router->get('/admin/system', function () use ($config): void {
     Auth::requireAdmin();
 

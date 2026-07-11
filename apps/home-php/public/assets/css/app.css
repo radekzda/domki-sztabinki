@@ -219,6 +219,86 @@ h2 {
     line-height: 1.7;
 }
 
+.admin-shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.admin-sidebar {
+    position: sticky;
+    top: 24px;
+    border: 1px solid var(--color-border);
+    border-radius: 28px;
+    background: var(--color-surface);
+    padding: 20px;
+    box-shadow: var(--shadow-soft);
+}
+
+.admin-sidebar__title {
+    margin: 0 0 16px;
+    color: var(--color-muted);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-menu {
+    display: grid;
+    gap: 8px;
+}
+
+.admin-menu a {
+    border-radius: 14px;
+    color: var(--color-muted);
+    font-size: 14px;
+    font-weight: 800;
+    padding: 12px 14px;
+    text-decoration: none;
+}
+
+.admin-menu a:hover,
+.admin-menu a.is-active {
+    background: var(--color-primary);
+    color: #ffffff;
+}
+
+.admin-content {
+    min-width: 0;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 28px;
+}
+
+.dashboard-card {
+    display: grid;
+    gap: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    background: #ffffff;
+    padding: 20px;
+    text-decoration: none;
+}
+
+.dashboard-card:hover {
+    border-color: var(--color-primary);
+}
+
+.dashboard-card strong {
+    font-size: 18px;
+}
+
+.dashboard-card span {
+    color: var(--color-muted);
+    line-height: 1.5;
+}
+
 .status-list {
     display: grid;
     margin-top: 28px;
@@ -351,6 +431,20 @@ h2 {
     font-size: 14px;
 }
 
+@media (max-width: 860px) {
+    .admin-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-sidebar {
+        position: static;
+    }
+
+    .admin-menu {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 760px) {
     .site-header__inner {
         align-items: flex-start;
@@ -377,6 +471,10 @@ h2 {
         font-size: 17px;
     }
 
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
     .status-row {
         flex-direction: column;
         gap: 8px;
@@ -391,5 +489,11 @@ h2 {
         flex-direction: column;
         justify-content: flex-start;
         text-align: left;
+    }
+}
+
+@media (max-width: 520px) {
+    .admin-menu {
+        grid-template-columns: 1fr;
     }
 }
