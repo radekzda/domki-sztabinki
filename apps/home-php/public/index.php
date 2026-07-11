@@ -14,6 +14,7 @@ require dirname(__DIR__) . '/app/Core/Response.php';
 require dirname(__DIR__) . '/app/Core/View.php';
 require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
+require dirname(__DIR__) . '/app/Core/Auth.php';
 
 $router = new Router();
 
@@ -23,13 +24,59 @@ $router->get('/', function (): void {
     ]));
 });
 
+$router->get('/logowanie', function (): void {
+    if (Auth::check()) {
+        Response::redirect('/admin');
+    }
+
+    Response::html(View::render('pages/login', [
+        'title' => 'Logowanie',
+        'email' => Env::get('ADMIN_EMAIL', ''),
+        'error' => null,
+        'isAuthConfigured' => Auth::isConfigured(),
+    ]));
+});
+
+$router->post('/logowanie', function (): void {
+    $email = isset($_POST['email']) && is_string($_POST['email'])
+        ? trim($_POST['email'])
+        : '';
+
+    $password = isset($_POST['password']) && is_string($_POST['password'])
+        ? $_POST['password']
+        : '';
+
+    if (Auth::attempt($email, $password)) {
+        Response::redirect('/admin');
+    }
+
+    Response::html(View::render('pages/login', [
+        'title' => 'Logowanie',
+        'email' => $email,
+        'error' => Auth::isConfigured()
+            ? 'Nieprawidłowy adres e-mail lub hasło.'
+            : 'Logowanie nie jest skonfigurowane w pliku .env.',
+        'isAuthConfigured' => Auth::isConfigured(),
+    ]), 422);
+});
+
+$router->post('/wyloguj', function (): void {
+    Auth::logout();
+
+    Response::redirect('/logowanie');
+});
+
 $router->get('/admin', function (): void {
+    Auth::requireAdmin();
+
     Response::html(View::render('pages/admin', [
         'title' => 'Panel administratora',
     ]));
 });
 
 $router->get('/admin/system', function () use ($config): void {
+    Auth::requireAdmin();
+
     $uploadsPath = dirname(__DIR__) . '/storage/uploads';
 
     $dbDatabase = Env::get('DB_DATABASE', '');
@@ -57,6 +104,8 @@ $router->get('/admin/system', function () use ($config): void {
 });
 
 $router->get('/admin/system/database', function (): void {
+    Auth::requireAdmin();
+
     Response::html(View::render('pages/database', [
         'title' => 'Połączenie z bazą MySQL',
         'checks' => Database::diagnostics(),

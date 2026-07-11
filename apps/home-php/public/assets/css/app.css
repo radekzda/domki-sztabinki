@@ -34,9 +34,18 @@ a {
     color: inherit;
 }
 
+button,
+input {
+    font: inherit;
+}
+
 .container {
     width: min(1120px, calc(100% - 32px));
     margin: 0 auto;
+}
+
+.container--narrow {
+    width: min(520px, calc(100% - 32px));
 }
 
 .site-header {
@@ -60,6 +69,7 @@ a {
 
 .site-nav {
     display: flex;
+    align-items: center;
     gap: 18px;
     font-size: 14px;
     font-weight: 700;
@@ -71,6 +81,29 @@ a {
 }
 
 .site-nav a:hover {
+    color: var(--color-primary);
+}
+
+.site-nav__user {
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.site-nav__form {
+    margin: 0;
+}
+
+.site-nav__form button {
+    border: 0;
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 0;
+}
+
+.site-nav__form button:hover {
     color: var(--color-primary);
 }
 
@@ -115,7 +148,8 @@ h2 {
 }
 
 .hero__actions,
-.admin-actions {
+.admin-actions,
+.form-actions {
     display: flex;
     flex-wrap: wrap;
     margin-top: 32px;
@@ -127,7 +161,9 @@ h2 {
     align-items: center;
     justify-content: center;
     min-height: 44px;
+    border: 0;
     border-radius: 999px;
+    cursor: pointer;
     padding: 0 22px;
     font-size: 14px;
     font-weight: 800;
@@ -247,6 +283,57 @@ h2 {
     color: var(--color-neutral-text);
 }
 
+.form {
+    display: grid;
+    gap: 18px;
+    margin-top: 28px;
+}
+
+.form-field {
+    display: grid;
+    gap: 8px;
+}
+
+.form-field label {
+    color: var(--color-text);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.form-field input {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: #ffffff;
+    color: var(--color-text);
+    padding: 0 14px;
+}
+
+.form-field input:focus {
+    border-color: var(--color-primary);
+    outline: 3px solid rgba(21, 128, 61, 0.16);
+}
+
+.alert {
+    margin-top: 22px;
+    border-radius: 18px;
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.6;
+}
+
+.alert--warning {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-text);
+}
+
+.alert--danger {
+    background: var(--color-danger-bg);
+    color: var(--color-danger-text);
+}
+
 .site-footer {
     border-top: 1px solid var(--color-border);
     padding: 24px 0;
@@ -260,6 +347,12 @@ h2 {
         flex-direction: column;
         justify-content: center;
         padding: 16px 0;
+    }
+
+    .site-nav {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
     }
 
     .hero {

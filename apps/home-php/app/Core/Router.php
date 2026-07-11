@@ -9,9 +9,19 @@ final class Router
      */
     private array $getRoutes = [];
 
+    /**
+     * @var array<string, callable>
+     */
+    private array $postRoutes = [];
+
     public function get(string $path, callable $handler): void
     {
         $this->getRoutes[$this->normalizePath($path)] = $handler;
+    }
+
+    public function post(string $path, callable $handler): void
+    {
+        $this->postRoutes[$this->normalizePath($path)] = $handler;
     }
 
     public function dispatch(string $method, string $uri): void
@@ -23,8 +33,15 @@ final class Router
         }
 
         $path = $this->normalizePath($path);
+        $method = strtoupper($method);
 
-        if ($method !== 'GET') {
+        $routes = match ($method) {
+            'GET' => $this->getRoutes,
+            'POST' => $this->postRoutes,
+            default => [],
+        };
+
+        if ($routes === []) {
             Response::html(View::render('pages/error', [
                 'title' => 'Błąd',
                 'message' => 'Nieobsługiwana metoda żądania.',
@@ -33,7 +50,7 @@ final class Router
             return;
         }
 
-        if (!array_key_exists($path, $this->getRoutes)) {
+        if (!array_key_exists($path, $routes)) {
             Response::html(View::render('pages/error', [
                 'title' => 'Nie znaleziono strony',
                 'message' => 'Podana strona nie istnieje.',
@@ -42,7 +59,7 @@ final class Router
             return;
         }
 
-        $handler = $this->getRoutes[$path];
+        $handler = $routes[$path];
         $handler();
     }
 
