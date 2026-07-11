@@ -16,6 +16,7 @@ require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
+require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
 
 function defaultCabinForm(): array
 {
@@ -555,8 +556,23 @@ $router->post('/admin/domki/edytuj', function (): void {
 $router->get('/admin/rezerwacje', function (): void {
     Auth::requireAdmin();
 
+    $reservations = [];
+    $databaseMessage = null;
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista rezerwacji zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
+    } else {
+        try {
+            $reservations = ReservationRepository::all();
+        } catch (Throwable $exception) {
+            $databaseMessage = 'Nie udało się pobrać listy rezerwacji z bazy: ' . $exception->getMessage();
+        }
+    }
+
     Response::html(View::render('pages/admin_reservations', [
         'title' => 'Rezerwacje',
+        'reservations' => $reservations,
+        'databaseMessage' => $databaseMessage,
     ]));
 });
 
