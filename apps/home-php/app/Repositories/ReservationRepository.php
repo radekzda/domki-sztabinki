@@ -89,6 +89,38 @@ final class ReservationRepository
         }, $rows);
     }
 
+    public static function hasBlockingOverlap(
+        int $cabinId,
+        string $startDate,
+        string $endDate,
+        ?int $ignoreReservationId = null
+    ): bool {
+        $connection = Database::connection();
+
+        $sql = 'SELECT COUNT(*)
+            FROM reservations
+            WHERE cabin_id = :cabin_id
+            AND status IN ("PENDING", "CONFIRMED", "CHECKED_IN")
+            AND start_date < :end_date
+            AND end_date > :start_date';
+
+        $params = [
+            'cabin_id' => $cabinId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ];
+
+        if ($ignoreReservationId !== null) {
+            $sql .= ' AND id <> :ignore_reservation_id';
+            $params['ignore_reservation_id'] = $ignoreReservationId;
+        }
+
+        $statement = $connection->prepare($sql);
+        $statement->execute($params);
+
+        return (int) $statement->fetchColumn() > 0;
+    }
+
     /**
      * @param array{
      *     cabin_id: int,

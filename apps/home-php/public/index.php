@@ -870,6 +870,16 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
         }
 
         if ($selectedCabin !== null && $calculatedNights !== null) {
+            $hasOverlap = ReservationRepository::hasBlockingOverlap(
+                (int) $form['cabin_id'],
+                $form['start_date'],
+                $form['end_date']
+            );
+
+            if ($hasOverlap) {
+                $errors['start_date'] = 'Ten domek ma już rezerwację blokującą w wybranym terminie.';
+            }
+
             $calculatedTotalPrice = $calculatedNights * getReservationNightPrice($calculatedNights, $selectedCabin);
         }
     }
