@@ -914,6 +914,11 @@ $router->get('/admin/goscie', function (): void {
 
     $guests = [];
     $databaseMessage = null;
+    $successMessage = null;
+
+    if (isset($_GET['created'])) {
+        $successMessage = 'Gość został zapisany.';
+    }
 
     if (!Database::canAttemptConnection()) {
         $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista gości zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
@@ -929,7 +934,67 @@ $router->get('/admin/goscie', function (): void {
         'title' => 'Goście',
         'guests' => $guests,
         'databaseMessage' => $databaseMessage,
+        'successMessage' => $successMessage,
     ]));
+});
+
+$router->get('/admin/goscie/nowy', function (): void {
+    Auth::requireAdmin();
+
+    Response::html(View::render('pages/admin_guests_new', [
+        'title' => 'Dodaj gościa',
+        'form' => defaultGuestForm(),
+        'errors' => [],
+        'databaseMessage' => Database::canAttemptConnection()
+            ? null
+            : 'Baza danych nie jest jeszcze skonfigurowana. Formularz jest widoczny, ale zapis zostanie odblokowany po ustawieniu MySQL w pliku .env.',
+        'canSave' => Database::canAttemptConnection(),
+    ]));
+});
+
+$router->post('/admin/goscie/nowy', function (): void {
+    Auth::requireAdmin();
+
+    $form = guestFormFromPost();
+    $errors = validateGuestForm($form);
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_guests_new', [
+            'title' => 'Dodaj gościa',
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać gościa.',
+            'canSave' => false,
+        ]), 422);
+
+        return;
+    }
+
+    if ($errors !== []) {
+        Response::html(View::render('pages/admin_guests_new', [
+            'title' => 'Dodaj gościa',
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => null,
+            'canSave' => true,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        GuestRepository::create(guestDataFromForm($form));
+
+        Response::redirect('/admin/goscie?created=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_guests_new', [
+            'title' => 'Dodaj gościa',
+            'form' => $form,
+            'errors' => [],
+            'databaseMessage' => 'Nie udało się zapisać gościa: ' . $exception->getMessage(),
+            'canSave' => true,
+        ]), 500);
+    }
 });
 
 $router->get('/admin/zapytania', function (): void {

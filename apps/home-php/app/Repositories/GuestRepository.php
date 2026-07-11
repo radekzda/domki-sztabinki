@@ -63,4 +63,60 @@ final class GuestRepository
             ];
         }, $rows);
     }
+
+    /**
+     * @param array{
+     *     first_name: string,
+     *     last_name: string,
+     *     email: string,
+     *     phone: string|null,
+     *     country: string|null,
+     *     city: string|null,
+     *     is_vip: int,
+     *     source: string,
+     *     notes: string|null
+     * } $data
+     */
+    public static function create(array $data): int
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'INSERT INTO guests (
+                first_name,
+                last_name,
+                email,
+                phone,
+                country,
+                city,
+                is_vip,
+                source,
+                notes
+            ) VALUES (
+                :first_name,
+                :last_name,
+                :email,
+                :phone,
+                :country,
+                :city,
+                :is_vip,
+                :source,
+                :notes
+            )'
+        );
+
+        $statement->execute([
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'],
+            'country' => $data['country'],
+            'city' => $data['city'],
+            'is_vip' => $data['is_vip'],
+            'source' => $data['source'],
+            'notes' => $data['notes'],
+        ]);
+
+        return (int) $connection->lastInsertId();
+    }
 }

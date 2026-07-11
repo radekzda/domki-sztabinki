@@ -564,6 +564,99 @@ function reservationStatusBlocks(string $status): bool
     return in_array($status, ['PENDING', 'CONFIRMED', 'CHECKED_IN'], true);
 }
 
+function defaultGuestForm(): array
+{
+    return [
+        'first_name' => '',
+        'last_name' => '',
+        'email' => '',
+        'phone' => '',
+        'city' => '',
+        'country' => 'Polska',
+        'is_vip' => '0',
+        'source' => 'MANUAL',
+        'notes' => '',
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function guestFormFromPost(): array
+{
+    $defaults = defaultGuestForm();
+    $form = [];
+
+    foreach ($defaults as $key => $defaultValue) {
+        $value = $_POST[$key] ?? $defaultValue;
+        $form[$key] = is_string($value) ? trim($value) : $defaultValue;
+    }
+
+    return $form;
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array<string, string>
+ */
+function validateGuestForm(array $form): array
+{
+    $errors = [];
+
+    if ($form['first_name'] === '') {
+        $errors['first_name'] = 'Podaj imię gościa.';
+    }
+
+    if ($form['last_name'] === '') {
+        $errors['last_name'] = 'Podaj nazwisko gościa.';
+    }
+
+    if ($form['email'] === '' || filter_var($form['email'], FILTER_VALIDATE_EMAIL) === false) {
+        $errors['email'] = 'Podaj prawidłowy adres e-mail.';
+    }
+
+    if (!in_array($form['is_vip'], ['0', '1'], true)) {
+        $errors['is_vip'] = 'Nieprawidłowe oznaczenie VIP.';
+    }
+
+    $allowedSources = ['MANUAL', 'WWW', 'BOOKING', 'PHONE', 'AIRBNB'];
+
+    if (!in_array($form['source'], $allowedSources, true)) {
+        $errors['source'] = 'Nieprawidłowe źródło gościa.';
+    }
+
+    return $errors;
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array{
+ *     first_name: string,
+ *     last_name: string,
+ *     email: string,
+ *     phone: string|null,
+ *     country: string|null,
+ *     city: string|null,
+ *     is_vip: int,
+ *     source: string,
+ *     notes: string|null
+ * }
+ */
+function guestDataFromForm(array $form): array
+{
+    return [
+        'first_name' => $form['first_name'],
+        'last_name' => $form['last_name'],
+        'email' => $form['email'],
+        'phone' => $form['phone'] !== '' ? $form['phone'] : null,
+        'country' => $form['country'] !== '' ? $form['country'] : null,
+        'city' => $form['city'] !== '' ? $form['city'] : null,
+        'is_vip' => (int) $form['is_vip'],
+        'source' => $form['source'],
+        'notes' => $form['notes'] !== '' ? $form['notes'] : null,
+    ];
+}
+
 function formatDateForDisplay(string $date): string
 {
     if ($date === '') {

@@ -17,6 +17,7 @@ declare(strict_types=1);
  *     created_at: string
  * }> $guests
  * @var string|null $databaseMessage
+ * @var string|null $successMessage
  */
 ?>
 <section class="page-section">
@@ -34,16 +35,26 @@ declare(strict_types=1);
 
                             <p>
                                 Lista gości pobierana z bazy MySQL. W kolejnym kroku połączymy gości
-                                z rezerwacjami oraz dodamy tworzenie i edycję kart gości.
+                                z rezerwacjami oraz dodamy edycję kart gości.
                             </p>
                         </div>
 
                         <div class="page-header__actions">
+                            <a class="button button--primary" href="/admin/goscie/nowy">
+                                Dodaj gościa
+                            </a>
+
                             <a class="button button--secondary" href="/admin/system/database">
                                 Sprawdź bazę
                             </a>
                         </div>
                     </div>
+
+                    <?php if (isset($successMessage) && is_string($successMessage) && $successMessage !== ''): ?>
+                        <div class="alert alert--success">
+                            <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                    <?php endif; ?>
 
                     <?php if (isset($databaseMessage) && is_string($databaseMessage) && $databaseMessage !== ''): ?>
                         <div class="alert alert--warning">
