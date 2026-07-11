@@ -15,6 +15,7 @@ require dirname(__DIR__) . '/app/Core/View.php';
 require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
+require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 
 $router = new Router();
 
@@ -77,8 +78,23 @@ $router->get('/admin', function (): void {
 $router->get('/admin/domki', function (): void {
     Auth::requireAdmin();
 
+    $cabins = [];
+    $databaseMessage = null;
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista domków zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
+    } else {
+        try {
+            $cabins = CabinRepository::all();
+        } catch (Throwable $exception) {
+            $databaseMessage = 'Nie udało się pobrać listy domków z bazy: ' . $exception->getMessage();
+        }
+    }
+
     Response::html(View::render('pages/admin_cabins', [
         'title' => 'Domki',
+        'cabins' => $cabins,
+        'databaseMessage' => $databaseMessage,
     ]));
 });
 
