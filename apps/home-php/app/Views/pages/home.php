@@ -39,16 +39,16 @@ if (!Database::canAttemptConnection()) {
         $allCabins = CabinRepository::all();
 
         foreach ($allCabins as $cabin) {
-            if ((int) $cabin['is_active'] !== 1) {
+            if ((int) ($cabin['is_active'] ?? 0) !== 1) {
                 continue;
             }
 
             $cabins[] = $cabin;
-            $images = CabinImageRepository::allForCabin((int) $cabin['id']);
+            $images = CabinImageRepository::allForCabin((int) ($cabin['id'] ?? 0));
             $mainImage = null;
 
             foreach ($images as $image) {
-                if ((int) $image['is_main'] === 1) {
+                if ((int) ($image['is_main'] ?? 0) === 1) {
                     $mainImage = $image;
                     break;
                 }
@@ -58,7 +58,7 @@ if (!Database::canAttemptConnection()) {
                 $mainImage = $images[0];
             }
 
-            $cabinImages[(int) $cabin['id']] = $mainImage;
+            $cabinImages[(int) ($cabin['id'] ?? 0)] = $mainImage;
         }
     } catch (Throwable $exception) {
         $databaseMessage = 'Nie udało się pobrać danych publicznych z bazy: ' . $exception->getMessage();
@@ -70,6 +70,30 @@ $formatPublicPrice = static function (int $amount, string $currency): string {
 };
 
 $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
+
+$cabinString = static function (array $cabin, string $key, string $fallback = ''): string {
+    if (!array_key_exists($key, $cabin)) {
+        return $fallback;
+    }
+
+    if ($cabin[$key] === null || $cabin[$key] === '') {
+        return $fallback;
+    }
+
+    return (string) $cabin[$key];
+};
+
+$cabinInt = static function (array $cabin, string $key, int $fallback = 0): int {
+    if (!array_key_exists($key, $cabin)) {
+        return $fallback;
+    }
+
+    if ($cabin[$key] === null || $cabin[$key] === '') {
+        return $fallback;
+    }
+
+    return (int) $cabin[$key];
+};
 ?>
 <section class="page-section">
     <div class="container">
@@ -157,39 +181,47 @@ $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
                 <div style="display: grid; gap: 24px;">
                     <?php foreach ($cabins as $cabin): ?>
                         <?php
-                        $image = $cabinImages[(int) $cabin['id']] ?? null;
+                        $cabinId = $cabinInt($cabin, 'id', 0);
+                        $cabinName = $cabinString($cabin, 'name', 'Domek');
+                        $cabinShortName = $cabinString($cabin, 'short_name', 'Domek');
+                        $cabinDescription = $cabinString(
+                            $cabin,
+                            'description',
+                            'Komfortowy domek letniskowy nad jeziorem w spokojnej okolicy.'
+                        );
+                        $image = $cabinImages[$cabinId] ?? null;
                         ?>
 
                         <article class="panel" style="margin: 0; box-shadow: none; border: 1px solid #e5e7eb;">
                             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: 24px; align-items: start;">
                                 <div>
                                     <p class="eyebrow">
-                                        <?= htmlspecialchars($cabin['short_name'] ?? 'Domek', ENT_QUOTES, 'UTF-8') ?>
+                                        <?= htmlspecialchars($cabinShortName, ENT_QUOTES, 'UTF-8') ?>
                                     </p>
 
-                                    <h3><?= htmlspecialchars($cabin['name'], ENT_QUOTES, 'UTF-8') ?></h3>
+                                    <h3><?= htmlspecialchars($cabinName, ENT_QUOTES, 'UTF-8') ?></h3>
 
                                     <p>
-                                        <?= nl2br(htmlspecialchars($cabin['description'], ENT_QUOTES, 'UTF-8')) ?>
+                                        <?= nl2br(htmlspecialchars($cabinDescription, ENT_QUOTES, 'UTF-8')) ?>
                                     </p>
 
                                     <div class="dashboard-grid">
                                         <div class="stat-card">
                                             <span>Maksymalnie</span>
                                             <strong>
-                                                <?= htmlspecialchars((string) $cabin['max_guests'], ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars((string) $cabinInt($cabin, 'max_guests', 6), ENT_QUOTES, 'UTF-8') ?>
                                                 os.
                                             </strong>
                                         </div>
 
                                         <div class="stat-card">
                                             <span>Sypialnie</span>
-                                            <strong><?= htmlspecialchars((string) $cabin['bedrooms'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <strong><?= htmlspecialchars((string) $cabinInt($cabin, 'bedrooms', 2), ENT_QUOTES, 'UTF-8') ?></strong>
                                         </div>
 
                                         <div class="stat-card">
                                             <span>Łazienki</span>
-                                            <strong><?= htmlspecialchars((string) $cabin['bathrooms'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <strong><?= htmlspecialchars((string) $cabinInt($cabin, 'bathrooms', 1), ENT_QUOTES, 'UTF-8') ?></strong>
                                         </div>
                                     </div>
 
@@ -205,37 +237,37 @@ $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
                                             <tbody>
                                                 <tr>
                                                     <td>1 noc</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice((int) $cabin['price_one_night'], $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_one_night', 800), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>2 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice((int) $cabin['price_two_nights'], $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_two_nights', 440), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>3 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice((int) $cabin['price_three_nights'], $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_three_nights', 430), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>4 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice((int) $cabin['price_four_nights'], $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_four_nights', 420), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>5 nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice((int) $cabin['price_five_nights'], $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_five_nights', 410), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>6 nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice((int) $cabin['price_six_nights'], $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_six_nights', 400), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>7+ nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice((int) $cabin['price_seven_plus_nights'], $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_seven_plus_nights', 350), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -246,7 +278,7 @@ $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
                                     <?php if (is_array($image)): ?>
                                         <img
                                             src="<?= htmlspecialchars($image['image_path'], ENT_QUOTES, 'UTF-8') ?>"
-                                            alt="<?= htmlspecialchars($image['alt_text'] ?? $cabin['name'], ENT_QUOTES, 'UTF-8') ?>"
+                                            alt="<?= htmlspecialchars($image['alt_text'] ?? $cabinName, ENT_QUOTES, 'UTF-8') ?>"
                                             style="width: 100%; height: 320px; object-fit: cover; border-radius: 18px; border: 1px solid #e5e7eb;"
                                         >
                                     <?php else: ?>
@@ -262,7 +294,7 @@ $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
 
                                             <a
                                                 class="button button--secondary"
-                                                href="/admin/domki/zdjecia?id=<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                href="/admin/domki/zdjecia?id=<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>"
                                             >
                                                 Dodaj zdjęcie
                                             </a>
@@ -410,11 +442,16 @@ $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
                             <option value="">Dowolny / proszę zaproponować</option>
 
                             <?php foreach ($cabins as $cabin): ?>
+                                <?php
+                                $optionId = $cabinInt($cabin, 'id', 0);
+                                $optionName = $cabinString($cabin, 'name', 'Domek');
+                                ?>
+
                                 <option
-                                    value="<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                    <?= $form['cabin_id'] === (string) $cabin['id'] ? 'selected' : '' ?>
+                                    value="<?= htmlspecialchars((string) $optionId, ENT_QUOTES, 'UTF-8') ?>"
+                                    <?= $form['cabin_id'] === (string) $optionId ? 'selected' : '' ?>
                                 >
-                                    <?= htmlspecialchars($cabin['name'], ENT_QUOTES, 'UTF-8') ?>
+                                    <?= htmlspecialchars($optionName, ENT_QUOTES, 'UTF-8') ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>

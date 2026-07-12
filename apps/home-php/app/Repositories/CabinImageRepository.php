@@ -20,12 +20,13 @@ final class CabinImageRepository
         self::ensureTable();
 
         $connection = Database::connection();
+        $imageColumn = self::imageColumn();
 
         $statement = $connection->prepare(
             'SELECT
                 id,
                 cabin_id,
-                image_path,
+                ' . $imageColumn . ' AS image_path,
                 alt_text,
                 sort_order,
                 is_main,
@@ -66,12 +67,13 @@ final class CabinImageRepository
         self::ensureTable();
 
         $connection = Database::connection();
+        $imageColumn = self::imageColumn();
 
         $statement = $connection->prepare(
             'SELECT
                 id,
                 cabin_id,
-                image_path,
+                ' . $imageColumn . ' AS image_path,
                 alt_text,
                 sort_order,
                 is_main,
@@ -132,6 +134,7 @@ final class CabinImageRepository
         self::ensureTable();
 
         $connection = Database::connection();
+        $imageColumn = self::imageColumn();
 
         $connection->beginTransaction();
 
@@ -164,7 +167,7 @@ final class CabinImageRepository
             $statement = $connection->prepare(
                 'INSERT INTO cabin_images (
                     cabin_id,
-                    image_path,
+                    ' . $imageColumn . ',
                     alt_text,
                     sort_order,
                     is_main
@@ -304,7 +307,7 @@ final class CabinImageRepository
             'CREATE TABLE IF NOT EXISTS cabin_images (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 cabin_id INT NOT NULL,
-                image_path VARCHAR(255) NOT NULL,
+                image_url VARCHAR(255) NOT NULL,
                 alt_text VARCHAR(255) NULL,
                 sort_order INT NOT NULL DEFAULT 0,
                 is_main TINYINT(1) NOT NULL DEFAULT 0,
@@ -314,6 +317,64 @@ final class CabinImageRepository
                 INDEX cabin_images_is_main_idx (is_main)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+
+        $columns = self::tableColumns();
+
+        if (!in_array('image_url', $columns, true) && !in_array('image_path', $columns, true)) {
+            $connection->exec(
+                'ALTER TABLE cabin_images
+                ADD COLUMN image_url VARCHAR(255) NOT NULL AFTER cabin_id'
+            );
+        }
+    }
+
+    private static function imageColumn(): string
+    {
+        $columns = self::tableColumns();
+
+        if (in_array('image_url', $columns, true)) {
+            return 'image_url';
+        }
+
+        if (in_array('image_path', $columns, true)) {
+            return 'image_path';
+        }
+
+        return 'image_url';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function tableColumns(): array
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->query('SHOW COLUMNS FROM cabin_images');
+
+        if ($statement === false) {
+            return [];
+        }
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        $columns = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            if (isset($row['Field'])) {
+                $columns[] = (string) $row['Field'];
+            }
+        }
+
+        return $columns;
     }
 
     /**
