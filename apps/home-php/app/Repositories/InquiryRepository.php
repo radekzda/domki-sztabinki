@@ -172,6 +172,20 @@ final class InquiryRepository
     {
         self::ensureTable();
 
+        if ($data['cabin_id'] !== null) {
+            $hasOverlap = ReservationRepository::hasBlockingOverlap(
+                (int) $data['cabin_id'],
+                $data['date_from'],
+                $data['date_to']
+            );
+
+            if ($hasOverlap) {
+                throw new RuntimeException(
+                    'Wybrany domek jest już zajęty w tym terminie. Wybierz inny termin albo wyślij zapytanie bez wskazywania konkretnego domku.'
+                );
+            }
+        }
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
