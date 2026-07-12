@@ -4,22 +4,31 @@ declare(strict_types=1);
 
 /**
  * @var string $title
+ * @var array<int, array{
+ *     id: int,
+ *     full_name: string,
+ *     first_name: string|null,
+ *     last_name: string|null,
+ *     phone: string,
+ *     email: string|null,
+ *     cabin_id: int|null,
+ *     cabin_name: string|null,
+ *     linked_cabin_name: string|null,
+ *     date_from: string,
+ *     date_to: string,
+ *     guests: int,
+ *     adults: int,
+ *     children: int,
+ *     city: string|null,
+ *     country: string|null,
+ *     notes: string|null,
+ *     status: string,
+ *     source: string,
+ *     created_at: string
+ * }> $inquiries
+ * @var string|null $databaseMessage
+ * @var string|null $successMessage
  */
-
-require_once dirname(__DIR__, 2) . '/Repositories/InquiryRepository.php';
-
-$inquiries = [];
-$databaseMessage = null;
-
-if (!Database::canAttemptConnection()) {
-    $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista zapytań zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
-} else {
-    try {
-        $inquiries = InquiryRepository::all();
-    } catch (Throwable $exception) {
-        $databaseMessage = 'Nie udało się pobrać listy zapytań z bazy: ' . $exception->getMessage();
-    }
-}
 
 $statusLabels = [
     'NEW' => 'Nowe',
@@ -50,8 +59,8 @@ $getStatusClass = static function (string $status): string {
                             <h1>Zapytania</h1>
 
                             <p>
-                                Lista zapytań pobierana z bazy MySQL. W kolejnym kroku dodamy szczegóły,
-                                zmianę statusu oraz tworzenie rezerwacji z zapytania.
+                                Lista zapytań pobierana z bazy MySQL. Możesz zmieniać status,
+                                podejrzeć szczegóły albo utworzyć rezerwację z zapytania.
                             </p>
                         </div>
 
@@ -61,6 +70,12 @@ $getStatusClass = static function (string $status): string {
                             </a>
                         </div>
                     </div>
+
+                    <?php if (isset($successMessage) && is_string($successMessage) && $successMessage !== ''): ?>
+                        <div class="alert alert--success">
+                            <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                    <?php endif; ?>
 
                     <?php if (isset($databaseMessage) && is_string($databaseMessage) && $databaseMessage !== ''): ?>
                         <div class="alert alert--warning">
@@ -117,6 +132,7 @@ $getStatusClass = static function (string $status): string {
                                         <th>Osoby</th>
                                         <th>Status</th>
                                         <th>Źródło</th>
+                                        <th>Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -205,11 +221,68 @@ $getStatusClass = static function (string $status): string {
                                             <td>
                                                 <?= htmlspecialchars($inquiry['source'], ENT_QUOTES, 'UTF-8') ?>
                                             </td>
+
+                                            <td>
+                                                <div class="table-actions">
+                                                    <a
+                                                        class="button button--secondary button--small"
+                                                        href="/admin/zapytania/pokaz?id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Szczegóły
+                                                    </a>
+
+                                                    <a
+                                                        class="button button--primary button--small"
+                                                        href="/admin/rezerwacje/nowa?inquiry_id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Rezerwacja
+                                                    </a>
+
+                                                    <form method="post" action="/admin/zapytania/status">
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <select name="status">
+                                                            <?php foreach ($statusLabels as $statusValue => $statusLabel): ?>
+                                                                <option
+                                                                    value="<?= htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8') ?>"
+                                                                    <?= $inquiry['status'] === $statusValue ? 'selected' : '' ?>
+                                                                >
+                                                                    <?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+
+                                                        <button class="button button--primary button--small" type="submit">
+                                                            Status
+                                                        </button>
+                                                    </form>
+
+                                                    <form
+                                                        method="post"
+                                                        action="/admin/zapytania/usun"
+                                                        onsubmit="return confirm('Czy na pewno usunąć to zapytanie?')"
+                                                    >
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <button class="button button--secondary button--small" type="submit">
+                                                            Usuń
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
                                         </tr>
 
                                         <?php if ($inquiry['notes'] !== null && $inquiry['notes'] !== ''): ?>
                                             <tr>
-                                                <td colspan="8">
+                                                <td colspan="9">
                                                     <strong>Notatka:</strong>
                                                     <?= nl2br(htmlspecialchars($inquiry['notes'], ENT_QUOTES, 'UTF-8')) ?>
                                                 </td>

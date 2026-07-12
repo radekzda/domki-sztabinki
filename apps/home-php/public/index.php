@@ -19,6 +19,7 @@ require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
 require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
+require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
 
 $router = new Router();
 
@@ -383,6 +384,8 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
     $cabins = [];
     $guests = [];
     $databaseMessage = null;
+    $form = defaultReservationForm();
+    $inquiryId = inquiryIdFromQueryForReservation();
 
     if (!Database::canAttemptConnection()) {
         $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Formularz jest widoczny, ale zapis zostanie odblokowany po ustawieniu MySQL w pliku .env.';
@@ -390,6 +393,16 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
         try {
             $cabins = CabinRepository::all();
             $guests = GuestRepository::all();
+
+            if ($inquiryId !== null) {
+                $inquiry = InquiryRepository::find($inquiryId);
+
+                if ($inquiry === null) {
+                    $databaseMessage = 'Nie znaleziono zapytania do wstępnego uzupełnienia formularza.';
+                } else {
+                    $form = reservationFormFromInquiry($inquiry);
+                }
+            }
         } catch (Throwable $exception) {
             $databaseMessage = 'Nie udało się pobrać danych do formularza: ' . $exception->getMessage();
         }
@@ -397,7 +410,7 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
 
     Response::html(View::render('pages/admin_reservations_new', [
         'title' => 'Dodaj rezerwację',
-        'form' => defaultReservationForm(),
+        'form' => $form,
         'errors' => [],
         'cabins' => $cabins,
         'guests' => $guests,
@@ -1292,9 +1305,152 @@ $router->post('/admin/goscie/usun', function (): void {
 $router->get('/admin/zapytania', function (): void {
     Auth::requireAdmin();
 
+    $inquiries = [];
+    $databaseMessage = null;
+    $successMessage = null;
+
+    if (isset($_GET['status_changed'])) {
+        $successMessage = 'Status zapytania został zmieniony.';
+    }
+
+    if (isset($_GET['deleted'])) {
+        $successMessage = 'Zapytanie zostało usunięte.';
+    }
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista zapytań zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
+    } else {
+        try {
+            $inquiries = InquiryRepository::all();
+        } catch (Throwable $exception) {
+            $databaseMessage = 'Nie udało się pobrać listy zapytań z bazy: ' . $exception->getMessage();
+        }
+    }
+
     Response::html(View::render('pages/admin_inquiries', [
         'title' => 'Zapytania',
+        'inquiries' => $inquiries,
+        'databaseMessage' => $databaseMessage,
+        'successMessage' => $successMessage,
     ]));
+});
+
+$router->get('/admin/zapytania/pokaz', function (): void {
+    Auth::requireAdmin();
+
+    $id = inquiryIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora zapytania.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można pokazać szczegółów zapytania.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $inquiry = InquiryRepository::find($id);
+
+        if ($inquiry === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono zapytania',
+                'message' => 'Zapytanie o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        Response::html(View::render('pages/admin_inquiries_show', [
+            'title' => 'Szczegóły zapytania',
+            'inquiry' => $inquiry,
+        ]));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się pobrać zapytania',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/zapytania/status', function (): void {
+    Auth::requireAdmin();
+
+    $id = inquiryIdFromPost();
+    $status = inquiryStatusFromPost();
+
+    if ($id === null || $status === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można zmienić statusu zapytania, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zmienić statusu zapytania.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        InquiryRepository::setStatus($id, $status);
+
+        Response::redirect('/admin/zapytania?status_changed=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się zmienić statusu zapytania',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/zapytania/usun', function (): void {
+    Auth::requireAdmin();
+
+    $id = inquiryIdFromPost();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można usunąć zapytania, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można usunąć zapytania.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        InquiryRepository::delete($id);
+
+        Response::redirect('/admin/zapytania?deleted=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się usunąć zapytania',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
 });
 
 $router->get('/admin/kalendarz', function (): void {

@@ -312,6 +312,55 @@ function reservationFormFromReservation(array $reservation): array
 }
 
 /**
+ * @param array{
+ *     id: int,
+ *     full_name: string,
+ *     first_name: string|null,
+ *     last_name: string|null,
+ *     phone: string,
+ *     email: string|null,
+ *     cabin_id: int|null,
+ *     cabin_name: string|null,
+ *     linked_cabin_name: string|null,
+ *     date_from: string,
+ *     date_to: string,
+ *     guests: int,
+ *     adults: int,
+ *     children: int,
+ *     city: string|null,
+ *     country: string|null,
+ *     notes: string|null,
+ *     status: string,
+ *     source: string,
+ *     created_at: string
+ * } $inquiry
+ * @return array<string, string>
+ */
+function reservationFormFromInquiry(array $inquiry): array
+{
+    $form = defaultReservationForm();
+
+    $adults = $inquiry['adults'] > 0 ? $inquiry['adults'] : max(1, $inquiry['guests']);
+    $children = $inquiry['children'] >= 0 ? $inquiry['children'] : 0;
+
+    $form['cabin_id'] = $inquiry['cabin_id'] !== null ? (string) $inquiry['cabin_id'] : '';
+    $form['guest_name'] = $inquiry['full_name'];
+    $form['email'] = $inquiry['email'] ?? '';
+    $form['phone'] = $inquiry['phone'];
+    $form['start_date'] = substr($inquiry['date_from'], 0, 10);
+    $form['end_date'] = substr($inquiry['date_to'], 0, 10);
+    $form['adults'] = (string) $adults;
+    $form['children'] = (string) $children;
+    $form['status'] = 'PENDING';
+    $form['payment_status'] = 'PENDING';
+    $form['paid_amount'] = '0';
+    $form['source'] = $inquiry['source'] !== '' ? $inquiry['source'] : 'WWW';
+    $form['notes'] = $inquiry['notes'] ?? '';
+
+    return $form;
+}
+
+/**
  * @param array<string, string> $form
  * @return array<string, string>
  */
@@ -749,6 +798,74 @@ function guestVipStatusFromPost(): ?bool
     }
 
     return null;
+}
+
+function inquiryIdFromQuery(): ?int
+{
+    $value = $_GET['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function inquiryIdFromPost(): ?int
+{
+    $value = $_POST['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function inquiryIdFromQueryForReservation(): ?int
+{
+    $value = $_GET['inquiry_id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function inquiryStatusFromPost(): ?string
+{
+    $value = $_POST['status'] ?? null;
+
+    if (!is_string($value)) {
+        return null;
+    }
+
+    $allowedStatuses = ['NEW', 'IN_PROGRESS', 'RESOLVED', 'CANCELLED'];
+
+    if (!in_array($value, $allowedStatuses, true)) {
+        return null;
+    }
+
+    return $value;
 }
 
 function formatDateForDisplay(string $date): string
