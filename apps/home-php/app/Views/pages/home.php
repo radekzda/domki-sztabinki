@@ -4,12 +4,31 @@ declare(strict_types=1);
 
 /**
  * @var string $title
+ * @var array<string, string>|null $inquiryForm
+ * @var array<string, string>|null $inquiryErrors
+ * @var string|null $publicDatabaseMessage
  */
 
 $settings = defaultSettingsForm();
 $cabins = [];
 $cabinImages = [];
 $databaseMessage = null;
+
+$form = isset($inquiryForm) && is_array($inquiryForm)
+    ? $inquiryForm
+    : defaultPublicInquiryForm();
+
+$errors = isset($inquiryErrors) && is_array($inquiryErrors)
+    ? $inquiryErrors
+    : [];
+
+$inquiryMessage = isset($publicDatabaseMessage) && is_string($publicDatabaseMessage)
+    ? $publicDatabaseMessage
+    : null;
+
+$successMessage = isset($_GET['inquiry_sent'])
+    ? 'Dziękujemy. Zapytanie zostało wysłane. Odpowiemy najszybciej jak to możliwe.'
+    : null;
 
 if (!Database::canAttemptConnection()) {
     $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Strona pokazuje podstawowe dane domyślne.';
@@ -71,8 +90,8 @@ $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
                         Zobacz domki
                     </a>
 
-                    <a class="button button--secondary" href="#kontakt">
-                        Kontakt
+                    <a class="button button--secondary" href="#zapytanie">
+                        Zapytaj o termin
                     </a>
                 </div>
             </div>
@@ -292,16 +311,227 @@ $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
             </div>
         </div>
 
+        <div class="panel" id="zapytanie">
+            <div class="page-header">
+                <div>
+                    <p class="eyebrow">Zapytanie</p>
+
+                    <h2>Zapytaj o wolny termin</h2>
+
+                    <p>
+                        Wyślij zapytanie o pobyt. Po wysłaniu pojawi się ono w panelu administratora
+                        w zakładce „Zapytania”.
+                    </p>
+                </div>
+            </div>
+
+            <?php if (isset($successMessage) && is_string($successMessage) && $successMessage !== ''): ?>
+                <div class="alert alert--success">
+                    <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($inquiryMessage) && is_string($inquiryMessage) && $inquiryMessage !== ''): ?>
+                <div class="alert alert--warning">
+                    <?= htmlspecialchars($inquiryMessage, ENT_QUOTES, 'UTF-8') ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($errors !== []): ?>
+                <div class="alert alert--danger">
+                    Popraw błędy w formularzu.
+                </div>
+            <?php endif; ?>
+
+            <form class="form form--wide" method="post" action="/zapytanie">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="first_name">Imię</label>
+                        <input
+                            id="first_name"
+                            name="first_name"
+                            type="text"
+                            value="<?= htmlspecialchars($form['first_name'], ENT_QUOTES, 'UTF-8') ?>"
+                            required
+                        >
+
+                        <?php if (isset($errors['first_name'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['first_name'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="last_name">Nazwisko</label>
+                        <input
+                            id="last_name"
+                            name="last_name"
+                            type="text"
+                            value="<?= htmlspecialchars($form['last_name'], ENT_QUOTES, 'UTF-8') ?>"
+                            required
+                        >
+
+                        <?php if (isset($errors['last_name'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['last_name'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="phone">Telefon</label>
+                        <input
+                            id="phone"
+                            name="phone"
+                            type="tel"
+                            value="<?= htmlspecialchars($form['phone'], ENT_QUOTES, 'UTF-8') ?>"
+                            required
+                        >
+
+                        <?php if (isset($errors['phone'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['phone'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="email">E-mail</label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value="<?= htmlspecialchars($form['email'], ENT_QUOTES, 'UTF-8') ?>"
+                        >
+
+                        <?php if (isset($errors['email'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['email'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="cabin_id">Domek</label>
+                        <select id="cabin_id" name="cabin_id">
+                            <option value="">Dowolny / proszę zaproponować</option>
+
+                            <?php foreach ($cabins as $cabin): ?>
+                                <option
+                                    value="<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                    <?= $form['cabin_id'] === (string) $cabin['id'] ? 'selected' : '' ?>
+                                >
+                                    <?= htmlspecialchars($cabin['name'], ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <?php if (isset($errors['cabin_id'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['cabin_id'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="date_from">Przyjazd</label>
+                        <input
+                            id="date_from"
+                            name="date_from"
+                            type="date"
+                            value="<?= htmlspecialchars($form['date_from'], ENT_QUOTES, 'UTF-8') ?>"
+                            required
+                        >
+
+                        <?php if (isset($errors['date_from'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['date_from'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="date_to">Wyjazd</label>
+                        <input
+                            id="date_to"
+                            name="date_to"
+                            type="date"
+                            value="<?= htmlspecialchars($form['date_to'], ENT_QUOTES, 'UTF-8') ?>"
+                            required
+                        >
+
+                        <?php if (isset($errors['date_to'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['date_to'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="adults">Dorośli</label>
+                        <input
+                            id="adults"
+                            name="adults"
+                            type="number"
+                            min="1"
+                            step="1"
+                            value="<?= htmlspecialchars($form['adults'], ENT_QUOTES, 'UTF-8') ?>"
+                            required
+                        >
+
+                        <?php if (isset($errors['adults'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['adults'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="children">Dzieci</label>
+                        <input
+                            id="children"
+                            name="children"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value="<?= htmlspecialchars($form['children'], ENT_QUOTES, 'UTF-8') ?>"
+                            required
+                        >
+
+                        <?php if (isset($errors['children'])): ?>
+                            <span class="form-error"><?= htmlspecialchars($errors['children'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="city">Miejscowość</label>
+                        <input
+                            id="city"
+                            name="city"
+                            type="text"
+                            value="<?= htmlspecialchars($form['city'], ENT_QUOTES, 'UTF-8') ?>"
+                        >
+                    </div>
+
+                    <div class="form-field">
+                        <label for="country">Kraj</label>
+                        <input
+                            id="country"
+                            name="country"
+                            type="text"
+                            value="<?= htmlspecialchars($form['country'], ENT_QUOTES, 'UTF-8') ?>"
+                        >
+                    </div>
+
+                    <div class="form-field form-field--full">
+                        <label for="notes">Wiadomość / dodatkowe informacje</label>
+                        <textarea
+                            id="notes"
+                            name="notes"
+                            rows="5"
+                        ><?= htmlspecialchars($form['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="button button--primary" type="submit">
+                        Wyślij zapytanie
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <div class="panel" id="kontakt">
             <div class="page-header">
                 <div>
                     <p class="eyebrow">Kontakt</p>
 
-                    <h2>Zapytaj o wolny termin</h2>
-
-                    <p>
-                        Publiczny formularz zapytania dodamy w następnym kroku. Na razie możesz użyć danych kontaktowych.
-                    </p>
+                    <h2>Dane kontaktowe</h2>
                 </div>
             </div>
 
@@ -333,7 +563,7 @@ $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
             </div>
 
             <div class="form-actions">
-                <a class="button button--primary" href="/logowanie">
+                <a class="button button--secondary" href="/logowanie">
                     Panel administratora
                 </a>
             </div>

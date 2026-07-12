@@ -30,6 +30,8 @@ final class InquiryRepository
      */
     public static function all(): array
     {
+        self::ensureTable();
+
         $connection = Database::connection();
 
         $statement = $connection->query(
@@ -100,6 +102,8 @@ final class InquiryRepository
      */
     public static function find(int $id): ?array
     {
+        self::ensureTable();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -143,8 +147,100 @@ final class InquiryRepository
         return self::mapRow($row);
     }
 
+    /**
+     * @param array{
+     *     full_name: string,
+     *     first_name: string|null,
+     *     last_name: string|null,
+     *     phone: string,
+     *     email: string|null,
+     *     cabin_id: int|null,
+     *     cabin_name: string|null,
+     *     date_from: string,
+     *     date_to: string,
+     *     guests: int,
+     *     adults: int,
+     *     children: int,
+     *     city: string|null,
+     *     country: string|null,
+     *     notes: string|null,
+     *     status: string,
+     *     source: string
+     * } $data
+     */
+    public static function create(array $data): int
+    {
+        self::ensureTable();
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'INSERT INTO inquiries (
+                full_name,
+                first_name,
+                last_name,
+                phone,
+                email,
+                cabin_id,
+                cabin_name,
+                date_from,
+                date_to,
+                guests,
+                adults,
+                children,
+                city,
+                country,
+                notes,
+                status,
+                source
+            ) VALUES (
+                :full_name,
+                :first_name,
+                :last_name,
+                :phone,
+                :email,
+                :cabin_id,
+                :cabin_name,
+                :date_from,
+                :date_to,
+                :guests,
+                :adults,
+                :children,
+                :city,
+                :country,
+                :notes,
+                :status,
+                :source
+            )'
+        );
+
+        $statement->execute([
+            'full_name' => $data['full_name'],
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'phone' => $data['phone'],
+            'email' => $data['email'],
+            'cabin_id' => $data['cabin_id'],
+            'cabin_name' => $data['cabin_name'],
+            'date_from' => $data['date_from'],
+            'date_to' => $data['date_to'],
+            'guests' => $data['guests'],
+            'adults' => $data['adults'],
+            'children' => $data['children'],
+            'city' => $data['city'],
+            'country' => $data['country'],
+            'notes' => $data['notes'],
+            'status' => $data['status'],
+            'source' => $data['source'],
+        ]);
+
+        return (int) $connection->lastInsertId();
+    }
+
     public static function setStatus(int $id, string $status): void
     {
+        self::ensureTable();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -161,6 +257,8 @@ final class InquiryRepository
 
     public static function delete(int $id): void
     {
+        self::ensureTable();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -171,6 +269,40 @@ final class InquiryRepository
         $statement->execute([
             'id' => $id,
         ]);
+    }
+
+    public static function ensureTable(): void
+    {
+        $connection = Database::connection();
+
+        $connection->exec(
+            'CREATE TABLE IF NOT EXISTS inquiries (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                full_name VARCHAR(190) NOT NULL,
+                first_name VARCHAR(100) NULL,
+                last_name VARCHAR(100) NULL,
+                phone VARCHAR(50) NOT NULL,
+                email VARCHAR(190) NULL,
+                cabin_id INT NULL,
+                cabin_name VARCHAR(190) NULL,
+                date_from DATE NOT NULL,
+                date_to DATE NOT NULL,
+                guests INT NOT NULL DEFAULT 1,
+                adults INT NOT NULL DEFAULT 1,
+                children INT NOT NULL DEFAULT 0,
+                city VARCHAR(100) NULL,
+                country VARCHAR(100) NULL,
+                notes TEXT NULL,
+                status VARCHAR(50) NOT NULL DEFAULT "NEW",
+                source VARCHAR(50) NOT NULL DEFAULT "WWW",
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX inquiries_cabin_id_idx (cabin_id),
+                INDEX inquiries_status_idx (status),
+                INDEX inquiries_date_from_idx (date_from),
+                INDEX inquiries_created_at_idx (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
     }
 
     /**

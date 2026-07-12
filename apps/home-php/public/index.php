@@ -28,7 +28,82 @@ $router = new Router();
 $router->get('/', function (): void {
     Response::html(View::render('pages/home', [
         'title' => 'Strona główna',
+        'inquiryForm' => null,
+        'inquiryErrors' => null,
+        'publicDatabaseMessage' => null,
     ]));
+});
+
+$router->post('/zapytanie', function (): void {
+    $form = publicInquiryFormFromPost();
+    $settings = defaultSettingsForm();
+    $errors = [];
+    $selectedCabin = null;
+    $databaseMessage = null;
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/home', [
+            'title' => 'Strona główna',
+            'inquiryForm' => $form,
+            'inquiryErrors' => [
+                'date_from' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać zapytania.',
+            ],
+            'publicDatabaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać zapytania.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $settings = SettingsRepository::all();
+    } catch (Throwable $exception) {
+        $databaseMessage = 'Nie udało się pobrać ustawień: ' . $exception->getMessage();
+    }
+
+    $errors = validatePublicInquiryForm($form, $settings);
+
+    if ($form['cabin_id'] !== '' && ctype_digit($form['cabin_id'])) {
+        try {
+            $selectedCabin = CabinRepository::find((int) $form['cabin_id']);
+
+            if ($selectedCabin === null || (int) $selectedCabin['is_active'] !== 1) {
+                $errors['cabin_id'] = 'Wybrany domek nie jest dostępny w ofercie publicznej.';
+                $selectedCabin = null;
+            }
+        } catch (Throwable $exception) {
+            $errors['cabin_id'] = 'Nie udało się sprawdzić wybranego domku.';
+        }
+    }
+
+    if ($databaseMessage !== null) {
+        $errors['date_from'] = $databaseMessage;
+    }
+
+    if ($errors !== []) {
+        Response::html(View::render('pages/home', [
+            'title' => 'Strona główna',
+            'inquiryForm' => $form,
+            'inquiryErrors' => $errors,
+            'publicDatabaseMessage' => $databaseMessage,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        InquiryRepository::create(publicInquiryDataFromForm($form, $selectedCabin));
+
+        Response::redirect('/?inquiry_sent=1#zapytanie');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/home', [
+            'title' => 'Strona główna',
+            'inquiryForm' => $form,
+            'inquiryErrors' => [
+                'date_from' => 'Nie udało się zapisać zapytania.',
+            ],
+            'publicDatabaseMessage' => 'Nie udało się zapisać zapytania: ' . $exception->getMessage(),
+        ]), 500);
+    }
 });
 
 $router->get('/logowanie', function (): void {

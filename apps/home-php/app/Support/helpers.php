@@ -950,6 +950,172 @@ function validateSettingsForm(array $form): array
     return $errors;
 }
 
+function defaultPublicInquiryForm(): array
+{
+    return [
+        'first_name' => '',
+        'last_name' => '',
+        'phone' => '',
+        'email' => '',
+        'cabin_id' => '',
+        'date_from' => '',
+        'date_to' => '',
+        'adults' => '2',
+        'children' => '0',
+        'city' => '',
+        'country' => 'Polska',
+        'notes' => '',
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function publicInquiryFormFromPost(): array
+{
+    $defaults = defaultPublicInquiryForm();
+    $form = [];
+
+    foreach ($defaults as $key => $defaultValue) {
+        $value = $_POST[$key] ?? $defaultValue;
+        $form[$key] = is_string($value) ? trim($value) : $defaultValue;
+    }
+
+    return $form;
+}
+
+/**
+ * @param array<string, string> $form
+ * @param array<string, string> $settings
+ * @return array<string, string>
+ */
+function validatePublicInquiryForm(array $form, array $settings): array
+{
+    $errors = [];
+
+    if ($form['first_name'] === '') {
+        $errors['first_name'] = 'Podaj imię.';
+    }
+
+    if ($form['last_name'] === '') {
+        $errors['last_name'] = 'Podaj nazwisko.';
+    }
+
+    if ($form['phone'] === '') {
+        $errors['phone'] = 'Podaj numer telefonu.';
+    }
+
+    if ($form['email'] !== '' && filter_var($form['email'], FILTER_VALIDATE_EMAIL) === false) {
+        $errors['email'] = 'Podaj prawidłowy adres e-mail albo zostaw pole puste.';
+    }
+
+    if ($form['cabin_id'] !== '' && !ctype_digit($form['cabin_id'])) {
+        $errors['cabin_id'] = 'Nieprawidłowy wybór domku.';
+    }
+
+    if ($form['date_from'] === '') {
+        $errors['date_from'] = 'Wybierz datę przyjazdu.';
+    }
+
+    if ($form['date_to'] === '') {
+        $errors['date_to'] = 'Wybierz datę wyjazdu.';
+    }
+
+    $nights = calculateReservationNights($form['date_from'], $form['date_to']);
+
+    if ($nights === null) {
+        $errors['date_to'] = 'Data wyjazdu musi być późniejsza niż data przyjazdu.';
+    } else {
+        $minimumNights = isset($settings['minimum_nights']) && ctype_digit($settings['minimum_nights'])
+            ? (int) $settings['minimum_nights']
+            : 1;
+
+        if ($nights < $minimumNights) {
+            $errors['date_to'] = 'Minimalna długość pobytu to ' . $minimumNights . ' noce.';
+        }
+    }
+
+    if (!ctype_digit($form['adults']) || (int) $form['adults'] < 1) {
+        $errors['adults'] = 'Liczba dorosłych musi być większa od zera.';
+    }
+
+    if (!ctype_digit($form['children'])) {
+        $errors['children'] = 'Liczba dzieci musi być liczbą całkowitą.';
+    }
+
+    return $errors;
+}
+
+/**
+ * @param array<string, string> $form
+ * @param array{
+ *     id: int,
+ *     name: string,
+ *     short_name: string|null,
+ *     description: string,
+ *     max_guests: int,
+ *     bedrooms: int,
+ *     bathrooms: int,
+ *     price_per_night: int,
+ *     price_one_night: int,
+ *     price_two_nights: int,
+ *     price_three_nights: int,
+ *     price_four_nights: int,
+ *     price_five_nights: int,
+ *     price_six_nights: int,
+ *     price_seven_plus_nights: int,
+ *     is_active: int,
+ *     sort_order: int,
+ *     created_at: string
+ * }|null $cabin
+ * @return array{
+ *     full_name: string,
+ *     first_name: string|null,
+ *     last_name: string|null,
+ *     phone: string,
+ *     email: string|null,
+ *     cabin_id: int|null,
+ *     cabin_name: string|null,
+ *     date_from: string,
+ *     date_to: string,
+ *     guests: int,
+ *     adults: int,
+ *     children: int,
+ *     city: string|null,
+ *     country: string|null,
+ *     notes: string|null,
+ *     status: string,
+ *     source: string
+ * }
+ */
+function publicInquiryDataFromForm(array $form, ?array $cabin): array
+{
+    $firstName = $form['first_name'];
+    $lastName = $form['last_name'];
+    $adults = (int) $form['adults'];
+    $children = (int) $form['children'];
+
+    return [
+        'full_name' => trim($firstName . ' ' . $lastName),
+        'first_name' => $firstName !== '' ? $firstName : null,
+        'last_name' => $lastName !== '' ? $lastName : null,
+        'phone' => $form['phone'],
+        'email' => $form['email'] !== '' ? $form['email'] : null,
+        'cabin_id' => $cabin !== null ? (int) $cabin['id'] : null,
+        'cabin_name' => $cabin !== null ? $cabin['name'] : null,
+        'date_from' => $form['date_from'],
+        'date_to' => $form['date_to'],
+        'guests' => $adults + $children,
+        'adults' => $adults,
+        'children' => $children,
+        'city' => $form['city'] !== '' ? $form['city'] : null,
+        'country' => $form['country'] !== '' ? $form['country'] : null,
+        'notes' => $form['notes'] !== '' ? $form['notes'] : null,
+        'status' => 'NEW',
+        'source' => 'WWW',
+    ];
+}
+
 function formatDateForDisplay(string $date): string
 {
     if ($date === '') {
