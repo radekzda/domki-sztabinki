@@ -321,12 +321,26 @@ $selectedCabinName = is_array($selectedAvailabilityCabin)
     : 'Wybrany domek';
 
 $siteHeroImage = null;
+$siteGalleryImages = [];
+$siteAttractionImages = [];
 
 if (Database::canAttemptConnection()) {
     try {
         $siteHeroImage = SiteImageRepository::mainByType('HERO');
     } catch (Throwable $exception) {
         $siteHeroImage = null;
+    }
+
+    try {
+        $siteGalleryImages = SiteImageRepository::allByType('GALLERY');
+    } catch (Throwable $exception) {
+        $siteGalleryImages = [];
+    }
+
+    try {
+        $siteAttractionImages = SiteImageRepository::allByType('ATTRACTION');
+    } catch (Throwable $exception) {
+        $siteAttractionImages = [];
     }
 }
 
@@ -967,6 +981,61 @@ $heroBackground = $heroImagePath !== ''
         line-height: 1.7;
     }
 
+    .public-media-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .public-media-card {
+        overflow: hidden;
+        background: var(--public-card);
+        border: 1px solid var(--public-border);
+        border-radius: 18px;
+        box-shadow: 0 16px 38px rgba(23, 35, 29, 0.08);
+    }
+
+    .public-media-card img {
+        width: 100%;
+        height: 220px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .public-media-card__body {
+        padding: 14px 16px;
+    }
+
+    .public-media-card__body strong {
+        display: block;
+        color: var(--public-green);
+        font-size: 15px;
+    }
+
+    .public-attraction-photos {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 22px;
+    }
+
+    .public-attraction-photo {
+        overflow: hidden;
+        min-height: 210px;
+        border: 1px solid var(--public-border);
+        border-radius: 18px;
+        background: var(--public-card);
+        box-shadow: 0 16px 38px rgba(23, 35, 29, 0.08);
+    }
+
+    .public-attraction-photo img {
+        width: 100%;
+        height: 100%;
+        min-height: 210px;
+        object-fit: cover;
+        display: block;
+    }
+
     @media (max-width: 1050px) {
         .public-menu {
             display: none;
@@ -977,7 +1046,9 @@ $heroBackground = $heroImagePath !== ''
         .public-calendar-grid,
         .public-benefits,
         .public-bottom-grid,
-        .public-availability {
+        .public-availability,
+        .public-media-grid,
+        .public-attraction-photos {
             grid-template-columns: 1fr;
         }
 
@@ -1063,6 +1134,7 @@ $heroBackground = $heroImagePath !== ''
                 <a href="#domki">Domki</a>
                 <a href="#dostepnosc">Dostępność</a>
                 <a href="#atrakcje">Atrakcje</a>
+                <a href="#galeria">Galeria</a>
                 <a href="#cennik">Cennik</a>
                 <a href="#kontakt">Kontakt</a>
             </div>
@@ -1412,8 +1484,60 @@ $heroBackground = $heroImagePath !== ''
                     <p>Okolica sprzyjająca relaksowi, spacerom i spokojnemu wypoczynkowi.</p>
                 </div>
             </div>
+
+            <?php if ($siteAttractionImages !== []): ?>
+                <div class="public-attraction-photos">
+                    <?php foreach (array_slice($siteAttractionImages, 0, 3) as $attractionImage): ?>
+                        <figure class="public-attraction-photo">
+                            <img
+                                src="<?= htmlspecialchars((string) $attractionImage['image_url'], ENT_QUOTES, 'UTF-8') ?>"
+                                alt="<?= htmlspecialchars((string) ($attractionImage['alt_text'] ?? 'Domki Sztabinki - atrakcje'), ENT_QUOTES, 'UTF-8') ?>"
+                            >
+                        </figure>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </section>
+
+    <?php if ($siteGalleryImages !== []): ?>
+        <section class="public-section" id="galeria">
+            <div class="public-wrap">
+                <div class="public-section__head">
+                    <div>
+                        <p class="public-kicker">Galeria</p>
+
+                        <h2>Zdjęcia z Domków Sztabinki</h2>
+
+                        <p>
+                            Zobacz otoczenie, domki, jezioro i miejsca przygotowane do wypoczynku.
+                        </p>
+                    </div>
+
+                    <a class="public-button public-button--light" href="#zapytanie">
+                        Zapytaj o termin
+                    </a>
+                </div>
+
+                <div class="public-media-grid">
+                    <?php foreach (array_slice($siteGalleryImages, 0, 8) as $galleryImage): ?>
+                        <article class="public-media-card">
+                            <img
+                                src="<?= htmlspecialchars((string) $galleryImage['image_url'], ENT_QUOTES, 'UTF-8') ?>"
+                                alt="<?= htmlspecialchars((string) ($galleryImage['alt_text'] ?? 'Domki Sztabinki - galeria'), ENT_QUOTES, 'UTF-8') ?>"
+                            >
+
+                            <div class="public-media-card__body">
+                                <strong>
+                                    <?= htmlspecialchars((string) ($galleryImage['alt_text'] ?? 'Domki Sztabinki'), ENT_QUOTES, 'UTF-8') ?>
+                                </strong>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </section>
+    <?php endif; ?>
 
     <section class="public-section" id="cennik">
         <div class="public-wrap">
@@ -1756,6 +1880,7 @@ $heroBackground = $heroImagePath !== ''
                         <a href="#domki">Domki</a><br>
                         <a href="#dostepnosc">Dostępność</a><br>
                         <a href="#atrakcje">Atrakcje</a><br>
+                        <a href="#galeria">Galeria</a><br>
                         <a href="#zapytanie">Zapytaj o termin</a>
                     </p>
                 </div>
