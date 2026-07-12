@@ -7,7 +7,9 @@ declare(strict_types=1);
  * @var array{
  *     id: int,
  *     cabin_id: int,
+ *     guest_id: int|null,
  *     cabin_name: string|null,
+ *     linked_guest_name: string|null,
  *     guest_name: string,
  *     email: string,
  *     phone: string|null,
@@ -78,8 +80,21 @@ $paymentStatus = $reservation['payment_status'] ?? '';
 
                     <div class="status-list">
                         <div class="status-row">
-                            <span>Gość</span>
+                            <span>Gość z rezerwacji</span>
                             <strong><?= htmlspecialchars($reservation['guest_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Powiązana karta gościa</span>
+                            <strong>
+                                <?php if ($reservation['guest_id'] !== null): ?>
+                                    <a href="/admin/goscie/pokaz?id=<?= htmlspecialchars((string) $reservation['guest_id'], ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= htmlspecialchars($reservation['linked_guest_name'] ?? 'Gość #' . $reservation['guest_id'], ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </strong>
                         </div>
 
                         <div class="status-row">

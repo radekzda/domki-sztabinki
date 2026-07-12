@@ -34,8 +34,8 @@ declare(strict_types=1);
                             <h1>Goście</h1>
 
                             <p>
-                                Lista gości pobierana z bazy MySQL. W kolejnym kroku połączymy gości
-                                z rezerwacjami oraz dodamy edycję kart gości.
+                                Lista gości pobierana z bazy MySQL. Goście mogą być ręcznie dodawani
+                                albo tworzeni automatycznie podczas zapisu rezerwacji.
                             </p>
                         </div>
 
@@ -83,6 +83,7 @@ declare(strict_types=1);
                                         <th>VIP</th>
                                         <th>Źródło</th>
                                         <th>Utworzono</th>
+                                        <th>Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -132,6 +133,58 @@ declare(strict_types=1);
 
                                             <td>
                                                 <?= htmlspecialchars(formatDateForDisplay($guest['created_at']), ENT_QUOTES, 'UTF-8') ?>
+                                            </td>
+
+                                            <td>
+                                                <div class="table-actions">
+                                                    <a
+                                                        class="button button--secondary button--small"
+                                                        href="/admin/goscie/pokaz?id=<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Szczegóły
+                                                    </a>
+
+                                                    <a
+                                                        class="button button--secondary button--small"
+                                                        href="/admin/goscie/edytuj?id=<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Edytuj
+                                                    </a>
+
+                                                    <form method="post" action="/admin/goscie/vip">
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <input
+                                                            type="hidden"
+                                                            name="is_vip"
+                                                            value="<?= $guest['is_vip'] === 1 ? '0' : '1' ?>"
+                                                        >
+
+                                                        <button class="button button--primary button--small" type="submit">
+                                                            <?= $guest['is_vip'] === 1 ? 'Usuń VIP' : 'VIP' ?>
+                                                        </button>
+                                                    </form>
+
+                                                    <form
+                                                        method="post"
+                                                        action="/admin/goscie/usun"
+                                                        onsubmit="return confirm('Czy na pewno usunąć tego gościa? Powiązane rezerwacje zostaną odłączone od karty gościa, ale nie zostaną usunięte.')"
+                                                    >
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <button class="button button--secondary button--small" type="submit">
+                                                            Usuń
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

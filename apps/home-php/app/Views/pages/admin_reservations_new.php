@@ -25,6 +25,18 @@ declare(strict_types=1);
  *     sort_order: int,
  *     created_at: string
  * }> $cabins
+ * @var array<int, array{
+ *     id: int,
+ *     first_name: string,
+ *     last_name: string,
+ *     email: string,
+ *     phone: string|null,
+ *     country: string|null,
+ *     city: string|null,
+ *     is_vip: int,
+ *     source: string,
+ *     created_at: string
+ * }> $guests
  * @var string|null $databaseMessage
  * @var bool $canSave
  * @var int|null $calculatedNights
@@ -46,6 +58,7 @@ declare(strict_types=1);
 
                             <p>
                                 Dodaj pobyt ręcznie. System wyliczy liczbę nocy i domyślną cenę według cennika domku.
+                                Jeżeli nie wybierzesz gościa, zostanie znaleziony po e-mailu albo utworzony automatycznie.
                             </p>
                         </div>
 
@@ -83,6 +96,7 @@ declare(strict_types=1);
                         'form' => $form,
                         'errors' => $errors,
                         'cabins' => $cabins,
+                        'guests' => $guests,
                         'canSave' => $canSave,
                         'action' => '/admin/rezerwacje/nowa',
                         'submitLabel' => 'Zapisz rezerwację',

@@ -24,6 +24,18 @@ declare(strict_types=1);
  *     sort_order: int,
  *     created_at: string
  * }> $cabins
+ * @var array<int, array{
+ *     id: int,
+ *     first_name: string,
+ *     last_name: string,
+ *     email: string,
+ *     phone: string|null,
+ *     country: string|null,
+ *     city: string|null,
+ *     is_vip: int,
+ *     source: string,
+ *     created_at: string
+ * }> $guests
  * @var bool $canSave
  * @var string $action
  * @var string $submitLabel
@@ -34,6 +46,30 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
 ?>
 <form class="form form--wide" method="post" action="<?= htmlspecialchars($actionValue, ENT_QUOTES, 'UTF-8') ?>">
     <div class="form-grid">
+        <div class="form-field form-field--full">
+            <label for="guest_id">Powiązany gość</label>
+            <select id="guest_id" name="guest_id">
+                <option value="">Utwórz / dopasuj automatycznie po e-mailu</option>
+
+                <?php foreach ($guests as $guest): ?>
+                    <option
+                        value="<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
+                        <?= $form['guest_id'] === (string) $guest['id'] ? 'selected' : '' ?>
+                    >
+                        <?= htmlspecialchars($guest['first_name'] . ' ' . $guest['last_name'] . ' — ' . $guest['email'], ENT_QUOTES, 'UTF-8') ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
+            <?php if (isset($errors['guest_id'])): ?>
+                <span class="form-error"><?= htmlspecialchars($errors['guest_id'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
+
+            <span class="form-hint">
+                Gdy zostawisz puste, system znajdzie gościa po e-mailu albo utworzy nową kartę gościa.
+            </span>
+        </div>
+
         <div class="form-field form-field--full">
             <label for="cabin_id">Domek</label>
             <select id="cabin_id" name="cabin_id" required>
@@ -242,6 +278,10 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
                     Airbnb
                 </option>
             </select>
+
+            <?php if (isset($errors['source'])): ?>
+                <span class="form-error"><?= htmlspecialchars($errors['source'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
         </div>
 
         <div class="form-field form-field--full">

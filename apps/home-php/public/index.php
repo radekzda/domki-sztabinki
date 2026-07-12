@@ -381,6 +381,7 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
     Auth::requireAdmin();
 
     $cabins = [];
+    $guests = [];
     $databaseMessage = null;
 
     if (!Database::canAttemptConnection()) {
@@ -388,8 +389,9 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
     } else {
         try {
             $cabins = CabinRepository::all();
+            $guests = GuestRepository::all();
         } catch (Throwable $exception) {
-            $databaseMessage = 'Nie udało się pobrać listy domków: ' . $exception->getMessage();
+            $databaseMessage = 'Nie udało się pobrać danych do formularza: ' . $exception->getMessage();
         }
     }
 
@@ -398,6 +400,7 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
         'form' => defaultReservationForm(),
         'errors' => [],
         'cabins' => $cabins,
+        'guests' => $guests,
         'databaseMessage' => $databaseMessage,
         'canSave' => Database::canAttemptConnection() && $cabins !== [],
         'calculatedNights' => null,
@@ -411,6 +414,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
     $form = reservationFormFromPost();
     $errors = validateReservationForm($form);
     $cabins = [];
+    $guests = [];
     $databaseMessage = null;
     $calculatedNights = null;
     $calculatedTotalPrice = null;
@@ -421,6 +425,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'form' => $form,
             'errors' => $errors,
             'cabins' => [],
+            'guests' => [],
             'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać rezerwacji.',
             'canSave' => false,
             'calculatedNights' => null,
@@ -432,13 +437,15 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
 
     try {
         $cabins = CabinRepository::all();
+        $guests = GuestRepository::all();
     } catch (Throwable $exception) {
         Response::html(View::render('pages/admin_reservations_new', [
             'title' => 'Dodaj rezerwację',
             'form' => $form,
             'errors' => $errors,
             'cabins' => [],
-            'databaseMessage' => 'Nie udało się pobrać listy domków: ' . $exception->getMessage(),
+            'guests' => [],
+            'databaseMessage' => 'Nie udało się pobrać danych do formularza: ' . $exception->getMessage(),
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
@@ -478,6 +485,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'form' => $form,
             'errors' => $errors,
             'cabins' => $cabins,
+            'guests' => $guests,
             'databaseMessage' => $databaseMessage,
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
@@ -488,7 +496,18 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
     }
 
     try {
-        ReservationRepository::create(reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice));
+        $selectedGuestId = $form['guest_id'] !== '' ? (int) $form['guest_id'] : null;
+
+        $guestId = GuestRepository::resolveForReservation(
+            $selectedGuestId,
+            $form['guest_name'],
+            $form['email'],
+            $form['phone'] !== '' ? $form['phone'] : null,
+            $form['source'],
+            $form['notes'] !== '' ? $form['notes'] : null
+        );
+
+        ReservationRepository::create(reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice, $guestId));
 
         Response::redirect('/admin/rezerwacje?created=1');
     } catch (Throwable $exception) {
@@ -497,6 +516,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'form' => $form,
             'errors' => [],
             'cabins' => $cabins,
+            'guests' => $guests,
             'databaseMessage' => 'Nie udało się zapisać rezerwacji: ' . $exception->getMessage(),
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
@@ -573,6 +593,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
             'form' => defaultReservationForm(),
             'errors' => [],
             'cabins' => [],
+            'guests' => [],
             'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Edycja zostanie odblokowana po ustawieniu MySQL w pliku .env.',
             'canSave' => false,
             'calculatedNights' => null,
@@ -595,6 +616,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
         }
 
         $cabins = CabinRepository::all();
+        $guests = GuestRepository::all();
 
         Response::html(View::render('pages/admin_reservations_edit', [
             'title' => 'Edytuj rezerwację',
@@ -602,6 +624,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
             'form' => reservationFormFromReservation($reservation),
             'errors' => [],
             'cabins' => $cabins,
+            'guests' => $guests,
             'databaseMessage' => null,
             'canSave' => $cabins !== [],
             'calculatedNights' => $reservation['nights'],
@@ -614,6 +637,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
             'form' => defaultReservationForm(),
             'errors' => [],
             'cabins' => [],
+            'guests' => [],
             'databaseMessage' => 'Nie udało się pobrać rezerwacji: ' . $exception->getMessage(),
             'canSave' => false,
             'calculatedNights' => null,
@@ -639,6 +663,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
     $form = reservationFormFromPost();
     $errors = validateReservationForm($form);
     $cabins = [];
+    $guests = [];
     $databaseMessage = null;
     $calculatedNights = null;
     $calculatedTotalPrice = null;
@@ -650,6 +675,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'form' => $form,
             'errors' => $errors,
             'cabins' => [],
+            'guests' => [],
             'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać zmian.',
             'canSave' => false,
             'calculatedNights' => null,
@@ -661,6 +687,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
 
     try {
         $cabins = CabinRepository::all();
+        $guests = GuestRepository::all();
     } catch (Throwable $exception) {
         Response::html(View::render('pages/admin_reservations_edit', [
             'title' => 'Edytuj rezerwację',
@@ -668,7 +695,8 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'form' => $form,
             'errors' => $errors,
             'cabins' => [],
-            'databaseMessage' => 'Nie udało się pobrać listy domków: ' . $exception->getMessage(),
+            'guests' => [],
+            'databaseMessage' => 'Nie udało się pobrać danych do formularza: ' . $exception->getMessage(),
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
@@ -710,6 +738,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'form' => $form,
             'errors' => $errors,
             'cabins' => $cabins,
+            'guests' => $guests,
             'databaseMessage' => $databaseMessage,
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
@@ -720,7 +749,18 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
     }
 
     try {
-        ReservationRepository::update($id, reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice));
+        $selectedGuestId = $form['guest_id'] !== '' ? (int) $form['guest_id'] : null;
+
+        $guestId = GuestRepository::resolveForReservation(
+            $selectedGuestId,
+            $form['guest_name'],
+            $form['email'],
+            $form['phone'] !== '' ? $form['phone'] : null,
+            $form['source'],
+            $form['notes'] !== '' ? $form['notes'] : null
+        );
+
+        ReservationRepository::update($id, reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice, $guestId));
 
         Response::redirect('/admin/rezerwacje?updated=1');
     } catch (Throwable $exception) {
@@ -730,6 +770,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'form' => $form,
             'errors' => [],
             'cabins' => $cabins,
+            'guests' => $guests,
             'databaseMessage' => 'Nie udało się zapisać rezerwacji: ' . $exception->getMessage(),
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
@@ -920,6 +961,18 @@ $router->get('/admin/goscie', function (): void {
         $successMessage = 'Gość został zapisany.';
     }
 
+    if (isset($_GET['updated'])) {
+        $successMessage = 'Gość został zaktualizowany.';
+    }
+
+    if (isset($_GET['vip_changed'])) {
+        $successMessage = 'Status VIP został zmieniony.';
+    }
+
+    if (isset($_GET['deleted'])) {
+        $successMessage = 'Gość został usunięty.';
+    }
+
     if (!Database::canAttemptConnection()) {
         $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Lista gości zostanie pokazana po ustawieniu danych MySQL w pliku .env.';
     } else {
@@ -993,6 +1046,245 @@ $router->post('/admin/goscie/nowy', function (): void {
             'errors' => [],
             'databaseMessage' => 'Nie udało się zapisać gościa: ' . $exception->getMessage(),
             'canSave' => true,
+        ]), 500);
+    }
+});
+
+$router->get('/admin/goscie/pokaz', function (): void {
+    Auth::requireAdmin();
+
+    $id = guestIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora gościa.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można pokazać szczegółów gościa.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $guest = GuestRepository::find($id);
+
+        if ($guest === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono gościa',
+                'message' => 'Gość o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        $reservations = ReservationRepository::forGuest($id);
+
+        Response::html(View::render('pages/admin_guests_show', [
+            'title' => 'Szczegóły gościa',
+            'guest' => $guest,
+            'reservations' => $reservations,
+        ]));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się pobrać gościa',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->get('/admin/goscie/edytuj', function (): void {
+    Auth::requireAdmin();
+
+    $id = guestIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora gościa.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_guests_edit', [
+            'title' => 'Edytuj gościa',
+            'id' => $id,
+            'form' => defaultGuestForm(),
+            'errors' => [],
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Edycja zostanie odblokowana po ustawieniu MySQL w pliku .env.',
+            'canSave' => false,
+        ]));
+
+        return;
+    }
+
+    try {
+        $guest = GuestRepository::find($id);
+
+        if ($guest === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono gościa',
+                'message' => 'Gość o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        Response::html(View::render('pages/admin_guests_edit', [
+            'title' => 'Edytuj gościa',
+            'id' => $id,
+            'form' => guestFormFromGuest($guest),
+            'errors' => [],
+            'databaseMessage' => null,
+            'canSave' => true,
+        ]));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_guests_edit', [
+            'title' => 'Edytuj gościa',
+            'id' => $id,
+            'form' => defaultGuestForm(),
+            'errors' => [],
+            'databaseMessage' => 'Nie udało się pobrać gościa: ' . $exception->getMessage(),
+            'canSave' => false,
+        ]), 500);
+    }
+});
+
+$router->post('/admin/goscie/edytuj', function (): void {
+    Auth::requireAdmin();
+
+    $id = guestIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora gościa.',
+        ]), 400);
+
+        return;
+    }
+
+    $form = guestFormFromPost();
+    $errors = validateGuestForm($form);
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_guests_edit', [
+            'title' => 'Edytuj gościa',
+            'id' => $id,
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać zmian.',
+            'canSave' => false,
+        ]), 422);
+
+        return;
+    }
+
+    if ($errors !== []) {
+        Response::html(View::render('pages/admin_guests_edit', [
+            'title' => 'Edytuj gościa',
+            'id' => $id,
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => null,
+            'canSave' => true,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        GuestRepository::update($id, guestDataFromForm($form));
+
+        Response::redirect('/admin/goscie?updated=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_guests_edit', [
+            'title' => 'Edytuj gościa',
+            'id' => $id,
+            'form' => $form,
+            'errors' => [],
+            'databaseMessage' => 'Nie udało się zapisać gościa: ' . $exception->getMessage(),
+            'canSave' => true,
+        ]), 500);
+    }
+});
+
+$router->post('/admin/goscie/vip', function (): void {
+    Auth::requireAdmin();
+
+    $id = guestIdFromPost();
+    $isVip = guestVipStatusFromPost();
+
+    if ($id === null || $isVip === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można zmienić oznaczenia VIP, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zmienić oznaczenia VIP.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        GuestRepository::setVip($id, $isVip);
+
+        Response::redirect('/admin/goscie?vip_changed=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się zmienić VIP',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/goscie/usun', function (): void {
+    Auth::requireAdmin();
+
+    $id = guestIdFromPost();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można usunąć gościa, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można usunąć gościa.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        GuestRepository::delete($id);
+
+        Response::redirect('/admin/goscie?deleted=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się usunąć gościa',
+            'message' => $exception->getMessage(),
         ]), 500);
     }
 });

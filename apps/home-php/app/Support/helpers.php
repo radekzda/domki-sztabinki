@@ -232,6 +232,7 @@ function activeStatusFromPost(): ?bool
 function defaultReservationForm(): array
 {
     return [
+        'guest_id' => '',
         'cabin_id' => '',
         'guest_name' => '',
         'email' => '',
@@ -268,7 +269,9 @@ function reservationFormFromPost(): array
  * @param array{
  *     id: int,
  *     cabin_id: int,
+ *     guest_id: int|null,
  *     cabin_name: string|null,
+ *     linked_guest_name: string|null,
  *     guest_name: string,
  *     email: string,
  *     phone: string|null,
@@ -291,6 +294,7 @@ function reservationFormFromPost(): array
 function reservationFormFromReservation(array $reservation): array
 {
     return [
+        'guest_id' => $reservation['guest_id'] !== null ? (string) $reservation['guest_id'] : '',
         'cabin_id' => (string) $reservation['cabin_id'],
         'guest_name' => $reservation['guest_name'],
         'email' => $reservation['email'],
@@ -314,6 +318,10 @@ function reservationFormFromReservation(array $reservation): array
 function validateReservationForm(array $form): array
 {
     $errors = [];
+
+    if ($form['guest_id'] !== '' && !ctype_digit($form['guest_id'])) {
+        $errors['guest_id'] = 'Nieprawidłowy gość.';
+    }
 
     if ($form['cabin_id'] === '' || !ctype_digit($form['cabin_id'])) {
         $errors['cabin_id'] = 'Wybierz domek.';
@@ -449,6 +457,7 @@ function getReservationNightPrice(int $nights, array $cabin): int
  * @param array<string, string> $form
  * @return array{
  *     cabin_id: int,
+ *     guest_id: int|null,
  *     guest_name: string,
  *     email: string,
  *     phone: string|null,
@@ -466,13 +475,14 @@ function getReservationNightPrice(int $nights, array $cabin): int
  *     notes: string|null
  * }
  */
-function reservationDataFromForm(array $form, int $nights, int $totalPrice): array
+function reservationDataFromForm(array $form, int $nights, int $totalPrice, ?int $guestId): array
 {
     $adults = (int) $form['adults'];
     $children = (int) $form['children'];
 
     return [
         'cabin_id' => (int) $form['cabin_id'],
+        'guest_id' => $guestId,
         'guest_name' => $form['guest_name'],
         'email' => $form['email'],
         'phone' => $form['phone'] !== '' ? $form['phone'] : null,
@@ -596,6 +606,37 @@ function guestFormFromPost(): array
 }
 
 /**
+ * @param array{
+ *     id: int,
+ *     first_name: string,
+ *     last_name: string,
+ *     email: string,
+ *     phone: string|null,
+ *     country: string|null,
+ *     city: string|null,
+ *     is_vip: int,
+ *     source: string,
+ *     notes: string|null,
+ *     created_at: string
+ * } $guest
+ * @return array<string, string>
+ */
+function guestFormFromGuest(array $guest): array
+{
+    return [
+        'first_name' => $guest['first_name'],
+        'last_name' => $guest['last_name'],
+        'email' => $guest['email'],
+        'phone' => $guest['phone'] ?? '',
+        'city' => $guest['city'] ?? '',
+        'country' => $guest['country'] ?? '',
+        'is_vip' => (string) $guest['is_vip'],
+        'source' => $guest['source'],
+        'notes' => $guest['notes'] ?? '',
+    ];
+}
+
+/**
  * @param array<string, string> $form
  * @return array<string, string>
  */
@@ -655,6 +696,59 @@ function guestDataFromForm(array $form): array
         'source' => $form['source'],
         'notes' => $form['notes'] !== '' ? $form['notes'] : null,
     ];
+}
+
+function guestIdFromQuery(): ?int
+{
+    $value = $_GET['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function guestIdFromPost(): ?int
+{
+    $value = $_POST['id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function guestVipStatusFromPost(): ?bool
+{
+    $value = $_POST['is_vip'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    if ((string) $value === '1') {
+        return true;
+    }
+
+    if ((string) $value === '0') {
+        return false;
+    }
+
+    return null;
 }
 
 function formatDateForDisplay(string $date): string

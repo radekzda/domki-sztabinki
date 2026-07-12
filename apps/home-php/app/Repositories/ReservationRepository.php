@@ -8,7 +8,9 @@ final class ReservationRepository
      * @return array<int, array{
      *     id: int,
      *     cabin_id: int,
+     *     guest_id: int|null,
      *     cabin_name: string|null,
+     *     linked_guest_name: string|null,
      *     guest_name: string,
      *     email: string,
      *     phone: string|null,
@@ -34,7 +36,9 @@ final class ReservationRepository
             'SELECT
                 reservations.id,
                 reservations.cabin_id,
+                reservations.guest_id,
                 cabins.name AS cabin_name,
+                CONCAT(guests.first_name, " ", guests.last_name) AS linked_guest_name,
                 reservations.guest_name,
                 reservations.email,
                 reservations.phone,
@@ -52,6 +56,7 @@ final class ReservationRepository
                 reservations.created_at
             FROM reservations
             LEFT JOIN cabins ON cabins.id = reservations.cabin_id
+            LEFT JOIN guests ON guests.id = reservations.guest_id
             ORDER BY reservations.start_date DESC, reservations.id DESC'
         );
 
@@ -69,7 +74,9 @@ final class ReservationRepository
             return [
                 'id' => (int) ($row['id'] ?? 0),
                 'cabin_id' => (int) ($row['cabin_id'] ?? 0),
+                'guest_id' => isset($row['guest_id']) ? (int) $row['guest_id'] : null,
                 'cabin_name' => isset($row['cabin_name']) ? (string) $row['cabin_name'] : null,
+                'linked_guest_name' => isset($row['linked_guest_name']) ? (string) $row['linked_guest_name'] : null,
                 'guest_name' => (string) ($row['guest_name'] ?? ''),
                 'email' => (string) ($row['email'] ?? ''),
                 'phone' => isset($row['phone']) ? (string) $row['phone'] : null,
@@ -93,7 +100,9 @@ final class ReservationRepository
      * @return array{
      *     id: int,
      *     cabin_id: int,
+     *     guest_id: int|null,
      *     cabin_name: string|null,
+     *     linked_guest_name: string|null,
      *     guest_name: string,
      *     email: string,
      *     phone: string|null,
@@ -120,7 +129,9 @@ final class ReservationRepository
             'SELECT
                 reservations.id,
                 reservations.cabin_id,
+                reservations.guest_id,
                 cabins.name AS cabin_name,
+                CONCAT(guests.first_name, " ", guests.last_name) AS linked_guest_name,
                 reservations.guest_name,
                 reservations.email,
                 reservations.phone,
@@ -139,6 +150,7 @@ final class ReservationRepository
                 reservations.created_at
             FROM reservations
             LEFT JOIN cabins ON cabins.id = reservations.cabin_id
+            LEFT JOIN guests ON guests.id = reservations.guest_id
             WHERE reservations.id = :id
             LIMIT 1'
         );
@@ -156,7 +168,9 @@ final class ReservationRepository
         return [
             'id' => (int) ($row['id'] ?? 0),
             'cabin_id' => (int) ($row['cabin_id'] ?? 0),
+            'guest_id' => isset($row['guest_id']) ? (int) $row['guest_id'] : null,
             'cabin_name' => isset($row['cabin_name']) ? (string) $row['cabin_name'] : null,
+            'linked_guest_name' => isset($row['linked_guest_name']) ? (string) $row['linked_guest_name'] : null,
             'guest_name' => (string) ($row['guest_name'] ?? ''),
             'email' => (string) ($row['email'] ?? ''),
             'phone' => isset($row['phone']) ? (string) $row['phone'] : null,
@@ -174,6 +188,99 @@ final class ReservationRepository
             'notes' => isset($row['notes']) ? (string) $row['notes'] : null,
             'created_at' => (string) ($row['created_at'] ?? ''),
         ];
+    }
+
+    /**
+     * @return array<int, array{
+     *     id: int,
+     *     cabin_id: int,
+     *     guest_id: int|null,
+     *     cabin_name: string|null,
+     *     linked_guest_name: string|null,
+     *     guest_name: string,
+     *     email: string,
+     *     phone: string|null,
+     *     start_date: string,
+     *     end_date: string,
+     *     nights: int,
+     *     guests: int,
+     *     adults: int,
+     *     children: int,
+     *     status: string,
+     *     source: string,
+     *     payment_status: string|null,
+     *     total_price: string|null,
+     *     paid_amount: string|null,
+     *     created_at: string
+     * }>
+     */
+    public static function forGuest(int $guestId): array
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                reservations.id,
+                reservations.cabin_id,
+                reservations.guest_id,
+                cabins.name AS cabin_name,
+                CONCAT(guests.first_name, " ", guests.last_name) AS linked_guest_name,
+                reservations.guest_name,
+                reservations.email,
+                reservations.phone,
+                reservations.start_date,
+                reservations.end_date,
+                reservations.nights,
+                reservations.guests,
+                reservations.adults,
+                reservations.children,
+                reservations.status,
+                reservations.source,
+                reservations.payment_status,
+                reservations.total_price,
+                reservations.paid_amount,
+                reservations.created_at
+            FROM reservations
+            LEFT JOIN cabins ON cabins.id = reservations.cabin_id
+            LEFT JOIN guests ON guests.id = reservations.guest_id
+            WHERE reservations.guest_id = :guest_id
+            ORDER BY reservations.start_date DESC, reservations.id DESC'
+        );
+
+        $statement->execute([
+            'guest_id' => $guestId,
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        return array_map(static function (array $row): array {
+            return [
+                'id' => (int) ($row['id'] ?? 0),
+                'cabin_id' => (int) ($row['cabin_id'] ?? 0),
+                'guest_id' => isset($row['guest_id']) ? (int) $row['guest_id'] : null,
+                'cabin_name' => isset($row['cabin_name']) ? (string) $row['cabin_name'] : null,
+                'linked_guest_name' => isset($row['linked_guest_name']) ? (string) $row['linked_guest_name'] : null,
+                'guest_name' => (string) ($row['guest_name'] ?? ''),
+                'email' => (string) ($row['email'] ?? ''),
+                'phone' => isset($row['phone']) ? (string) $row['phone'] : null,
+                'start_date' => (string) ($row['start_date'] ?? ''),
+                'end_date' => (string) ($row['end_date'] ?? ''),
+                'nights' => (int) ($row['nights'] ?? 0),
+                'guests' => (int) ($row['guests'] ?? 0),
+                'adults' => (int) ($row['adults'] ?? 0),
+                'children' => (int) ($row['children'] ?? 0),
+                'status' => (string) ($row['status'] ?? ''),
+                'source' => (string) ($row['source'] ?? ''),
+                'payment_status' => isset($row['payment_status']) ? (string) $row['payment_status'] : null,
+                'total_price' => isset($row['total_price']) ? (string) $row['total_price'] : null,
+                'paid_amount' => isset($row['paid_amount']) ? (string) $row['paid_amount'] : null,
+                'created_at' => (string) ($row['created_at'] ?? ''),
+            ];
+        }, $rows);
     }
 
     public static function hasBlockingOverlap(
@@ -211,6 +318,7 @@ final class ReservationRepository
     /**
      * @param array{
      *     cabin_id: int,
+     *     guest_id: int|null,
      *     guest_name: string,
      *     email: string,
      *     phone: string|null,
@@ -235,6 +343,7 @@ final class ReservationRepository
         $statement = $connection->prepare(
             'INSERT INTO reservations (
                 cabin_id,
+                guest_id,
                 guest_name,
                 email,
                 phone,
@@ -252,6 +361,7 @@ final class ReservationRepository
                 notes
             ) VALUES (
                 :cabin_id,
+                :guest_id,
                 :guest_name,
                 :email,
                 :phone,
@@ -272,6 +382,7 @@ final class ReservationRepository
 
         $statement->execute([
             'cabin_id' => $data['cabin_id'],
+            'guest_id' => $data['guest_id'],
             'guest_name' => $data['guest_name'],
             'email' => $data['email'],
             'phone' => $data['phone'],
@@ -295,6 +406,7 @@ final class ReservationRepository
     /**
      * @param array{
      *     cabin_id: int,
+     *     guest_id: int|null,
      *     guest_name: string,
      *     email: string,
      *     phone: string|null,
@@ -320,6 +432,7 @@ final class ReservationRepository
             'UPDATE reservations
             SET
                 cabin_id = :cabin_id,
+                guest_id = :guest_id,
                 guest_name = :guest_name,
                 email = :email,
                 phone = :phone,
@@ -341,6 +454,7 @@ final class ReservationRepository
         $statement->execute([
             'id' => $id,
             'cabin_id' => $data['cabin_id'],
+            'guest_id' => $data['guest_id'],
             'guest_name' => $data['guest_name'],
             'email' => $data['email'],
             'phone' => $data['phone'],
