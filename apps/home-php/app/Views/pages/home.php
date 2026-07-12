@@ -32,25 +32,26 @@ $successMessage = isset($_GET['inquiry_sent'])
     ? 'Dziękujemy. Zapytanie zostało wysłane. Odpowiemy najszybciej jak to możliwe.'
     : null;
 
-$requestedCalendarMonth = isset($_GET['availability_month'])
+$requestedAvailabilityMonth = isset($_GET['availability_month'])
     ? (string) $_GET['availability_month']
     : date('Y-m');
 
-if (!preg_match('/^\d{4}-\d{2}$/', $requestedCalendarMonth)) {
-    $requestedCalendarMonth = date('Y-m');
+if (!preg_match('/^\d{4}-\d{2}$/', $requestedAvailabilityMonth)) {
+    $requestedAvailabilityMonth = date('Y-m');
 }
 
 try {
-    $calendarMonthStart = new DateTimeImmutable($requestedCalendarMonth . '-01');
+    $availabilityMonthStart = new DateTimeImmutable($requestedAvailabilityMonth . '-01');
 } catch (Throwable $exception) {
-    $calendarMonthStart = new DateTimeImmutable(date('Y-m-01'));
+    $availabilityMonthStart = new DateTimeImmutable(date('Y-m-01'));
 }
 
-$calendarMonthEnd = $calendarMonthStart->modify('first day of next month');
-$previousCalendarMonth = $calendarMonthStart->modify('-1 month')->format('Y-m');
-$nextCalendarMonth = $calendarMonthStart->modify('+1 month')->format('Y-m');
-$calendarMonthStartString = $calendarMonthStart->format('Y-m-d');
-$calendarMonthEndString = $calendarMonthEnd->format('Y-m-d');
+$availabilityWindowStart = $availabilityMonthStart;
+$availabilityWindowEnd = $availabilityMonthStart->modify('+3 months');
+$previousAvailabilityMonth = $availabilityMonthStart->modify('-1 month')->format('Y-m');
+$nextAvailabilityMonth = $availabilityMonthStart->modify('+1 month')->format('Y-m');
+$availabilityWindowStartString = $availabilityWindowStart->format('Y-m-d');
+$availabilityWindowEndString = $availabilityWindowEnd->format('Y-m-d');
 
 $monthNames = [
     '01' => 'styczeń',
@@ -67,33 +68,46 @@ $monthNames = [
     '12' => 'grudzień',
 ];
 
-$calendarMonthLabel = ($monthNames[$calendarMonthStart->format('m')] ?? $calendarMonthStart->format('m'))
-    . ' '
-    . $calendarMonthStart->format('Y');
-
 $weekdayLabels = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 
-$calendarCells = [];
-$firstWeekday = (int) $calendarMonthStart->format('N');
-$daysInMonth = (int) $calendarMonthStart->format('t');
+$buildCalendarWeeks = static function (DateTimeImmutable $monthStart): array {
+    $calendarCells = [];
+    $firstWeekday = (int) $monthStart->format('N');
+    $daysInMonth = (int) $monthStart->format('t');
 
-for ($emptyDay = 1; $emptyDay < $firstWeekday; $emptyDay++) {
-    $calendarCells[] = null;
+    for ($emptyDay = 1; $emptyDay < $firstWeekday; $emptyDay++) {
+        $calendarCells[] = null;
+    }
+
+    for ($day = 1; $day <= $daysInMonth; $day++) {
+        $calendarCells[] = $monthStart->setDate(
+            (int) $monthStart->format('Y'),
+            (int) $monthStart->format('m'),
+            $day
+        )->format('Y-m-d');
+    }
+
+    while (count($calendarCells) % 7 !== 0) {
+        $calendarCells[] = null;
+    }
+
+    return array_chunk($calendarCells, 7);
+};
+
+$availabilityMonths = [];
+
+for ($monthOffset = 0; $monthOffset < 3; $monthOffset++) {
+    $monthStart = $availabilityMonthStart->modify('+' . $monthOffset . ' months');
+    $monthLabel = ($monthNames[$monthStart->format('m')] ?? $monthStart->format('m'))
+        . ' '
+        . $monthStart->format('Y');
+
+    $availabilityMonths[] = [
+        'start' => $monthStart,
+        'label' => $monthLabel,
+        'weeks' => $buildCalendarWeeks($monthStart),
+    ];
 }
-
-for ($day = 1; $day <= $daysInMonth; $day++) {
-    $calendarCells[] = $calendarMonthStart->setDate(
-        (int) $calendarMonthStart->format('Y'),
-        (int) $calendarMonthStart->format('m'),
-        $day
-    )->format('Y-m-d');
-}
-
-while (count($calendarCells) % 7 !== 0) {
-    $calendarCells[] = null;
-}
-
-$calendarWeeks = array_chunk($calendarCells, 7);
 
 if (!Database::canAttemptConnection()) {
     $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Strona pokazuje podstawowe dane domyślne.';
@@ -180,17 +194,17 @@ if (!Database::canAttemptConnection()) {
                 ];
             }
 
-            if ($endDate <= $calendarMonthStartString || $startDate >= $calendarMonthEndString) {
+            if ($endDate <= $availabilityWindowStartString || $startDate >= $availabilityWindowEndString) {
                 continue;
             }
 
-            $rangeStartString = $startDate > $calendarMonthStartString
+            $rangeStartString = $startDate > $availabilityWindowStartString
                 ? $startDate
-                : $calendarMonthStartString;
+                : $availabilityWindowStartString;
 
-            $rangeEndString = $endDate < $calendarMonthEndString
+            $rangeEndString = $endDate < $availabilityWindowEndString
                 ? $endDate
-                : $calendarMonthEndString;
+                : $availabilityWindowEndString;
 
             try {
                 $rangeCurrentDate = new DateTimeImmutable($rangeStartString);
@@ -260,91 +274,901 @@ $statusLabel = static function (string $status): string {
         default => 'Zajęty',
     };
 };
+
+$availabilityCabinId = 0;
+
+if (isset($_GET['availability_cabin_id']) && is_numeric($_GET['availability_cabin_id'])) {
+    $availabilityCabinId = (int) $_GET['availability_cabin_id'];
+}
+
+$availableCabinIds = [];
+
+foreach ($cabins as $cabin) {
+    $availableCabinIds[] = $cabinInt($cabin, 'id', 0);
+}
+
+if (!in_array($availabilityCabinId, $availableCabinIds, true)) {
+    $availabilityCabinId = $availableCabinIds[0] ?? 0;
+}
+
+$selectedAvailabilityCabin = null;
+
+foreach ($cabins as $cabin) {
+    if ($cabinInt($cabin, 'id', 0) === $availabilityCabinId) {
+        $selectedAvailabilityCabin = $cabin;
+        break;
+    }
+}
+
+if (
+    isset($_GET['inquiry_cabin_id'])
+    && is_numeric($_GET['inquiry_cabin_id'])
+    && ($form['cabin_id'] ?? '') === ''
+) {
+    $requestedInquiryCabinId = (int) $_GET['inquiry_cabin_id'];
+
+    if (in_array($requestedInquiryCabinId, $availableCabinIds, true)) {
+        $form['cabin_id'] = (string) $requestedInquiryCabinId;
+    }
+}
+
+$selectedBusyDates = $availabilityCabinId > 0
+    ? ($busyDatesByCabin[$availabilityCabinId] ?? [])
+    : [];
+
+$selectedCabinName = is_array($selectedAvailabilityCabin)
+    ? $cabinString($selectedAvailabilityCabin, 'name', 'Wybrany domek')
+    : 'Wybrany domek';
+
+$heroImage = null;
+
+foreach ($cabins as $heroCabin) {
+    $heroCabinId = $cabinInt($heroCabin, 'id', 0);
+
+    if (isset($cabinImages[$heroCabinId]) && is_array($cabinImages[$heroCabinId])) {
+        $heroImage = $cabinImages[$heroCabinId];
+        break;
+    }
+}
+
+$heroImagePath = is_array($heroImage)
+    ? (string) ($heroImage['image_path'] ?? '')
+    : '';
+
+$heroBackground = $heroImagePath !== ''
+    ? "linear-gradient(90deg, rgba(250,247,239,0.96) 0%, rgba(250,247,239,0.84) 34%, rgba(250,247,239,0.24) 62%, rgba(250,247,239,0.10) 100%), url('" . htmlspecialchars($heroImagePath, ENT_QUOTES, 'UTF-8') . "')"
+    : 'linear-gradient(135deg, #f7f2e8 0%, #e9f1e8 55%, #dce9ef 100%)';
 ?>
-<section class="page-section">
-    <div class="container">
-        <div class="panel">
-            <div class="page-header">
-                <div>
-                    <p class="eyebrow">Wypoczynek nad jeziorem</p>
 
-                    <h1><?= htmlspecialchars($settings['property_name'], ENT_QUOTES, 'UTF-8') ?></h1>
+<style>
+    :root {
+        --public-bg: #f8f4ec;
+        --public-bg-soft: #fffaf1;
+        --public-card: #fffdf8;
+        --public-border: #e7ddce;
+        --public-green: #164a32;
+        --public-green-2: #0f3825;
+        --public-muted: #6e756e;
+        --public-text: #17231d;
+        --public-gold: #b78b4b;
+        --public-red-bg: #fde8e5;
+        --public-red: #9f2d20;
+        --public-green-bg: #e5f3e7;
+    }
 
-                    <p>
-                        <?= nl2br(htmlspecialchars($settings['public_short_description'], ENT_QUOTES, 'UTF-8')) ?>
-                    </p>
-                </div>
+    .public-page {
+        background:
+            radial-gradient(circle at top left, rgba(183, 139, 75, 0.14), transparent 32rem),
+            radial-gradient(circle at 85% 10%, rgba(22, 74, 50, 0.11), transparent 30rem),
+            var(--public-bg);
+        color: var(--public-text);
+        font-family: Arial, sans-serif;
+    }
 
-                <div class="page-header__actions">
-                    <a class="button button--primary" href="#domki">
-                        Zobacz domki
-                    </a>
+    .public-wrap {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+    }
 
-                    <a class="button button--secondary" href="#zapytanie">
-                        Zapytaj o termin
-                    </a>
-                </div>
+    .public-nav {
+        position: sticky;
+        top: 12px;
+        z-index: 20;
+        margin: 14px auto 0;
+        width: min(1180px, calc(100% - 32px));
+        background: rgba(255, 253, 248, 0.94);
+        border: 1px solid rgba(231, 221, 206, 0.9);
+        border-radius: 18px;
+        box-shadow: 0 18px 45px rgba(23, 35, 29, 0.12);
+        backdrop-filter: blur(12px);
+    }
+
+    .public-nav__inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 16px 20px;
+    }
+
+    .public-logo {
+        display: flex;
+        flex-direction: column;
+        color: var(--public-green);
+        text-decoration: none;
+        line-height: 1;
+    }
+
+    .public-logo strong {
+        font-family: Georgia, serif;
+        font-size: 24px;
+        letter-spacing: -0.04em;
+    }
+
+    .public-logo span {
+        margin-top: 5px;
+        color: var(--public-muted);
+        font-size: 13px;
+    }
+
+    .public-menu {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        font-size: 14px;
+    }
+
+    .public-menu a {
+        color: var(--public-text);
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .public-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 20px;
+        border-radius: 9px;
+        border: 1px solid var(--public-green);
+        background: var(--public-green);
+        color: #ffffff;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: 0 10px 24px rgba(22, 74, 50, 0.22);
+    }
+
+    .public-button:hover {
+        background: var(--public-green-2);
+    }
+
+    .public-button--light {
+        background: rgba(255, 253, 248, 0.88);
+        color: var(--public-green);
+        box-shadow: none;
+    }
+
+    .public-button--wide {
+        width: 100%;
+    }
+
+    .public-hero {
+        margin-top: -88px;
+        min-height: 420px;
+        background-image: <?= $heroBackground ?>;
+        background-size: cover;
+        background-position: center;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid var(--public-border);
+    }
+
+    .public-hero__content {
+        padding: 112px 0 34px;
+        max-width: 520px;
+    }
+
+    .public-kicker {
+        margin: 0 0 14px;
+        color: var(--public-green);
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .public-hero h1 {
+        margin: 0;
+        color: var(--public-green);
+        font-family: Georgia, serif;
+        font-size: clamp(30px, 3.7vw, 46px);
+        line-height: 1.04;
+        letter-spacing: -0.06em;
+    }
+
+    .public-hero p {
+        margin: 16px 0 0;
+        max-width: 430px;
+        color: #34423a;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+
+    .public-hero__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 22px;
+    }
+
+    .public-feature-strip {
+        position: relative;
+        z-index: 4;
+        margin-top: -46px;
+    }
+
+    .public-feature-strip__box {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0;
+        overflow: hidden;
+        background: rgba(255, 253, 248, 0.96);
+        border: 1px solid var(--public-border);
+        border-radius: 18px;
+        box-shadow: 0 18px 45px rgba(23, 35, 29, 0.13);
+    }
+
+    .public-feature {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        min-height: 64px;
+        padding: 10px 14px;
+        border-right: 1px solid var(--public-border);
+    }
+
+    .public-feature:last-child {
+        border-right: 0;
+    }
+
+    .public-feature__icon {
+        color: var(--public-green);
+        font-size: 24px;
+    }
+
+    .public-feature strong {
+        display: block;
+        color: var(--public-text);
+        font-size: 15px;
+    }
+
+    .public-feature span {
+        display: block;
+        margin-top: 2px;
+        color: var(--public-muted);
+        font-size: 13px;
+    }
+
+    .public-section {
+        padding: 52px 0 0;
+    }
+
+    .public-section__head {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: end;
+        margin-bottom: 28px;
+    }
+
+    .public-section__head h2 {
+        margin: 0;
+        color: var(--public-green);
+        font-family: Georgia, serif;
+        font-size: clamp(28px, 3vw, 38px);
+        letter-spacing: -0.04em;
+    }
+
+    .public-section__head p {
+        margin: 10px 0 0;
+        color: var(--public-muted);
+        font-size: 16px;
+        line-height: 1.7;
+    }
+
+    .public-cabins-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 22px;
+    }
+
+    .public-cabin-card {
+        overflow: hidden;
+        background: var(--public-card);
+        border: 1px solid var(--public-border);
+        border-radius: 18px;
+        box-shadow: 0 16px 38px rgba(23, 35, 29, 0.08);
+    }
+
+    .public-cabin-card__image {
+        position: relative;
+        height: 165px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #dae7dc, #f4eadc);
+    }
+
+    .public-cabin-card__image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .public-cabin-card__badge {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        padding: 8px 11px;
+        border-radius: 8px;
+        background: var(--public-green);
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 900;
+    }
+
+    .public-cabin-card__body {
+        padding: 18px;
+    }
+
+    .public-cabin-card h3 {
+        margin: 0;
+        color: var(--public-green);
+        font-family: Georgia, serif;
+        font-size: 24px;
+    }
+
+    .public-cabin-card p {
+        min-height: 72px;
+        margin: 10px 0 16px;
+        color: var(--public-muted);
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .public-cabin-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+        color: #44534a;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .public-cabin-actions {
+        display: grid;
+        gap: 10px;
+    }
+
+    .public-availability {
+        display: grid;
+        grid-template-columns: 330px minmax(0, 1fr);
+        gap: 26px;
+        padding: 22px;
+        background: var(--public-card);
+        border: 1px solid var(--public-border);
+        border-radius: 22px;
+        box-shadow: 0 18px 45px rgba(23, 35, 29, 0.08);
+    }
+
+    .public-availability h2 {
+        margin: 0 0 12px;
+        color: var(--public-green);
+        font-family: Georgia, serif;
+        font-size: 32px;
+        letter-spacing: -0.04em;
+    }
+
+    .public-availability p {
+        margin: 0;
+        color: var(--public-muted);
+        line-height: 1.7;
+    }
+
+    .public-availability-form {
+        display: grid;
+        gap: 14px;
+        margin-top: 22px;
+    }
+
+    .public-label {
+        display: grid;
+        gap: 7px;
+        color: #34423a;
+        font-size: 13px;
+        font-weight: 900;
+    }
+
+    .public-input,
+    .public-select,
+    .public-textarea {
+        width: 100%;
+        border: 1px solid var(--public-border);
+        border-radius: 10px;
+        background: #ffffff;
+        color: var(--public-text);
+        font: inherit;
+        padding: 13px 14px;
+    }
+
+    .public-textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .public-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+        color: var(--public-muted);
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .public-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .public-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        display: inline-block;
+    }
+
+    .public-dot--free {
+        background: #8bbf8d;
+    }
+
+    .public-dot--busy {
+        background: #ed9b93;
+    }
+
+    .public-calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .public-calendar {
+        overflow: hidden;
+        background: #fffdf8;
+        border: 1px solid var(--public-border);
+        border-radius: 16px;
+    }
+
+    .public-calendar__title {
+        padding: 14px 16px;
+        color: var(--public-green);
+        font-family: Georgia, serif;
+        font-size: 20px;
+        font-weight: 800;
+        text-align: center;
+        border-bottom: 1px solid var(--public-border);
+        background: #fbf7ef;
+    }
+
+    .public-calendar table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .public-calendar th {
+        padding: 10px 4px;
+        color: var(--public-muted);
+        font-size: 12px;
+        text-align: center;
+    }
+
+    .public-calendar td {
+        height: 42px;
+        border-top: 1px solid #f0e8dc;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .public-calendar__empty {
+        background: #faf7f0;
+    }
+
+    .public-calendar__free {
+        background: var(--public-green-bg);
+        color: #195b35;
+    }
+
+    .public-calendar__busy {
+        background: var(--public-red-bg);
+        color: var(--public-red);
+    }
+
+    .public-benefits {
+        display: grid;
+        grid-template-columns: 1.2fr repeat(4, minmax(0, 1fr));
+        gap: 20px;
+        align-items: stretch;
+    }
+
+    .public-benefit-intro,
+    .public-benefit {
+        padding: 24px;
+        background: var(--public-card);
+        border: 1px solid var(--public-border);
+        border-radius: 18px;
+    }
+
+    .public-benefit-intro h2 {
+        margin: 0;
+        color: var(--public-green);
+        font-family: Georgia, serif;
+        font-size: 30px;
+        line-height: 1.1;
+    }
+
+    .public-benefit-intro p,
+    .public-benefit p {
+        color: var(--public-muted);
+        line-height: 1.65;
+    }
+
+    .public-benefit strong {
+        display: block;
+        margin-top: 12px;
+        color: var(--public-green);
+        font-size: 17px;
+    }
+
+    .public-benefit__icon {
+        color: var(--public-green);
+        font-size: 30px;
+    }
+
+    .public-bottom-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 420px;
+        gap: 24px;
+    }
+
+    .public-form-card,
+    .public-contact-card {
+        padding: 22px;
+        background: var(--public-card);
+        border: 1px solid var(--public-border);
+        border-radius: 22px;
+        box-shadow: 0 18px 45px rgba(23, 35, 29, 0.08);
+    }
+
+    .public-form-card h2,
+    .public-contact-card h2 {
+        margin: 0 0 10px;
+        color: var(--public-green);
+        font-family: Georgia, serif;
+        font-size: 30px;
+        letter-spacing: -0.04em;
+    }
+
+    .public-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 22px;
+    }
+
+    .public-form-grid .public-label--full {
+        grid-column: 1 / -1;
+    }
+
+    .public-error {
+        color: var(--public-red);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .public-alert {
+        padding: 14px 16px;
+        margin: 0 0 18px;
+        border-radius: 12px;
+        font-weight: 800;
+    }
+
+    .public-alert--success {
+        background: var(--public-green-bg);
+        color: #195b35;
+    }
+
+    .public-alert--warning {
+        background: #fff3cd;
+        color: #7a5a00;
+    }
+
+    .public-alert--danger {
+        background: var(--public-red-bg);
+        color: var(--public-red);
+    }
+
+    .public-contact-list {
+        display: grid;
+        gap: 14px;
+        margin-top: 22px;
+    }
+
+    .public-contact-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--public-border);
+    }
+
+    .public-contact-row span {
+        color: var(--public-muted);
+    }
+
+    .public-contact-row strong {
+        color: var(--public-text);
+        text-align: right;
+    }
+
+    .public-footer {
+        margin-top: 70px;
+        padding: 42px 0;
+        background: var(--public-green);
+        color: #ffffff;
+    }
+
+    .public-footer__grid {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr 1fr;
+        gap: 32px;
+    }
+
+    .public-footer a {
+        color: #ffffff;
+        text-decoration: none;
+    }
+
+    .public-footer p {
+        color: rgba(255, 255, 255, 0.76);
+        line-height: 1.7;
+    }
+
+    @media (max-width: 1050px) {
+        .public-menu {
+            display: none;
+        }
+
+        .public-feature-strip__box,
+        .public-cabins-grid,
+        .public-calendar-grid,
+        .public-benefits,
+        .public-bottom-grid,
+        .public-availability {
+            grid-template-columns: 1fr;
+        }
+
+        .public-cabin-card__image {
+            height: 230px;
+        }
+
+        .public-hero {
+            margin-top: -88px;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .public-nav {
+            top: 0;
+            width: 100%;
+            margin-top: 0;
+            border-radius: 0;
+        }
+
+        .public-nav__inner {
+            padding: 12px 16px;
+        }
+
+        .public-logo strong {
+            font-size: 22px;
+        }
+
+        .public-hero {
+            min-height: 560px;
+        }
+
+        .public-hero__content {
+            padding-top: 130px;
+        }
+
+        .public-feature {
+            border-right: 0;
+            border-bottom: 1px solid var(--public-border);
+        }
+
+        .public-feature:last-child {
+            border-bottom: 0;
+        }
+
+        .public-section {
+            padding-top: 48px;
+        }
+
+        .public-section__head,
+        .public-hero__actions {
+            display: grid;
+        }
+
+        .public-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .public-availability {
+            padding: 18px;
+        }
+
+        .public-calendar td {
+            height: 38px;
+            font-size: 12px;
+        }
+
+        .public-footer__grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="public-page">
+    <nav class="public-nav">
+        <div class="public-nav__inner">
+            <a class="public-logo" href="/">
+                <strong>Domki Sztabinki</strong>
+                <span>komfortowe domki nad jeziorem</span>
+            </a>
+
+            <div class="public-menu">
+                <a href="#domki">Domki</a>
+                <a href="#dostepnosc">Dostępność</a>
+                <a href="#atrakcje">Atrakcje</a>
+                <a href="#cennik">Cennik</a>
+                <a href="#kontakt">Kontakt</a>
             </div>
 
-            <?php if (isset($databaseMessage) && is_string($databaseMessage) && $databaseMessage !== ''): ?>
-                <div class="alert alert--warning">
-                    <?= htmlspecialchars($databaseMessage, ENT_QUOTES, 'UTF-8') ?>
-                </div>
-            <?php endif; ?>
+            <a class="public-button" href="#zapytanie">
+                Zapytaj o termin
+            </a>
+        </div>
+    </nav>
 
-            <div class="dashboard-grid">
-                <div class="stat-card">
-                    <span>Zameldowanie</span>
-                    <strong>od <?= htmlspecialchars($settings['check_in_time'], ENT_QUOTES, 'UTF-8') ?></strong>
-                </div>
+    <header class="public-hero">
+        <div class="public-wrap">
+            <div class="public-hero__content">
+                <p class="public-kicker">Sztabinki · Sejneńszczyzna · nad jeziorem</p>
 
-                <div class="stat-card">
-                    <span>Wymeldowanie</span>
-                    <strong>do <?= htmlspecialchars($settings['check_out_time'], ENT_QUOTES, 'UTF-8') ?></strong>
-                </div>
+                <h1>Twój wypoczynek nad jeziorem Sztabinki</h1>
 
-                <div class="stat-card">
-                    <span>Minimum pobytu</span>
-                    <strong>
-                        <?= htmlspecialchars($settings['minimum_nights'], ENT_QUOTES, 'UTF-8') ?>
-                        noce
-                    </strong>
-                </div>
+                <p>
+                    Komfortowe domki w spokojnej okolicy, blisko natury i wody.
+                    Idealne miejsce na rodzinny wypoczynek, weekend z przyjaciółmi
+                    i spokojny odpoczynek z dala od zgiełku.
+                </p>
 
-                <div class="stat-card">
-                    <span>Aktywne domki</span>
-                    <strong><?= htmlspecialchars((string) count($cabins), ENT_QUOTES, 'UTF-8') ?></strong>
+                <div class="public-hero__actions">
+                    <a class="public-button" href="#dostepnosc">
+                        Sprawdź dostępność
+                    </a>
+
+                    <a class="public-button public-button--light" href="#domki">
+                        Zobacz domki
+                    </a>
                 </div>
             </div>
         </div>
+    </header>
 
-        <div class="panel" id="domki">
-            <div class="page-header">
+    <div class="public-feature-strip">
+        <div class="public-wrap">
+            <div class="public-feature-strip__box">
+                <div class="public-feature">
+                    <div class="public-feature__icon">⌂</div>
+                    <div>
+                        <strong>4 komfortowe domki</strong>
+                        <span>kameralny wypoczynek</span>
+                    </div>
+                </div>
+
+                <div class="public-feature">
+                    <div class="public-feature__icon">👥</div>
+                    <div>
+                        <strong>Do 6 osób</strong>
+                        <span>w każdym domku</span>
+                    </div>
+                </div>
+
+                <div class="public-feature">
+                    <div class="public-feature__icon">≈</div>
+                    <div>
+                        <strong>Jezioro Sztabinki</strong>
+                        <span>blisko domków</span>
+                    </div>
+                </div>
+
+                <div class="public-feature">
+                    <div class="public-feature__icon">⌁</div>
+                    <div>
+                        <strong>Wi-Fi i parking</strong>
+                        <span>w cenie pobytu</span>
+                    </div>
+                </div>
+
+                <div class="public-feature">
+                    <div class="public-feature__icon">♨</div>
+                    <div>
+                        <strong>Grill i altana</strong>
+                        <span>przy domkach</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <?php if (isset($databaseMessage) && is_string($databaseMessage) && $databaseMessage !== ''): ?>
+        <div class="public-wrap public-section">
+            <div class="public-alert public-alert--warning">
+                <?= htmlspecialchars($databaseMessage, ENT_QUOTES, 'UTF-8') ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <section class="public-section" id="domki">
+        <div class="public-wrap">
+            <div class="public-section__head">
                 <div>
-                    <p class="eyebrow">Oferta</p>
+                    <p class="public-kicker">Oferta</p>
 
                     <h2>Nasze domki</h2>
 
                     <p>
-                        Poniżej widoczne są tylko domki aktywne w panelu administratora.
+                        Wybierz domek, sprawdź dostępność i wyślij zapytanie.
+                        Układ jest przygotowany pod cztery domki.
                     </p>
                 </div>
+
+                <a class="public-button public-button--light" href="#dostepnosc">
+                    Sprawdź terminy
+                </a>
             </div>
 
             <?php if ($cabins === []): ?>
-                <div class="empty-state">
-                    <strong>Brak aktywnych domków do pokazania</strong>
+                <div class="public-form-card">
+                    <h2>Brak aktywnych domków</h2>
 
                     <p>
                         Dodaj domek w panelu administratora albo ustaw istniejący domek jako aktywny.
                     </p>
 
-                    <a class="button button--secondary" href="/admin/domki">
+                    <a class="public-button" href="/admin/domki">
                         Przejdź do panelu domków
                     </a>
                 </div>
             <?php else: ?>
-                <div style="display: grid; gap: 24px;">
+                <div class="public-cabins-grid">
                     <?php foreach ($cabins as $offerCabin): ?>
                         <?php
                         $cabinId = $cabinInt($offerCabin, 'id', 0);
@@ -356,220 +1180,49 @@ $statusLabel = static function (string $status): string {
                             'Komfortowy domek letniskowy nad jeziorem w spokojnej okolicy.'
                         );
                         $image = $cabinImages[$cabinId] ?? null;
-                        $busyRanges = $busyRangesByCabin[$cabinId] ?? [];
-                        $busyDates = $busyDatesByCabin[$cabinId] ?? [];
                         ?>
 
-                        <article class="panel" style="margin: 0; box-shadow: none; border: 1px solid #e5e7eb;">
-                            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: 24px; align-items: start;">
-                                <div>
-                                    <p class="eyebrow">
-                                        <?= htmlspecialchars($cabinShortName, ENT_QUOTES, 'UTF-8') ?>
-                                    </p>
+                        <article class="public-cabin-card">
+                            <div class="public-cabin-card__image">
+                                <span class="public-cabin-card__badge">
+                                    <?= htmlspecialchars($cabinShortName, ENT_QUOTES, 'UTF-8') ?>
+                                </span>
 
-                                    <h3><?= htmlspecialchars($cabinName, ENT_QUOTES, 'UTF-8') ?></h3>
+                                <?php if (is_array($image)): ?>
+                                    <img
+                                        src="<?= htmlspecialchars((string) $image['image_path'], ENT_QUOTES, 'UTF-8') ?>"
+                                        alt="<?= htmlspecialchars((string) ($image['alt_text'] ?? $cabinName), ENT_QUOTES, 'UTF-8') ?>"
+                                    >
+                                <?php endif; ?>
+                            </div>
 
-                                    <p>
-                                        <?= nl2br(htmlspecialchars($cabinDescription, ENT_QUOTES, 'UTF-8')) ?>
-                                    </p>
+                            <div class="public-cabin-card__body">
+                                <h3><?= htmlspecialchars($cabinName, ENT_QUOTES, 'UTF-8') ?></h3>
 
-                                    <div class="dashboard-grid">
-                                        <div class="stat-card">
-                                            <span>Maksymalnie</span>
-                                            <strong>
-                                                <?= htmlspecialchars((string) $cabinInt($offerCabin, 'max_guests', 6), ENT_QUOTES, 'UTF-8') ?>
-                                                os.
-                                            </strong>
-                                        </div>
+                                <p>
+                                    <?= htmlspecialchars($cabinDescription, ENT_QUOTES, 'UTF-8') ?>
+                                </p>
 
-                                        <div class="stat-card">
-                                            <span>Sypialnie</span>
-                                            <strong><?= htmlspecialchars((string) $cabinInt($offerCabin, 'bedrooms', 2), ENT_QUOTES, 'UTF-8') ?></strong>
-                                        </div>
-
-                                        <div class="stat-card">
-                                            <span>Łazienki</span>
-                                            <strong><?= htmlspecialchars((string) $cabinInt($offerCabin, 'bathrooms', 1), ENT_QUOTES, 'UTF-8') ?></strong>
-                                        </div>
-                                    </div>
-
-                                    <div class="table-wrapper">
-                                        <table class="data-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Długość pobytu</th>
-                                                    <th>Cena za noc</th>
-                                                </tr>
-                                            </thead>
-
-                                            <tbody>
-                                                <tr>
-                                                    <td>1 noc</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_one_night', 800), $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                                </tr>
-
-                                                <tr>
-                                                    <td>2 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_two_nights', 440), $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                                </tr>
-
-                                                <tr>
-                                                    <td>3 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_three_nights', 430), $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                                </tr>
-
-                                                <tr>
-                                                    <td>4 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_four_nights', 420), $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                                </tr>
-
-                                                <tr>
-                                                    <td>5 nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_five_nights', 410), $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                                </tr>
-
-                                                <tr>
-                                                    <td>6 nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_six_nights', 400), $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                                </tr>
-
-                                                <tr>
-                                                    <td>7+ nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_seven_plus_nights', 350), $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    <div class="empty-state">
-                                        <strong>Najbliższe zajęte terminy</strong>
-
-                                        <?php if ($busyRanges === []): ?>
-                                            <p>
-                                                Brak najbliższych zajętych terminów w systemie.
-                                                Wyślij zapytanie, aby potwierdzić dostępność.
-                                            </p>
-                                        <?php else: ?>
-                                            <div class="status-list">
-                                                <?php foreach ($busyRanges as $range): ?>
-                                                    <div class="status-row">
-                                                        <span>
-                                                            <?= htmlspecialchars(formatDateForDisplay((string) $range['start_date']), ENT_QUOTES, 'UTF-8') ?>
-                                                            –
-                                                            <?= htmlspecialchars(formatDateForDisplay((string) $range['end_date']), ENT_QUOTES, 'UTF-8') ?>
-                                                        </span>
-
-                                                        <strong>
-                                                            <?= htmlspecialchars($statusLabel((string) $range['status']), ENT_QUOTES, 'UTF-8') ?>
-                                                        </strong>
-                                                    </div>
-                                                <?php endforeach; ?>
-                                            </div>
-
-                                            <p>
-                                                Lista pokazuje tylko najbliższe terminy blokujące. O pełną dostępność zapytaj przez formularz.
-                                            </p>
-                                        <?php endif; ?>
-                                    </div>
-
-                                    <div class="empty-state">
-                                        <div class="page-header" style="margin-bottom: 12px;">
-                                            <div>
-                                                <strong>Kalendarz dostępności</strong>
-
-                                                <p>
-                                                    <?= htmlspecialchars($calendarMonthLabel, ENT_QUOTES, 'UTF-8') ?>.
-                                                    Dzień wyjazdu nie jest oznaczany jako zajęty nocleg.
-                                                </p>
-                                            </div>
-
-                                            <div class="page-header__actions">
-                                                <a
-                                                    class="button button--secondary"
-                                                    href="/?availability_month=<?= htmlspecialchars($previousCalendarMonth, ENT_QUOTES, 'UTF-8') ?>#domki"
-                                                >
-                                                    Poprzedni
-                                                </a>
-
-                                                <a
-                                                    class="button button--secondary"
-                                                    href="/?availability_month=<?= htmlspecialchars($nextCalendarMonth, ENT_QUOTES, 'UTF-8') ?>#domki"
-                                                >
-                                                    Następny
-                                                </a>
-                                            </div>
-                                        </div>
-
-                                        <div class="table-wrapper">
-                                            <table class="data-table">
-                                                <thead>
-                                                    <tr>
-                                                        <?php foreach ($weekdayLabels as $weekdayLabel): ?>
-                                                            <th><?= htmlspecialchars($weekdayLabel, ENT_QUOTES, 'UTF-8') ?></th>
-                                                        <?php endforeach; ?>
-                                                    </tr>
-                                                </thead>
-
-                                                <tbody>
-                                                    <?php foreach ($calendarWeeks as $calendarWeek): ?>
-                                                        <tr>
-                                                            <?php foreach ($calendarWeek as $calendarDate): ?>
-                                                                <?php if ($calendarDate === null): ?>
-                                                                    <td style="height: 64px; background: #f9fafb;"></td>
-                                                                <?php else: ?>
-                                                                    <?php
-                                                                    $dayNumber = (string) (int) substr((string) $calendarDate, 8, 2);
-                                                                    $dayStatus = $busyDates[(string) $calendarDate] ?? null;
-                                                                    $isBusy = is_string($dayStatus);
-                                                                    ?>
-
-                                                                    <td style="height: 64px; vertical-align: top; <?= $isBusy ? 'background: #fef2f2;' : 'background: #f0fdf4;' ?>">
-                                                                        <strong>
-                                                                            <?= htmlspecialchars($dayNumber, ENT_QUOTES, 'UTF-8') ?>
-                                                                        </strong>
-
-                                                                        <br>
-
-                                                                        <span style="display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 700; <?= $isBusy ? 'color: #991b1b;' : 'color: #166534;' ?>">
-                                                                            <?= $isBusy ? 'zajęty' : 'wolny' ?>
-                                                                        </span>
-                                                                    </td>
-                                                                <?php endif; ?>
-                                                            <?php endforeach; ?>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
+                                <div class="public-cabin-meta">
+                                    <span><?= htmlspecialchars((string) $cabinInt($offerCabin, 'max_guests', 6), ENT_QUOTES, 'UTF-8') ?> osób</span>
+                                    <span><?= htmlspecialchars((string) $cabinInt($offerCabin, 'bedrooms', 2), ENT_QUOTES, 'UTF-8') ?> sypialnie</span>
+                                    <span>Wi-Fi</span>
                                 </div>
 
-                                <div>
-                                    <?php if (is_array($image)): ?>
-                                        <img
-                                            src="<?= htmlspecialchars($image['image_path'], ENT_QUOTES, 'UTF-8') ?>"
-                                            alt="<?= htmlspecialchars($image['alt_text'] ?? $cabinName, ENT_QUOTES, 'UTF-8') ?>"
-                                            style="width: 100%; height: 320px; object-fit: cover; border-radius: 18px; border: 1px solid #e5e7eb;"
-                                        >
-                                    <?php else: ?>
-                                        <div
-                                            class="empty-state"
-                                            style="min-height: 320px; display: flex; flex-direction: column; justify-content: center;"
-                                        >
-                                            <strong>Brak zdjęcia głównego</strong>
+                                <div class="public-cabin-actions">
+                                    <a
+                                        class="public-button public-button--wide"
+                                        href="/?availability_cabin_id=<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>#dostepnosc"
+                                    >
+                                        Sprawdź dostępność
+                                    </a>
 
-                                            <p>
-                                                Dodaj zdjęcie w panelu administratora.
-                                            </p>
-
-                                            <a
-                                                class="button button--secondary"
-                                                href="/admin/domki/zdjecia?id=<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>"
-                                            >
-                                                Dodaj zdjęcie
-                                            </a>
-                                        </div>
-                                    <?php endif; ?>
+                                    <a
+                                        class="public-button public-button--light public-button--wide"
+                                        href="/?inquiry_cabin_id=<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>#zapytanie"
+                                    >
+                                        Zapytaj o ten domek
+                                    </a>
                                 </div>
                             </div>
                         </article>
@@ -577,303 +1230,533 @@ $statusLabel = static function (string $status): string {
                 </div>
             <?php endif; ?>
         </div>
+    </section>
 
-        <div class="panel">
-            <div class="page-header">
+    <section class="public-section" id="dostepnosc">
+        <div class="public-wrap">
+            <div class="public-availability">
                 <div>
-                    <p class="eyebrow">Dodatkowe informacje</p>
+                    <p class="public-kicker">Dostępność</p>
 
-                    <h2>Ceny dodatkowe i zasady</h2>
-                </div>
-            </div>
-
-            <div class="dashboard-grid">
-                <div class="stat-card">
-                    <span>Łowienie w jeziorze</span>
-                    <strong>
-                        <?= htmlspecialchars($formatPublicPrice((int) $settings['fishing_price'], $currency), ENT_QUOTES, 'UTF-8') ?>
-                        / dzień
-                    </strong>
-                </div>
-
-                <div class="stat-card">
-                    <span>Balia / kubil</span>
-                    <strong>
-                        <?= htmlspecialchars($formatPublicPrice((int) $settings['hot_tub_price'], $currency), ENT_QUOTES, 'UTF-8') ?>
-                    </strong>
-                </div>
-            </div>
-
-            <div class="empty-state">
-                <strong>Zasady pobytu</strong>
-
-                <p>
-                    <?= nl2br(htmlspecialchars($settings['booking_rules'], ENT_QUOTES, 'UTF-8')) ?>
-                </p>
-            </div>
-        </div>
-
-        <div class="panel" id="zapytanie">
-            <div class="page-header">
-                <div>
-                    <p class="eyebrow">Zapytanie</p>
-
-                    <h2>Zapytaj o wolny termin</h2>
+                    <h2>Sprawdź dostępność</h2>
 
                     <p>
-                        Wyślij zapytanie o pobyt. Po wysłaniu pojawi się ono w panelu administratora
-                        w zakładce „Zapytania”.
+                        Wybierz domek i zobacz najbliższe 3 miesiące.
+                        Dni oznaczone jako zajęte wynikają z rezerwacji w panelu.
+                    </p>
+
+                    <form class="public-availability-form" method="get" action="/">
+                        <label class="public-label" for="availability_cabin_id">
+                            Wybierz domek
+                            <select class="public-select" id="availability_cabin_id" name="availability_cabin_id">
+                                <?php foreach ($cabins as $optionCabin): ?>
+                                    <?php
+                                    $optionId = $cabinInt($optionCabin, 'id', 0);
+                                    $optionName = $cabinString($optionCabin, 'name', 'Domek');
+                                    ?>
+
+                                    <option
+                                        value="<?= htmlspecialchars((string) $optionId, ENT_QUOTES, 'UTF-8') ?>"
+                                        <?= $availabilityCabinId === $optionId ? 'selected' : '' ?>
+                                    >
+                                        <?= htmlspecialchars($optionName, ENT_QUOTES, 'UTF-8') ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+
+                        <label class="public-label" for="availability_month">
+                            Miesiąc początkowy
+                            <input
+                                class="public-input"
+                                id="availability_month"
+                                name="availability_month"
+                                type="month"
+                                value="<?= htmlspecialchars($availabilityMonthStart->format('Y-m'), ENT_QUOTES, 'UTF-8') ?>"
+                            >
+                        </label>
+
+                        <button class="public-button public-button--wide" type="submit">
+                            Pokaż dostępność
+                        </button>
+
+                        <div class="public-hero__actions" style="margin-top: 0;">
+                            <a
+                                class="public-button public-button--light"
+                                href="/?availability_cabin_id=<?= htmlspecialchars((string) $availabilityCabinId, ENT_QUOTES, 'UTF-8') ?>&availability_month=<?= htmlspecialchars($previousAvailabilityMonth, ENT_QUOTES, 'UTF-8') ?>#dostepnosc"
+                            >
+                                Poprzedni miesiąc
+                            </a>
+
+                            <a
+                                class="public-button public-button--light"
+                                href="/?availability_cabin_id=<?= htmlspecialchars((string) $availabilityCabinId, ENT_QUOTES, 'UTF-8') ?>&availability_month=<?= htmlspecialchars($nextAvailabilityMonth, ENT_QUOTES, 'UTF-8') ?>#dostepnosc"
+                            >
+                                Następny miesiąc
+                            </a>
+                        </div>
+                    </form>
+
+                    <div class="public-legend">
+                        <span><i class="public-dot public-dot--free"></i> Dostępny</span>
+                        <span><i class="public-dot public-dot--busy"></i> Zajęty</span>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="public-section__head" style="margin-bottom: 16px;">
+                        <div>
+                            <p class="public-kicker">Wybrany domek</p>
+                            <h2 style="font-size: 32px;"><?= htmlspecialchars($selectedCabinName, ENT_QUOTES, 'UTF-8') ?></h2>
+                        </div>
+                    </div>
+
+                    <div class="public-calendar-grid">
+                        <?php foreach ($availabilityMonths as $availabilityMonth): ?>
+                            <div class="public-calendar">
+                                <div class="public-calendar__title">
+                                    <?= htmlspecialchars((string) $availabilityMonth['label'], ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <?php foreach ($weekdayLabels as $weekdayLabel): ?>
+                                                <th><?= htmlspecialchars($weekdayLabel, ENT_QUOTES, 'UTF-8') ?></th>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <?php foreach ($availabilityMonth['weeks'] as $calendarWeek): ?>
+                                            <tr>
+                                                <?php foreach ($calendarWeek as $calendarDate): ?>
+                                                    <?php if ($calendarDate === null): ?>
+                                                        <td class="public-calendar__empty"></td>
+                                                    <?php else: ?>
+                                                        <?php
+                                                        $dayNumber = (string) (int) substr((string) $calendarDate, 8, 2);
+                                                        $dayStatus = $selectedBusyDates[(string) $calendarDate] ?? null;
+                                                        $isBusy = is_string($dayStatus);
+                                                        ?>
+
+                                                        <td class="<?= $isBusy ? 'public-calendar__busy' : 'public-calendar__free' ?>">
+                                                            <?= htmlspecialchars($dayNumber, ENT_QUOTES, 'UTF-8') ?>
+                                                        </td>
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="public-section" id="atrakcje">
+        <div class="public-wrap">
+            <div class="public-benefits">
+                <div class="public-benefit-intro">
+                    <p class="public-kicker">Dlaczego warto?</p>
+
+                    <h2>Spokój, natura i wygoda</h2>
+
+                    <p>
+                        Domki Sztabinki to miejsce dla osób, które chcą odpocząć blisko jeziora,
+                        w komfortowych warunkach i spokojnej okolicy.
+                    </p>
+                </div>
+
+                <div class="public-benefit">
+                    <div class="public-benefit__icon">≈</div>
+                    <strong>Blisko jeziora</strong>
+                    <p>Czysta woda, pomost, piękne widoki i możliwość wypoczynku nad brzegiem.</p>
+                </div>
+
+                <div class="public-benefit">
+                    <div class="public-benefit__icon">⚓</div>
+                    <strong>Sprzęt wodny</strong>
+                    <p>Łódka, kajak i rowerki wodne dostępne dla gości w cenie pobytu.</p>
+                </div>
+
+                <div class="public-benefit">
+                    <div class="public-benefit__icon">♨</div>
+                    <strong>Grill i altana</strong>
+                    <p>Przy każdym domku miejsce do odpoczynku, grillowania i spotkań.</p>
+                </div>
+
+                <div class="public-benefit">
+                    <div class="public-benefit__icon">♧</div>
+                    <strong>Cisza i natura</strong>
+                    <p>Okolica sprzyjająca relaksowi, spacerom i spokojnemu wypoczynkowi.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="public-section" id="cennik">
+        <div class="public-wrap">
+            <div class="public-section__head">
+                <div>
+                    <p class="public-kicker">Cennik</p>
+
+                    <h2>Przejrzyste ceny</h2>
+
+                    <p>
+                        Cena zależy od długości pobytu. Ceny dotyczą całego domku za dobę.
                     </p>
                 </div>
             </div>
 
-            <?php if (isset($successMessage) && is_string($successMessage) && $successMessage !== ''): ?>
-                <div class="alert alert--success">
-                    <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
-                </div>
-            <?php endif; ?>
+            <div class="public-form-card">
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Długość pobytu</th>
+                                <th>1 noc</th>
+                                <th>2 noce</th>
+                                <th>3 noce</th>
+                                <th>4 noce</th>
+                                <th>5 nocy</th>
+                                <th>6 nocy</th>
+                                <th>7+ nocy</th>
+                            </tr>
+                        </thead>
 
-            <?php if (isset($inquiryMessage) && is_string($inquiryMessage) && $inquiryMessage !== ''): ?>
-                <div class="alert alert--warning">
-                    <?= htmlspecialchars($inquiryMessage, ENT_QUOTES, 'UTF-8') ?>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($errors !== []): ?>
-                <div class="alert alert--danger">
-                    Popraw błędy w formularzu.
-                </div>
-            <?php endif; ?>
-
-            <form class="form form--wide" method="post" action="/zapytanie">
-                <div class="form-grid">
-                    <div class="form-field">
-                        <label for="first_name">Imię</label>
-                        <input
-                            id="first_name"
-                            name="first_name"
-                            type="text"
-                            value="<?= htmlspecialchars($form['first_name'], ENT_QUOTES, 'UTF-8') ?>"
-                            required
-                        >
-
-                        <?php if (isset($errors['first_name'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['first_name'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="last_name">Nazwisko</label>
-                        <input
-                            id="last_name"
-                            name="last_name"
-                            type="text"
-                            value="<?= htmlspecialchars($form['last_name'], ENT_QUOTES, 'UTF-8') ?>"
-                            required
-                        >
-
-                        <?php if (isset($errors['last_name'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['last_name'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="phone">Telefon</label>
-                        <input
-                            id="phone"
-                            name="phone"
-                            type="tel"
-                            value="<?= htmlspecialchars($form['phone'], ENT_QUOTES, 'UTF-8') ?>"
-                            required
-                        >
-
-                        <?php if (isset($errors['phone'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['phone'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="email">E-mail</label>
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value="<?= htmlspecialchars($form['email'], ENT_QUOTES, 'UTF-8') ?>"
-                        >
-
-                        <?php if (isset($errors['email'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['email'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="cabin_id">Domek</label>
-                        <select id="cabin_id" name="cabin_id">
-                            <option value="">Dowolny / proszę zaproponować</option>
-
-                            <?php foreach ($cabins as $optionCabin): ?>
-                                <?php
-                                $optionId = $cabinInt($optionCabin, 'id', 0);
-                                $optionName = $cabinString($optionCabin, 'name', 'Domek');
-                                ?>
-
-                                <option
-                                    value="<?= htmlspecialchars((string) $optionId, ENT_QUOTES, 'UTF-8') ?>"
-                                    <?= $form['cabin_id'] === (string) $optionId ? 'selected' : '' ?>
-                                >
-                                    <?= htmlspecialchars($optionName, ENT_QUOTES, 'UTF-8') ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-
-                        <?php if (isset($errors['cabin_id'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['cabin_id'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="date_from">Przyjazd</label>
-                        <input
-                            id="date_from"
-                            name="date_from"
-                            type="date"
-                            value="<?= htmlspecialchars($form['date_from'], ENT_QUOTES, 'UTF-8') ?>"
-                            required
-                        >
-
-                        <?php if (isset($errors['date_from'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['date_from'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="date_to">Wyjazd</label>
-                        <input
-                            id="date_to"
-                            name="date_to"
-                            type="date"
-                            value="<?= htmlspecialchars($form['date_to'], ENT_QUOTES, 'UTF-8') ?>"
-                            required
-                        >
-
-                        <?php if (isset($errors['date_to'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['date_to'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="adults">Dorośli</label>
-                        <input
-                            id="adults"
-                            name="adults"
-                            type="number"
-                            min="1"
-                            step="1"
-                            value="<?= htmlspecialchars($form['adults'], ENT_QUOTES, 'UTF-8') ?>"
-                            required
-                        >
-
-                        <?php if (isset($errors['adults'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['adults'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="children">Dzieci</label>
-                        <input
-                            id="children"
-                            name="children"
-                            type="number"
-                            min="0"
-                            step="1"
-                            value="<?= htmlspecialchars($form['children'], ENT_QUOTES, 'UTF-8') ?>"
-                            required
-                        >
-
-                        <?php if (isset($errors['children'])): ?>
-                            <span class="form-error"><?= htmlspecialchars($errors['children'], ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="form-field">
-                        <label for="city">Miejscowość</label>
-                        <input
-                            id="city"
-                            name="city"
-                            type="text"
-                            value="<?= htmlspecialchars($form['city'], ENT_QUOTES, 'UTF-8') ?>"
-                        >
-                    </div>
-
-                    <div class="form-field">
-                        <label for="country">Kraj</label>
-                        <input
-                            id="country"
-                            name="country"
-                            type="text"
-                            value="<?= htmlspecialchars($form['country'], ENT_QUOTES, 'UTF-8') ?>"
-                        >
-                    </div>
-
-                    <div class="form-field form-field--full">
-                        <label for="notes">Wiadomość / dodatkowe informacje</label>
-                        <textarea
-                            id="notes"
-                            name="notes"
-                            rows="5"
-                        ><?= htmlspecialchars($form['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
-                    </div>
+                        <tbody>
+                            <tr>
+                                <td>Cena za noc</td>
+                                <td><?= htmlspecialchars($formatPublicPrice(800, $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice(440, $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice(430, $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice(420, $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice(410, $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice(400, $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice(350, $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
-                <div class="form-actions">
-                    <button class="button button--primary" type="submit">
-                        Wyślij zapytanie
-                    </button>
-                </div>
-            </form>
+                <p style="color: var(--public-muted); line-height: 1.7;">
+                    W cenie pobytu: sprzęt wodny, dostęp do pomostu, Wi-Fi, parking, grill i altana.
+                    Szczegóły pobytu oraz dostępność potwierdzamy po wysłaniu zapytania.
+                </p>
+            </div>
         </div>
+    </section>
 
-        <div class="panel" id="kontakt">
-            <div class="page-header">
-                <div>
-                    <p class="eyebrow">Kontakt</p>
+    <section class="public-section" id="zapytanie">
+        <div class="public-wrap">
+            <div class="public-bottom-grid">
+                <div class="public-form-card">
+                    <p class="public-kicker">Zapytanie</p>
+
+                    <h2>Zapytaj o termin</h2>
+
+                    <p style="color: var(--public-muted); line-height: 1.7;">
+                        Wypełnij formularz. Zapytanie trafi do panelu administratora,
+                        a my odpowiemy z potwierdzeniem dostępności i ceny.
+                    </p>
+
+                    <?php if (isset($successMessage) && is_string($successMessage) && $successMessage !== ''): ?>
+                        <div class="public-alert public-alert--success">
+                            <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (isset($inquiryMessage) && is_string($inquiryMessage) && $inquiryMessage !== ''): ?>
+                        <div class="public-alert public-alert--warning">
+                            <?= htmlspecialchars($inquiryMessage, ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($errors !== []): ?>
+                        <div class="public-alert public-alert--danger">
+                            Popraw błędy w formularzu.
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="post" action="/zapytanie">
+                        <div class="public-form-grid">
+                            <label class="public-label" for="first_name">
+                                Imię
+                                <input
+                                    class="public-input"
+                                    id="first_name"
+                                    name="first_name"
+                                    type="text"
+                                    value="<?= htmlspecialchars($form['first_name'], ENT_QUOTES, 'UTF-8') ?>"
+                                    required
+                                >
+
+                                <?php if (isset($errors['first_name'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['first_name'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="last_name">
+                                Nazwisko
+                                <input
+                                    class="public-input"
+                                    id="last_name"
+                                    name="last_name"
+                                    type="text"
+                                    value="<?= htmlspecialchars($form['last_name'], ENT_QUOTES, 'UTF-8') ?>"
+                                    required
+                                >
+
+                                <?php if (isset($errors['last_name'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['last_name'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="phone">
+                                Telefon
+                                <input
+                                    class="public-input"
+                                    id="phone"
+                                    name="phone"
+                                    type="tel"
+                                    value="<?= htmlspecialchars($form['phone'], ENT_QUOTES, 'UTF-8') ?>"
+                                    required
+                                >
+
+                                <?php if (isset($errors['phone'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['phone'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="email">
+                                E-mail
+                                <input
+                                    class="public-input"
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    value="<?= htmlspecialchars($form['email'], ENT_QUOTES, 'UTF-8') ?>"
+                                >
+
+                                <?php if (isset($errors['email'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['email'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="cabin_id">
+                                Domek
+                                <select class="public-select" id="cabin_id" name="cabin_id">
+                                    <option value="">Dowolny / proszę zaproponować</option>
+
+                                    <?php foreach ($cabins as $optionCabin): ?>
+                                        <?php
+                                        $optionId = $cabinInt($optionCabin, 'id', 0);
+                                        $optionName = $cabinString($optionCabin, 'name', 'Domek');
+                                        ?>
+
+                                        <option
+                                            value="<?= htmlspecialchars((string) $optionId, ENT_QUOTES, 'UTF-8') ?>"
+                                            <?= $form['cabin_id'] === (string) $optionId ? 'selected' : '' ?>
+                                        >
+                                            <?= htmlspecialchars($optionName, ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+
+                                <?php if (isset($errors['cabin_id'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['cabin_id'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="date_from">
+                                Przyjazd
+                                <input
+                                    class="public-input"
+                                    id="date_from"
+                                    name="date_from"
+                                    type="date"
+                                    value="<?= htmlspecialchars($form['date_from'], ENT_QUOTES, 'UTF-8') ?>"
+                                    required
+                                >
+
+                                <?php if (isset($errors['date_from'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['date_from'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="date_to">
+                                Wyjazd
+                                <input
+                                    class="public-input"
+                                    id="date_to"
+                                    name="date_to"
+                                    type="date"
+                                    value="<?= htmlspecialchars($form['date_to'], ENT_QUOTES, 'UTF-8') ?>"
+                                    required
+                                >
+
+                                <?php if (isset($errors['date_to'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['date_to'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="adults">
+                                Dorośli
+                                <input
+                                    class="public-input"
+                                    id="adults"
+                                    name="adults"
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    value="<?= htmlspecialchars($form['adults'], ENT_QUOTES, 'UTF-8') ?>"
+                                    required
+                                >
+
+                                <?php if (isset($errors['adults'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['adults'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="children">
+                                Dzieci
+                                <input
+                                    class="public-input"
+                                    id="children"
+                                    name="children"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value="<?= htmlspecialchars($form['children'], ENT_QUOTES, 'UTF-8') ?>"
+                                    required
+                                >
+
+                                <?php if (isset($errors['children'])): ?>
+                                    <span class="public-error"><?= htmlspecialchars($errors['children'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </label>
+
+                            <label class="public-label" for="city">
+                                Miejscowość
+                                <input
+                                    class="public-input"
+                                    id="city"
+                                    name="city"
+                                    type="text"
+                                    value="<?= htmlspecialchars($form['city'], ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                            </label>
+
+                            <label class="public-label" for="country">
+                                Kraj
+                                <input
+                                    class="public-input"
+                                    id="country"
+                                    name="country"
+                                    type="text"
+                                    value="<?= htmlspecialchars($form['country'], ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                            </label>
+
+                            <label class="public-label public-label--full" for="notes">
+                                Wiadomość / dodatkowe informacje
+                                <textarea class="public-textarea" id="notes" name="notes"><?= htmlspecialchars($form['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                            </label>
+                        </div>
+
+                        <div style="margin-top: 18px;">
+                            <button class="public-button public-button--wide" type="submit">
+                                Wyślij zapytanie
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <aside class="public-contact-card" id="kontakt">
+                    <p class="public-kicker">Kontakt</p>
 
                     <h2>Dane kontaktowe</h2>
-                </div>
-            </div>
 
-            <div class="status-list">
-                <div class="status-row">
-                    <span>Obiekt</span>
-                    <strong><?= htmlspecialchars($settings['property_name'], ENT_QUOTES, 'UTF-8') ?></strong>
-                </div>
+                    <div class="public-contact-list">
+                        <div class="public-contact-row">
+                            <span>Obiekt</span>
+                            <strong><?= htmlspecialchars($settings['property_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
 
-                <div class="status-row">
-                    <span>E-mail</span>
-                    <strong><?= htmlspecialchars($settings['contact_email'] !== '' ? $settings['contact_email'] : '—', ENT_QUOTES, 'UTF-8') ?></strong>
-                </div>
+                        <div class="public-contact-row">
+                            <span>Telefon</span>
+                            <strong><?= htmlspecialchars($settings['contact_phone'] !== '' ? $settings['contact_phone'] : '+48 502 286 718', ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
 
-                <div class="status-row">
-                    <span>Telefon</span>
-                    <strong><?= htmlspecialchars($settings['contact_phone'] !== '' ? $settings['contact_phone'] : '—', ENT_QUOTES, 'UTF-8') ?></strong>
-                </div>
+                        <div class="public-contact-row">
+                            <span>E-mail</span>
+                            <strong><?= htmlspecialchars($settings['contact_email'] !== '' ? $settings['contact_email'] : 'radekzdancewicz@gmail.com', ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
 
-                <div class="status-row">
-                    <span>Adres</span>
-                    <strong>
-                        <?= htmlspecialchars($settings['address_line'], ENT_QUOTES, 'UTF-8') ?>,
-                        <?= htmlspecialchars($settings['postal_code'], ENT_QUOTES, 'UTF-8') ?>
-                        <?= htmlspecialchars($settings['city'], ENT_QUOTES, 'UTF-8') ?>,
-                        <?= htmlspecialchars($settings['country'], ENT_QUOTES, 'UTF-8') ?>
-                    </strong>
-                </div>
-            </div>
+                        <div class="public-contact-row">
+                            <span>Adres</span>
+                            <strong>
+                                <?= htmlspecialchars($settings['address_line'], ENT_QUOTES, 'UTF-8') ?><br>
+                                <?= htmlspecialchars($settings['postal_code'], ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars($settings['city'], ENT_QUOTES, 'UTF-8') ?>
+                            </strong>
+                        </div>
+                    </div>
 
-            <div class="form-actions">
-                <a class="button button--secondary" href="/logowanie">
-                    Panel administratora
-                </a>
+                    <div style="margin-top: 24px;">
+                        <a class="public-button public-button--wide" href="/logowanie">
+                            Panel administratora
+                        </a>
+                    </div>
+                </aside>
             </div>
         </div>
-    </div>
+    </section>
+
+    <footer class="public-footer">
+        <div class="public-wrap">
+            <div class="public-footer__grid">
+                <div>
+                    <a class="public-logo" href="/" style="color: #ffffff;">
+                        <strong style="color: #ffffff;">Domki Sztabinki</strong>
+                        <span style="color: rgba(255,255,255,0.75);">wypoczynek nad jeziorem</span>
+                    </a>
+
+                    <p>
+                        Komfortowe domki w sercu Sejneńszczyzny.
+                        Natura, cisza i wygoda — wszystko, czego potrzebujesz, by odpocząć.
+                    </p>
+                </div>
+
+                <div>
+                    <strong>Nawigacja</strong>
+
+                    <p>
+                        <a href="#domki">Domki</a><br>
+                        <a href="#dostepnosc">Dostępność</a><br>
+                        <a href="#atrakcje">Atrakcje</a><br>
+                        <a href="#zapytanie">Zapytaj o termin</a>
+                    </p>
+                </div>
+
+                <div>
+                    <strong>Kontakt</strong>
+
+                    <p>
+                        <?= htmlspecialchars($settings['contact_phone'] !== '' ? $settings['contact_phone'] : '+48 502 286 718', ENT_QUOTES, 'UTF-8') ?><br>
+                        <?= htmlspecialchars($settings['contact_email'] !== '' ? $settings['contact_email'] : 'radekzdancewicz@gmail.com', ENT_QUOTES, 'UTF-8') ?><br>
+                        <?= htmlspecialchars($settings['city'], ENT_QUOTES, 'UTF-8') ?>
+                    </p>
+                </div>
+            </div>
+
+            <p style="margin-top: 34px; font-size: 13px;">
+                © <?= htmlspecialchars(date('Y'), ENT_QUOTES, 'UTF-8') ?> Domki Sztabinki. Wszelkie prawa zastrzeżone.
+            </p>
+        </div>
+    </footer>
 </section>
