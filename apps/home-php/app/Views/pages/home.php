@@ -12,6 +12,7 @@ declare(strict_types=1);
 $settings = defaultSettingsForm();
 $cabins = [];
 $cabinImages = [];
+$busyRangesByCabin = [];
 $databaseMessage = null;
 
 $form = isset($inquiryForm) && is_array($inquiryForm)
@@ -80,6 +81,54 @@ if (!Database::canAttemptConnection()) {
             $cabinImages[$loadedCabinId] = null;
         }
     }
+
+    try {
+        $today = date('Y-m-d');
+        $reservations = ReservationRepository::all();
+
+        foreach ($reservations as $reservation) {
+            $cabinId = (int) ($reservation['cabin_id'] ?? 0);
+            $status = (string) ($reservation['status'] ?? '');
+            $startDate = substr((string) ($reservation['start_date'] ?? ''), 0, 10);
+            $endDate = substr((string) ($reservation['end_date'] ?? ''), 0, 10);
+
+            if ($cabinId < 1) {
+                continue;
+            }
+
+            if (!reservationStatusBlocks($status)) {
+                continue;
+            }
+
+            if ($startDate === '' || $endDate === '') {
+                continue;
+            }
+
+            if ($endDate < $today) {
+                continue;
+            }
+
+            if (!isset($busyRangesByCabin[$cabinId])) {
+                $busyRangesByCabin[$cabinId] = [];
+            }
+
+            $busyRangesByCabin[$cabinId][] = [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'status' => $status,
+            ];
+        }
+
+        foreach ($busyRangesByCabin as $cabinId => $ranges) {
+            usort($ranges, static function (array $first, array $second): int {
+                return strcmp((string) $first['start_date'], (string) $second['start_date']);
+            });
+
+            $busyRangesByCabin[$cabinId] = array_slice($ranges, 0, 5);
+        }
+    } catch (Throwable $exception) {
+        $busyRangesByCabin = [];
+    }
 }
 
 $formatPublicPrice = static function (int $amount, string $currency): string {
@@ -110,6 +159,15 @@ $cabinInt = static function (array $cabin, string $key, int $fallback = 0): int 
     }
 
     return (int) $cabin[$key];
+};
+
+$statusLabel = static function (string $status): string {
+    return match ($status) {
+        'PENDING' => 'Wstępnie zajęty',
+        'CONFIRMED' => 'Zarezerwowany',
+        'CHECKED_IN' => 'Trwa pobyt',
+        default => 'Zajęty',
+    };
 };
 ?>
 <section class="page-section">
@@ -207,6 +265,7 @@ $cabinInt = static function (array $cabin, string $key, int $fallback = 0): int 
                             'Komfortowy domek letniskowy nad jeziorem w spokojnej okolicy.'
                         );
                         $image = $cabinImages[$cabinId] ?? null;
+                        $busyRanges = $busyRangesByCabin[$cabinId] ?? [];
                         ?>
 
                         <article class="panel" style="margin: 0; box-shadow: none; border: 1px solid #e5e7eb;">
@@ -288,6 +347,37 @@ $cabinInt = static function (array $cabin, string $key, int $fallback = 0): int 
                                                 </tr>
                                             </tbody>
                                         </table>
+                                    </div>
+
+                                    <div class="empty-state">
+                                        <strong>Najbliższe zajęte terminy</strong>
+
+                                        <?php if ($busyRanges === []): ?>
+                                            <p>
+                                                Brak najbliższych zajętych terminów w systemie.
+                                                Wyślij zapytanie, aby potwierdzić dostępność.
+                                            </p>
+                                        <?php else: ?>
+                                            <div class="status-list">
+                                                <?php foreach ($busyRanges as $range): ?>
+                                                    <div class="status-row">
+                                                        <span>
+                                                            <?= htmlspecialchars(formatDateForDisplay((string) $range['start_date']), ENT_QUOTES, 'UTF-8') ?>
+                                                            –
+                                                            <?= htmlspecialchars(formatDateForDisplay((string) $range['end_date']), ENT_QUOTES, 'UTF-8') ?>
+                                                        </span>
+
+                                                        <strong>
+                                                            <?= htmlspecialchars($statusLabel((string) $range['status']), ENT_QUOTES, 'UTF-8') ?>
+                                                        </strong>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+
+                                            <p>
+                                                Lista pokazuje tylko najbliższe terminy blokujące. O pełną dostępność zapytaj przez formularz.
+                                            </p>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
 
