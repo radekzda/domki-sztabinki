@@ -320,6 +320,16 @@ $selectedCabinName = is_array($selectedAvailabilityCabin)
     ? $cabinString($selectedAvailabilityCabin, 'name', 'Wybrany domek')
     : 'Wybrany domek';
 
+$siteHeroImage = null;
+
+if (Database::canAttemptConnection()) {
+    try {
+        $siteHeroImage = SiteImageRepository::mainByType('HERO');
+    } catch (Throwable $exception) {
+        $siteHeroImage = null;
+    }
+}
+
 $heroImage = null;
 
 foreach ($cabins as $heroCabin) {
@@ -331,9 +341,15 @@ foreach ($cabins as $heroCabin) {
     }
 }
 
-$heroImagePath = is_array($heroImage)
-    ? (string) ($heroImage['image_path'] ?? '')
+$heroImagePath = is_array($siteHeroImage)
+    ? (string) ($siteHeroImage['image_url'] ?? '')
     : '';
+
+if ($heroImagePath === '') {
+    $heroImagePath = is_array($heroImage)
+        ? (string) ($heroImage['image_path'] ?? '')
+        : '';
+}
 
 $heroBackground = $heroImagePath !== ''
     ? "linear-gradient(90deg, rgba(250,247,239,0.96) 0%, rgba(250,247,239,0.84) 34%, rgba(250,247,239,0.24) 62%, rgba(250,247,239,0.10) 100%), url('" . htmlspecialchars($heroImagePath, ENT_QUOTES, 'UTF-8') . "')"
