@@ -868,6 +868,88 @@ function inquiryStatusFromPost(): ?string
     return $value;
 }
 
+function defaultSettingsForm(): array
+{
+    return [
+        'property_name' => 'Domki Sztabinki',
+        'contact_email' => 'kontakt@domkisztabinki.pl',
+        'contact_phone' => '',
+        'address_line' => 'Sztabinki',
+        'postal_code' => '',
+        'city' => 'Sejny',
+        'country' => 'Polska',
+        'check_in_time' => '15:00',
+        'check_out_time' => '11:00',
+        'minimum_nights' => '4',
+        'currency' => 'PLN',
+        'fishing_price' => '30',
+        'hot_tub_price' => '200',
+        'public_short_description' => 'Domki letniskowe nad jeziorem w spokojnej okolicy.',
+        'booking_rules' => 'Obiekt przeznaczony jest do spokojnego wypoczynku. Nie organizujemy głośnych imprez.',
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function settingsFormFromPost(): array
+{
+    $defaults = defaultSettingsForm();
+    $form = [];
+
+    foreach ($defaults as $key => $defaultValue) {
+        $value = $_POST[$key] ?? $defaultValue;
+        $form[$key] = is_string($value) ? trim($value) : $defaultValue;
+    }
+
+    $form['currency'] = strtoupper($form['currency']);
+
+    return $form;
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array<string, string>
+ */
+function validateSettingsForm(array $form): array
+{
+    $errors = [];
+
+    if ($form['property_name'] === '') {
+        $errors['property_name'] = 'Podaj nazwę obiektu.';
+    }
+
+    if ($form['contact_email'] !== '' && filter_var($form['contact_email'], FILTER_VALIDATE_EMAIL) === false) {
+        $errors['contact_email'] = 'Podaj prawidłowy adres e-mail.';
+    }
+
+    if ($form['check_in_time'] === '' || preg_match('/^\d{2}:\d{2}$/', $form['check_in_time']) !== 1) {
+        $errors['check_in_time'] = 'Podaj godzinę zameldowania w formacie HH:MM.';
+    }
+
+    if ($form['check_out_time'] === '' || preg_match('/^\d{2}:\d{2}$/', $form['check_out_time']) !== 1) {
+        $errors['check_out_time'] = 'Podaj godzinę wymeldowania w formacie HH:MM.';
+    }
+
+    if (!ctype_digit($form['minimum_nights']) || (int) $form['minimum_nights'] < 1) {
+        $errors['minimum_nights'] = 'Minimalna liczba nocy musi być większa od zera.';
+    }
+
+    if ($form['currency'] === '' || preg_match('/^[A-Z]{3}$/', $form['currency']) !== 1) {
+        $errors['currency'] = 'Waluta musi mieć format trzyliterowy, np. PLN.';
+    }
+
+    if (!ctype_digit($form['fishing_price'])) {
+        $errors['fishing_price'] = 'Cena łowienia musi być liczbą całkowitą.';
+    }
+
+    if (!ctype_digit($form['hot_tub_price'])) {
+        $errors['hot_tub_price'] = 'Cena balii/kubila musi być liczbą całkowitą.';
+    }
+
+    return $errors;
+}
+
 function formatDateForDisplay(string $date): string
 {
     if ($date === '') {

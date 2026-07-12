@@ -20,6 +20,7 @@ require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
 require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
+require dirname(__DIR__) . '/app/Repositories/SettingsRepository.php';
 
 $router = new Router();
 
@@ -1464,9 +1465,80 @@ $router->get('/admin/kalendarz', function (): void {
 $router->get('/admin/ustawienia', function (): void {
     Auth::requireAdmin();
 
+    $form = defaultSettingsForm();
+    $databaseMessage = null;
+    $successMessage = null;
+
+    if (isset($_GET['saved'])) {
+        $successMessage = 'Ustawienia zostały zapisane.';
+    }
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Ustawienia zostaną odblokowane po ustawieniu MySQL w pliku .env.';
+    } else {
+        try {
+            $form = SettingsRepository::all();
+        } catch (Throwable $exception) {
+            $databaseMessage = 'Nie udało się pobrać ustawień: ' . $exception->getMessage();
+        }
+    }
+
     Response::html(View::render('pages/admin_settings', [
         'title' => 'Ustawienia',
+        'form' => $form,
+        'errors' => [],
+        'databaseMessage' => $databaseMessage,
+        'successMessage' => $successMessage,
+        'canSave' => Database::canAttemptConnection(),
     ]));
+});
+
+$router->post('/admin/ustawienia', function (): void {
+    Auth::requireAdmin();
+
+    $form = settingsFormFromPost();
+    $errors = validateSettingsForm($form);
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/admin_settings', [
+            'title' => 'Ustawienia',
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zapisać ustawień.',
+            'successMessage' => null,
+            'canSave' => false,
+        ]), 422);
+
+        return;
+    }
+
+    if ($errors !== []) {
+        Response::html(View::render('pages/admin_settings', [
+            'title' => 'Ustawienia',
+            'form' => $form,
+            'errors' => $errors,
+            'databaseMessage' => null,
+            'successMessage' => null,
+            'canSave' => true,
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        SettingsRepository::save($form);
+
+        Response::redirect('/admin/ustawienia?saved=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/admin_settings', [
+            'title' => 'Ustawienia',
+            'form' => $form,
+            'errors' => [],
+            'databaseMessage' => 'Nie udało się zapisać ustawień: ' . $exception->getMessage(),
+            'successMessage' => null,
+            'canSave' => true,
+        ]), 500);
+    }
 });
 
 $router->get('/admin/system', function () use ($config): void {
