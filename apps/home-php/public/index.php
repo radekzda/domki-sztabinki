@@ -22,6 +22,8 @@ require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
 require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SettingsRepository.php';
+require dirname(__DIR__) . '/app/Repositories/SiteImageRepository.php';
+require dirname(__DIR__) . '/app/Controllers/MediaController.php';
 
 $router = new Router();
 
@@ -1846,6 +1848,14 @@ $router->get('/admin/kalendarz', function (): void {
     Response::html(View::render('pages/admin_calendar', [
         'title' => 'Kalendarz',
     ]));
+});
+
+$router->get('/admin/media', function (): void {
+    MediaController::index();
+});
+
+$router->post('/admin/media', function (): void {
+    MediaController::handle();
 });
 
 $router->get('/admin/ustawienia', function (): void {
