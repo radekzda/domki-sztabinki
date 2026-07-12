@@ -35,16 +35,33 @@ if (!Database::canAttemptConnection()) {
 } else {
     try {
         $settings = SettingsRepository::all();
+    } catch (Throwable $exception) {
+        $databaseMessage = 'Nie udało się pobrać ustawień publicznych z bazy: ' . $exception->getMessage();
+    }
 
+    try {
         $allCabins = CabinRepository::all();
 
-        foreach ($allCabins as $cabin) {
-            if ((int) ($cabin['is_active'] ?? 0) !== 1) {
+        foreach ($allCabins as $loadedCabin) {
+            if ((int) ($loadedCabin['is_active'] ?? 0) !== 1) {
                 continue;
             }
 
-            $cabins[] = $cabin;
-            $images = CabinImageRepository::allForCabin((int) ($cabin['id'] ?? 0));
+            $cabins[] = $loadedCabin;
+        }
+    } catch (Throwable $exception) {
+        $databaseMessage = 'Nie udało się pobrać domków publicznych z bazy: ' . $exception->getMessage();
+    }
+
+    foreach ($cabins as $loadedCabin) {
+        $loadedCabinId = (int) ($loadedCabin['id'] ?? 0);
+
+        if ($loadedCabinId < 1) {
+            continue;
+        }
+
+        try {
+            $images = CabinImageRepository::allForCabin($loadedCabinId);
             $mainImage = null;
 
             foreach ($images as $image) {
@@ -58,10 +75,10 @@ if (!Database::canAttemptConnection()) {
                 $mainImage = $images[0];
             }
 
-            $cabinImages[(int) ($cabin['id'] ?? 0)] = $mainImage;
+            $cabinImages[$loadedCabinId] = $mainImage;
+        } catch (Throwable $exception) {
+            $cabinImages[$loadedCabinId] = null;
         }
-    } catch (Throwable $exception) {
-        $databaseMessage = 'Nie udało się pobrać danych publicznych z bazy: ' . $exception->getMessage();
     }
 }
 
@@ -179,13 +196,13 @@ $cabinInt = static function (array $cabin, string $key, int $fallback = 0): int 
                 </div>
             <?php else: ?>
                 <div style="display: grid; gap: 24px;">
-                    <?php foreach ($cabins as $cabin): ?>
+                    <?php foreach ($cabins as $offerCabin): ?>
                         <?php
-                        $cabinId = $cabinInt($cabin, 'id', 0);
-                        $cabinName = $cabinString($cabin, 'name', 'Domek');
-                        $cabinShortName = $cabinString($cabin, 'short_name', 'Domek');
+                        $cabinId = $cabinInt($offerCabin, 'id', 0);
+                        $cabinName = $cabinString($offerCabin, 'name', 'Domek');
+                        $cabinShortName = $cabinString($offerCabin, 'short_name', 'Domek');
                         $cabinDescription = $cabinString(
-                            $cabin,
+                            $offerCabin,
                             'description',
                             'Komfortowy domek letniskowy nad jeziorem w spokojnej okolicy.'
                         );
@@ -209,19 +226,19 @@ $cabinInt = static function (array $cabin, string $key, int $fallback = 0): int 
                                         <div class="stat-card">
                                             <span>Maksymalnie</span>
                                             <strong>
-                                                <?= htmlspecialchars((string) $cabinInt($cabin, 'max_guests', 6), ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars((string) $cabinInt($offerCabin, 'max_guests', 6), ENT_QUOTES, 'UTF-8') ?>
                                                 os.
                                             </strong>
                                         </div>
 
                                         <div class="stat-card">
                                             <span>Sypialnie</span>
-                                            <strong><?= htmlspecialchars((string) $cabinInt($cabin, 'bedrooms', 2), ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <strong><?= htmlspecialchars((string) $cabinInt($offerCabin, 'bedrooms', 2), ENT_QUOTES, 'UTF-8') ?></strong>
                                         </div>
 
                                         <div class="stat-card">
                                             <span>Łazienki</span>
-                                            <strong><?= htmlspecialchars((string) $cabinInt($cabin, 'bathrooms', 1), ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <strong><?= htmlspecialchars((string) $cabinInt($offerCabin, 'bathrooms', 1), ENT_QUOTES, 'UTF-8') ?></strong>
                                         </div>
                                     </div>
 
@@ -237,37 +254,37 @@ $cabinInt = static function (array $cabin, string $key, int $fallback = 0): int 
                                             <tbody>
                                                 <tr>
                                                     <td>1 noc</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_one_night', 800), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_one_night', 800), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>2 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_two_nights', 440), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_two_nights', 440), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>3 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_three_nights', 430), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_three_nights', 430), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>4 noce</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_four_nights', 420), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_four_nights', 420), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>5 nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_five_nights', 410), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_five_nights', 410), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>6 nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_six_nights', 400), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_six_nights', 400), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
 
                                                 <tr>
                                                     <td>7+ nocy</td>
-                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($cabin, 'price_seven_plus_nights', 350), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                                    <td><?= htmlspecialchars($formatPublicPrice($cabinInt($offerCabin, 'price_seven_plus_nights', 350), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -441,10 +458,10 @@ $cabinInt = static function (array $cabin, string $key, int $fallback = 0): int 
                         <select id="cabin_id" name="cabin_id">
                             <option value="">Dowolny / proszę zaproponować</option>
 
-                            <?php foreach ($cabins as $cabin): ?>
+                            <?php foreach ($cabins as $optionCabin): ?>
                                 <?php
-                                $optionId = $cabinInt($cabin, 'id', 0);
-                                $optionName = $cabinString($cabin, 'name', 'Domek');
+                                $optionId = $cabinInt($optionCabin, 'id', 0);
+                                $optionName = $cabinString($optionCabin, 'name', 'Domek');
                                 ?>
 
                                 <option
