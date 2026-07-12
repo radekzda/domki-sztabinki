@@ -476,8 +476,9 @@ $heroBackground = $heroImagePath !== ''
         margin-top: -88px;
         min-height: 420px;
         background-image: <?= $heroBackground ?>;
-        background-size: cover;
-        background-position: center;
+        background-size: cover, cover;
+        background-position: center, center 75%;
+        background-repeat: no-repeat, no-repeat;
         display: flex;
         align-items: center;
         border-bottom: 1px solid var(--public-border);
