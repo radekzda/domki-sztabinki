@@ -122,19 +122,37 @@ final class MediaController
             throw new RuntimeException('Zdjęcie jest za duże. Maksymalny rozmiar to 8 MB.');
         }
 
-        $finfo = new finfo(FILEINFO_MIME_TYPE);
-        $mimeType = (string) $finfo->file($temporaryPath);
+        $originalName = isset($file['name']) ? (string) $file['name'] : '';
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
-        $extension = match ($mimeType) {
+        if ($extension === 'jpeg') {
+            $extension = 'jpg';
+        }
+
+        if (!in_array($extension, ['jpg', 'png', 'webp'], true)) {
+            throw new RuntimeException('Nieobsługiwany format zdjęcia. Użyj JPG, PNG albo WEBP.');
+        }
+
+        $imageSize = @getimagesize($temporaryPath);
+
+        if ($imageSize === false) {
+            throw new RuntimeException('Wybrany plik nie wygląda na poprawne zdjęcie.');
+        }
+
+        $detectedMime = isset($imageSize['mime']) ? (string) $imageSize['mime'] : '';
+
+        $extensionFromImage = match ($detectedMime) {
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
             'image/webp' => 'webp',
             default => '',
         };
 
-        if ($extension === '') {
+        if ($extensionFromImage === '') {
             throw new RuntimeException('Nieobsługiwany format zdjęcia. Użyj JPG, PNG albo WEBP.');
         }
+
+        $extension = $extensionFromImage;
 
         $uploadDirectory = dirname(__DIR__) . '/../public/uploads/site';
 
