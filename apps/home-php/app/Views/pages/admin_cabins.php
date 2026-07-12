@@ -41,8 +41,8 @@ declare(strict_types=1);
                             <h1>Domki</h1>
 
                             <p>
-                                Lista domków będzie pobierana z bazy MySQL. To pierwszy ekran panelu
-                                podłączony do warstwy danych.
+                                Lista domków pobierana jest z bazy MySQL. Z tego miejsca możesz edytować domek,
+                                zarządzać zdjęciami oraz aktywować lub ukrywać domek na stronie publicznej.
                             </p>
                         </div>
 
@@ -143,6 +143,13 @@ declare(strict_types=1);
                                                         href="/admin/domki/edytuj?id=<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
                                                     >
                                                         Edytuj
+                                                    </a>
+
+                                                    <a
+                                                        class="button button--secondary button--small"
+                                                        href="/admin/domki/zdjecia?id=<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Zdjęcia
                                                     </a>
 
                                                     <form method="post" action="/admin/domki/status">
