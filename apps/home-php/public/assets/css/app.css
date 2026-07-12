@@ -651,3 +651,57 @@ h2 {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* Admin layout width correction */
+.page-section > .container:has(.admin-shell) {
+    width: min(100% - 24px, 1580px);
+    max-width: none;
+}
+
+.admin-shell {
+    width: 100%;
+    max-width: 1580px;
+    margin-left: auto;
+    margin-right: auto;
+    align-items: flex-start;
+}
+
+.admin-content,
+.admin-main {
+    min-width: 0;
+    width: 100%;
+}
+
+.admin-content > .panel,
+.admin-main > .panel {
+    width: 100%;
+}
+
+.table-wrapper {
+    max-width: 100%;
+}
+
+.table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.table-actions form {
+    margin: 0;
+}
+
+@media (max-width: 1100px) {
+    .admin-shell {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .admin-sidebar {
+        width: 100% !important;
+        min-width: 0 !important;
+        border-radius: 24px !important;
+    }
+}

@@ -60,14 +60,14 @@ $items = [
 <aside
     class="admin-sidebar"
     style="
-        width: 260px;
-        min-width: 260px;
+        width: 220px;
+        min-width: 220px;
         align-self: flex-start;
         background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 0 28px 28px 0;
         box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
-        padding: 24px 18px;
+        padding: 22px 14px;
     "
 >
     <div>
@@ -105,13 +105,13 @@ $items = [
                     style="
                         display: flex;
                         align-items: center;
-                        min-height: 44px;
-                        padding: 0 14px;
+                        min-height: 40px;
+                        padding: 0 12px;
                         border-radius: 14px;
                         color: <?= $isActive ? '#ffffff' : '#374151' ?>;
                         background: <?= $isActive ? '#0f7a3d' : 'transparent' ?>;
                         text-decoration: none;
-                        font-size: 15px;
+                        font-size: 14px;
                         font-weight: 800;
                     "
                 >
