@@ -17,6 +17,7 @@ require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
+require dirname(__DIR__) . '/app/Repositories/CabinImageRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
 require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
@@ -326,6 +327,316 @@ $router->post('/admin/domki/edytuj', function (): void {
             'errors' => [],
             'databaseMessage' => 'Nie udało się zapisać zmian: ' . $exception->getMessage(),
             'canSave' => true,
+        ]), 500);
+    }
+});
+
+$router->get('/admin/domki/zdjecia', function (): void {
+    Auth::requireAdmin();
+
+    $id = cabinIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora domku.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zarządzać zdjęciami.',
+        ]), 422);
+
+        return;
+    }
+
+    $successMessage = null;
+
+    if (isset($_GET['uploaded'])) {
+        $successMessage = 'Zdjęcie zostało dodane.';
+    }
+
+    if (isset($_GET['main_changed'])) {
+        $successMessage = 'Zdjęcie główne zostało zmienione.';
+    }
+
+    if (isset($_GET['deleted'])) {
+        $successMessage = 'Zdjęcie zostało usunięte.';
+    }
+
+    try {
+        $cabin = CabinRepository::find($id);
+
+        if ($cabin === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono domku',
+                'message' => 'Domek o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        $images = CabinImageRepository::allForCabin($id);
+
+        Response::html(View::render('pages/admin_cabins_photos', [
+            'title' => 'Zdjęcia domku',
+            'cabin' => $cabin,
+            'images' => $images,
+            'databaseMessage' => null,
+            'successMessage' => $successMessage,
+        ]));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się pobrać zdjęć',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/domki/zdjecia/dodaj', function (): void {
+    Auth::requireAdmin();
+
+    $cabinIdValue = $_POST['cabin_id'] ?? null;
+    $cabinId = filter_var($cabinIdValue, FILTER_VALIDATE_INT);
+
+    if (!is_int($cabinId) || $cabinId < 1) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Brakuje prawidłowego identyfikatora domku.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można dodać zdjęcia.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $cabin = CabinRepository::find($cabinId);
+
+        if ($cabin === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono domku',
+                'message' => 'Domek o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Brak pliku',
+                'message' => 'Nie wybrano zdjęcia do wysłania.',
+            ]), 422);
+
+            return;
+        }
+
+        $uploadedFile = $_FILES['image'];
+        $uploadError = (int) ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE);
+
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Błąd uploadu',
+                'message' => 'Nie udało się wysłać pliku. Kod błędu: ' . $uploadError . '.',
+            ]), 422);
+
+            return;
+        }
+
+        $tmpName = isset($uploadedFile['tmp_name']) && is_string($uploadedFile['tmp_name'])
+            ? $uploadedFile['tmp_name']
+            : '';
+
+        if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nieprawidłowy plik',
+                'message' => 'Wysłany plik jest nieprawidłowy.',
+            ]), 422);
+
+            return;
+        }
+
+        $size = (int) ($uploadedFile['size'] ?? 0);
+        $maxSize = 5 * 1024 * 1024;
+
+        if ($size < 1 || $size > $maxSize) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nieprawidłowy rozmiar',
+                'message' => 'Zdjęcie musi mieć maksymalnie 5 MB.',
+            ]), 422);
+
+            return;
+        }
+
+        $imageInfo = getimagesize($tmpName);
+
+        if ($imageInfo === false || !isset($imageInfo['mime'])) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nieprawidłowy format',
+                'message' => 'Plik nie wygląda na prawidłowe zdjęcie.',
+            ]), 422);
+
+            return;
+        }
+
+        $mime = (string) $imageInfo['mime'];
+        $extensions = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+        ];
+
+        if (!array_key_exists($mime, $extensions)) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nieobsługiwany format',
+                'message' => 'Dozwolone formaty: JPG, PNG, WEBP, GIF.',
+            ]), 422);
+
+            return;
+        }
+
+        $uploadDirectory = dirname(__DIR__) . '/public/uploads/cabins';
+
+        if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0775, true) && !is_dir($uploadDirectory)) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Brak katalogu uploadu',
+                'message' => 'Nie udało się utworzyć katalogu public/uploads/cabins.',
+            ]), 500);
+
+            return;
+        }
+
+        $extension = $extensions[$mime];
+        $fileName = 'cabin-' . $cabinId . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
+        $targetPath = $uploadDirectory . '/' . $fileName;
+        $publicPath = '/uploads/cabins/' . $fileName;
+
+        if (!move_uploaded_file($tmpName, $targetPath)) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Błąd zapisu pliku',
+                'message' => 'Nie udało się zapisać zdjęcia na serwerze.',
+            ]), 500);
+
+            return;
+        }
+
+        $altText = isset($_POST['alt_text']) && is_string($_POST['alt_text'])
+            ? trim($_POST['alt_text'])
+            : '';
+
+        $isMainValue = isset($_POST['is_main']) && is_string($_POST['is_main'])
+            ? $_POST['is_main']
+            : '0';
+
+        $hasImages = CabinImageRepository::countForCabin($cabinId) > 0;
+        $isMain = $isMainValue === '1' || !$hasImages ? 1 : 0;
+
+        CabinImageRepository::create([
+            'cabin_id' => $cabinId,
+            'image_path' => $publicPath,
+            'alt_text' => $altText !== '' ? $altText : $cabin['name'],
+            'is_main' => $isMain,
+        ]);
+
+        Response::redirect('/admin/domki/zdjecia?id=' . $cabinId . '&uploaded=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się dodać zdjęcia',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/domki/zdjecia/glowne', function (): void {
+    Auth::requireAdmin();
+
+    $cabinId = filter_var($_POST['cabin_id'] ?? null, FILTER_VALIDATE_INT);
+    $imageId = filter_var($_POST['image_id'] ?? null, FILTER_VALIDATE_INT);
+
+    if (!is_int($cabinId) || $cabinId < 1 || !is_int($imageId) || $imageId < 1) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można ustawić zdjęcia głównego, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        CabinImageRepository::setMain($imageId, $cabinId);
+
+        Response::redirect('/admin/domki/zdjecia?id=' . $cabinId . '&main_changed=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się ustawić zdjęcia głównego',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/domki/zdjecia/usun', function (): void {
+    Auth::requireAdmin();
+
+    $cabinId = filter_var($_POST['cabin_id'] ?? null, FILTER_VALIDATE_INT);
+    $imageId = filter_var($_POST['image_id'] ?? null, FILTER_VALIDATE_INT);
+
+    if (!is_int($cabinId) || $cabinId < 1 || !is_int($imageId) || $imageId < 1) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można usunąć zdjęcia, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $image = CabinImageRepository::find($imageId);
+
+        if ($image !== null && $image['cabin_id'] === $cabinId && str_starts_with($image['image_path'], '/uploads/cabins/')) {
+            $filePath = dirname(__DIR__) . '/public' . $image['image_path'];
+
+            if (is_file($filePath)) {
+                unlink($filePath);
+            }
+        }
+
+        CabinImageRepository::delete($imageId, $cabinId);
+
+        Response::redirect('/admin/domki/zdjecia?id=' . $cabinId . '&deleted=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się usunąć zdjęcia',
+            'message' => $exception->getMessage(),
         ]), 500);
     }
 });
