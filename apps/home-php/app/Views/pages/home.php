@@ -13,6 +13,7 @@ $settings = defaultSettingsForm();
 $cabins = [];
 $cabinImages = [];
 $busyRangesByCabin = [];
+$busyDatesByCabin = [];
 $databaseMessage = null;
 
 $form = isset($inquiryForm) && is_array($inquiryForm)
@@ -30,6 +31,69 @@ $inquiryMessage = isset($publicDatabaseMessage) && is_string($publicDatabaseMess
 $successMessage = isset($_GET['inquiry_sent'])
     ? 'Dziękujemy. Zapytanie zostało wysłane. Odpowiemy najszybciej jak to możliwe.'
     : null;
+
+$requestedCalendarMonth = isset($_GET['availability_month'])
+    ? (string) $_GET['availability_month']
+    : date('Y-m');
+
+if (!preg_match('/^\d{4}-\d{2}$/', $requestedCalendarMonth)) {
+    $requestedCalendarMonth = date('Y-m');
+}
+
+try {
+    $calendarMonthStart = new DateTimeImmutable($requestedCalendarMonth . '-01');
+} catch (Throwable $exception) {
+    $calendarMonthStart = new DateTimeImmutable(date('Y-m-01'));
+}
+
+$calendarMonthEnd = $calendarMonthStart->modify('first day of next month');
+$previousCalendarMonth = $calendarMonthStart->modify('-1 month')->format('Y-m');
+$nextCalendarMonth = $calendarMonthStart->modify('+1 month')->format('Y-m');
+$calendarMonthStartString = $calendarMonthStart->format('Y-m-d');
+$calendarMonthEndString = $calendarMonthEnd->format('Y-m-d');
+
+$monthNames = [
+    '01' => 'styczeń',
+    '02' => 'luty',
+    '03' => 'marzec',
+    '04' => 'kwiecień',
+    '05' => 'maj',
+    '06' => 'czerwiec',
+    '07' => 'lipiec',
+    '08' => 'sierpień',
+    '09' => 'wrzesień',
+    '10' => 'październik',
+    '11' => 'listopad',
+    '12' => 'grudzień',
+];
+
+$calendarMonthLabel = ($monthNames[$calendarMonthStart->format('m')] ?? $calendarMonthStart->format('m'))
+    . ' '
+    . $calendarMonthStart->format('Y');
+
+$weekdayLabels = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+
+$calendarCells = [];
+$firstWeekday = (int) $calendarMonthStart->format('N');
+$daysInMonth = (int) $calendarMonthStart->format('t');
+
+for ($emptyDay = 1; $emptyDay < $firstWeekday; $emptyDay++) {
+    $calendarCells[] = null;
+}
+
+for ($day = 1; $day <= $daysInMonth; $day++) {
+    $calendarCells[] = $calendarMonthStart->setDate(
+        (int) $calendarMonthStart->format('Y'),
+        (int) $calendarMonthStart->format('m'),
+        $day
+    )->format('Y-m-d');
+}
+
+while (count($calendarCells) % 7 !== 0) {
+    $calendarCells[] = null;
+}
+
+$calendarWeeks = array_chunk($calendarCells, 7);
 
 if (!Database::canAttemptConnection()) {
     $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Strona pokazuje podstawowe dane domyślne.';
@@ -104,19 +168,45 @@ if (!Database::canAttemptConnection()) {
                 continue;
             }
 
-            if ($endDate < $today) {
+            if ($endDate >= $today) {
+                if (!isset($busyRangesByCabin[$cabinId])) {
+                    $busyRangesByCabin[$cabinId] = [];
+                }
+
+                $busyRangesByCabin[$cabinId][] = [
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'status' => $status,
+                ];
+            }
+
+            if ($endDate <= $calendarMonthStartString || $startDate >= $calendarMonthEndString) {
                 continue;
             }
 
-            if (!isset($busyRangesByCabin[$cabinId])) {
-                $busyRangesByCabin[$cabinId] = [];
+            $rangeStartString = $startDate > $calendarMonthStartString
+                ? $startDate
+                : $calendarMonthStartString;
+
+            $rangeEndString = $endDate < $calendarMonthEndString
+                ? $endDate
+                : $calendarMonthEndString;
+
+            try {
+                $rangeCurrentDate = new DateTimeImmutable($rangeStartString);
+                $rangeEndDate = new DateTimeImmutable($rangeEndString);
+            } catch (Throwable $exception) {
+                continue;
             }
 
-            $busyRangesByCabin[$cabinId][] = [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'status' => $status,
-            ];
+            if (!isset($busyDatesByCabin[$cabinId])) {
+                $busyDatesByCabin[$cabinId] = [];
+            }
+
+            while ($rangeCurrentDate < $rangeEndDate) {
+                $busyDatesByCabin[$cabinId][$rangeCurrentDate->format('Y-m-d')] = $status;
+                $rangeCurrentDate = $rangeCurrentDate->modify('+1 day');
+            }
         }
 
         foreach ($busyRangesByCabin as $cabinId => $ranges) {
@@ -128,6 +218,7 @@ if (!Database::canAttemptConnection()) {
         }
     } catch (Throwable $exception) {
         $busyRangesByCabin = [];
+        $busyDatesByCabin = [];
     }
 }
 
@@ -266,6 +357,7 @@ $statusLabel = static function (string $status): string {
                         );
                         $image = $cabinImages[$cabinId] ?? null;
                         $busyRanges = $busyRangesByCabin[$cabinId] ?? [];
+                        $busyDates = $busyDatesByCabin[$cabinId] ?? [];
                         ?>
 
                         <article class="panel" style="margin: 0; box-shadow: none; border: 1px solid #e5e7eb;">
@@ -378,6 +470,77 @@ $statusLabel = static function (string $status): string {
                                                 Lista pokazuje tylko najbliższe terminy blokujące. O pełną dostępność zapytaj przez formularz.
                                             </p>
                                         <?php endif; ?>
+                                    </div>
+
+                                    <div class="empty-state">
+                                        <div class="page-header" style="margin-bottom: 12px;">
+                                            <div>
+                                                <strong>Kalendarz dostępności</strong>
+
+                                                <p>
+                                                    <?= htmlspecialchars($calendarMonthLabel, ENT_QUOTES, 'UTF-8') ?>.
+                                                    Dzień wyjazdu nie jest oznaczany jako zajęty nocleg.
+                                                </p>
+                                            </div>
+
+                                            <div class="page-header__actions">
+                                                <a
+                                                    class="button button--secondary"
+                                                    href="/?availability_month=<?= htmlspecialchars($previousCalendarMonth, ENT_QUOTES, 'UTF-8') ?>#domki"
+                                                >
+                                                    Poprzedni
+                                                </a>
+
+                                                <a
+                                                    class="button button--secondary"
+                                                    href="/?availability_month=<?= htmlspecialchars($nextCalendarMonth, ENT_QUOTES, 'UTF-8') ?>#domki"
+                                                >
+                                                    Następny
+                                                </a>
+                                            </div>
+                                        </div>
+
+                                        <div class="table-wrapper">
+                                            <table class="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <?php foreach ($weekdayLabels as $weekdayLabel): ?>
+                                                            <th><?= htmlspecialchars($weekdayLabel, ENT_QUOTES, 'UTF-8') ?></th>
+                                                        <?php endforeach; ?>
+                                                    </tr>
+                                                </thead>
+
+                                                <tbody>
+                                                    <?php foreach ($calendarWeeks as $calendarWeek): ?>
+                                                        <tr>
+                                                            <?php foreach ($calendarWeek as $calendarDate): ?>
+                                                                <?php if ($calendarDate === null): ?>
+                                                                    <td style="height: 64px; background: #f9fafb;"></td>
+                                                                <?php else: ?>
+                                                                    <?php
+                                                                    $dayNumber = (string) (int) substr((string) $calendarDate, 8, 2);
+                                                                    $dayStatus = $busyDates[(string) $calendarDate] ?? null;
+                                                                    $isBusy = is_string($dayStatus);
+                                                                    ?>
+
+                                                                    <td style="height: 64px; vertical-align: top; <?= $isBusy ? 'background: #fef2f2;' : 'background: #f0fdf4;' ?>">
+                                                                        <strong>
+                                                                            <?= htmlspecialchars($dayNumber, ENT_QUOTES, 'UTF-8') ?>
+                                                                        </strong>
+
+                                                                        <br>
+
+                                                                        <span style="display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 700; <?= $isBusy ? 'color: #991b1b;' : 'color: #166534;' ?>">
+                                                                            <?= $isBusy ? 'zajęty' : 'wolny' ?>
+                                                                        </span>
+                                                                    </td>
+                                                                <?php endif; ?>
+                                                            <?php endforeach; ?>
+                                                        </tr>
+                                                    <?php endforeach; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
 
