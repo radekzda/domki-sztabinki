@@ -80,17 +80,14 @@ declare(strict_types=1);
                         </div>
                     <?php else: ?>
                         <div class="table-wrapper">
-                            <table class="data-table">
+                            <table class="data-table" style="min-width: 0;">
                                 <thead>
                                     <tr>
-                                        <th>Nazwa</th>
-                                        <th>Skrót</th>
-                                        <th>Osoby</th>
-                                        <th>Pokoje</th>
-                                        <th>Cena domyślna</th>
-                                        <th>7+ nocy</th>
-                                        <th>Status</th>
-                                        <th>Akcje</th>
+                                        <th style="width: 26%;">Domek</th>
+                                        <th style="width: 24%;">Parametry</th>
+                                        <th style="width: 22%;">Ceny</th>
+                                        <th style="width: 12%;">Status</th>
+                                        <th style="width: 16%;">Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -101,31 +98,69 @@ declare(strict_types=1);
                                                 <strong>
                                                     <?= htmlspecialchars($cabin['name'], ENT_QUOTES, 'UTF-8') ?>
                                                 </strong>
+
+                                                <div style="margin-top: 6px; color: #6b7280; font-size: 13px;">
+                                                    Skrót:
+                                                    <?= htmlspecialchars($cabin['short_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
+                                                </div>
+
+                                                <div style="margin-top: 6px; color: #6b7280; font-size: 13px;">
+                                                    Kolejność:
+                                                    <?= htmlspecialchars((string) $cabin['sort_order'], ENT_QUOTES, 'UTF-8') ?>
+                                                </div>
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($cabin['short_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
+                                                <div style="display: grid; gap: 6px;">
+                                                    <span>
+                                                        <strong>
+                                                            <?= htmlspecialchars((string) $cabin['max_guests'], ENT_QUOTES, 'UTF-8') ?>
+                                                        </strong>
+                                                        osób
+                                                    </span>
+
+                                                    <span>
+                                                        <strong>
+                                                            <?= htmlspecialchars((string) $cabin['bedrooms'], ENT_QUOTES, 'UTF-8') ?>
+                                                        </strong>
+                                                        sypialnie
+                                                    </span>
+
+                                                    <span>
+                                                        <strong>
+                                                            <?= htmlspecialchars((string) $cabin['bathrooms'], ENT_QUOTES, 'UTF-8') ?>
+                                                        </strong>
+                                                        łazienka
+                                                    </span>
+                                                </div>
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars((string) $cabin['max_guests'], ENT_QUOTES, 'UTF-8') ?>
-                                            </td>
+                                                <div style="display: grid; gap: 6px;">
+                                                    <span>
+                                                        Domyślna:
+                                                        <strong>
+                                                            <?= htmlspecialchars((string) $cabin['price_per_night'], ENT_QUOTES, 'UTF-8') ?>
+                                                            zł
+                                                        </strong>
+                                                    </span>
 
-                                            <td>
-                                                <?= htmlspecialchars((string) $cabin['bedrooms'], ENT_QUOTES, 'UTF-8') ?>
-                                                syp. /
-                                                <?= htmlspecialchars((string) $cabin['bathrooms'], ENT_QUOTES, 'UTF-8') ?>
-                                                łaz.
-                                            </td>
+                                                    <span>
+                                                        1 noc:
+                                                        <strong>
+                                                            <?= htmlspecialchars((string) $cabin['price_one_night'], ENT_QUOTES, 'UTF-8') ?>
+                                                            zł
+                                                        </strong>
+                                                    </span>
 
-                                            <td>
-                                                <?= htmlspecialchars((string) $cabin['price_per_night'], ENT_QUOTES, 'UTF-8') ?>
-                                                zł
-                                            </td>
-
-                                            <td>
-                                                <?= htmlspecialchars((string) $cabin['price_seven_plus_nights'], ENT_QUOTES, 'UTF-8') ?>
-                                                zł
+                                                    <span>
+                                                        7+ nocy:
+                                                        <strong>
+                                                            <?= htmlspecialchars((string) $cabin['price_seven_plus_nights'], ENT_QUOTES, 'UTF-8') ?>
+                                                            zł
+                                                        </strong>
+                                                    </span>
+                                                </div>
                                             </td>
 
                                             <td>
@@ -137,7 +172,7 @@ declare(strict_types=1);
                                             </td>
 
                                             <td>
-                                                <div class="table-actions">
+                                                <div style="display: grid; gap: 8px; min-width: 120px;">
                                                     <a
                                                         class="button button--secondary button--small"
                                                         href="/admin/domki/edytuj?id=<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
@@ -162,13 +197,13 @@ declare(strict_types=1);
                                                         <?php if ($cabin['is_active'] === 1): ?>
                                                             <input type="hidden" name="is_active" value="0">
 
-                                                            <button class="button button--secondary button--small" type="submit">
+                                                            <button class="button button--secondary button--small" type="submit" style="width: 100%;">
                                                                 Ukryj
                                                             </button>
                                                         <?php else: ?>
                                                             <input type="hidden" name="is_active" value="1">
 
-                                                            <button class="button button--primary button--small" type="submit">
+                                                            <button class="button button--primary button--small" type="submit" style="width: 100%;">
                                                                 Aktywuj
                                                             </button>
                                                         <?php endif; ?>
