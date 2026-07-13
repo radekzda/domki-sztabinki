@@ -135,7 +135,7 @@ textarea {
 
 h1 {
     margin: 0;
-    font-size: clamp(38px, 6vw, 72px);
+    font-size: clamp(30px, 6vw, 30px);
     line-height: 0.98;
     letter-spacing: -0.06em;
 }
@@ -928,4 +928,33 @@ body {
     .admin-sidebar__nav {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+}
+
+/* Admin header cleanup */
+.admin-content > .page-header,
+.admin-main > .page-header {
+    display: none;
+}
+
+.admin-content .panel > .page-header .eyebrow,
+.admin-main .panel > .page-header .eyebrow {
+    display: none;
+}
+
+.admin-content .panel > .page-header h1,
+.admin-main .panel > .page-header h1 {
+    font-size: clamp(30px, 2.8vw, 30px);
+    line-height: 1.08;
+    letter-spacing: -0.045em;
+}
+
+.admin-content .panel > .page-header h2,
+.admin-main .panel > .page-header h2 {
+    font-size: clamp(24px, 2.2vw, 30px);
+    line-height: 1.12;
+    letter-spacing: -0.035em;
+}
+
+.admin-content .panel > .page-header {
+    margin-bottom: 24px;
 }

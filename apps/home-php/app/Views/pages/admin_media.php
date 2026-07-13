@@ -49,19 +49,6 @@ foreach ($images as $image) {
     <?php View::partial('partials/admin_sidebar', ['active' => 'media']); ?>
 
     <main class="admin-main">
-        <div class="page-header">
-            <div>
-                <p class="eyebrow">Strona publiczna</p>
-
-                <h1>Media i galeria</h1>
-
-                <p>
-                    Tutaj dodasz zdjęcia używane na stronie głównej, w galerii publicznej
-                    oraz w sekcjach atrakcji i otoczenia.
-                </p>
-            </div>
-        </div>
-
         <?php if (isset($databaseMessage) && is_string($databaseMessage) && $databaseMessage !== ''): ?>
             <div class="alert alert--warning">
                 <?= htmlspecialchars($databaseMessage, ENT_QUOTES, 'UTF-8') ?>
@@ -83,7 +70,14 @@ foreach ($images as $image) {
         <section class="panel">
             <div class="page-header">
                 <div>
-                    <h2>Dodaj zdjęcie</h2>
+                    <h1>Media i galeria</h1>
+
+                    <p>
+                        Dodaj zdjęcia używane na stronie głównej, w galerii publicznej
+                        oraz w sekcjach atrakcji i otoczenia.
+                    </p>
+
+                    <h2 style="margin-top: 28px;">Dodaj zdjęcie</h2>
 
                     <p>
                         Obsługiwane formaty: JPG, PNG, WEBP. Zdjęcia zostaną zapisane w katalogu
