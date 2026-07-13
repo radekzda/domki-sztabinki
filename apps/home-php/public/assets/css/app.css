@@ -734,3 +734,91 @@ h2 {
     flex: 1;
     min-width: 0;
 }
+
+/* Admin typography and table actions correction */
+.admin-content .page-header h1,
+.admin-main .page-header h1,
+.panel .page-header h1 {
+    font-size: clamp(38px, 4.2vw, 64px);
+    line-height: 1.02;
+    letter-spacing: -0.06em;
+}
+
+.admin-content .page-header,
+.admin-main .page-header,
+.panel .page-header {
+    margin-bottom: 28px;
+}
+
+.admin-content .page-header p,
+.admin-main .page-header p,
+.panel .page-header p {
+    max-width: 680px;
+}
+
+.data-table th,
+.data-table td {
+    vertical-align: middle;
+}
+
+.data-table td {
+    line-height: 1.35;
+}
+
+.table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.table-actions form {
+    margin: 0;
+}
+
+.table-actions select {
+    min-height: 36px;
+    max-width: 130px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0 8px;
+    font: inherit;
+    font-size: 13px;
+}
+
+.table-actions .button,
+.table-actions button {
+    white-space: nowrap;
+}
+
+.data-table .button--small,
+.data-table button.button--small,
+.data-table .table-actions .button,
+.data-table .table-actions button {
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 13px;
+}
+
+@media (max-width: 1400px) {
+    .admin-content .page-header h1,
+    .admin-main .page-header h1,
+    .panel .page-header h1 {
+        font-size: clamp(34px, 4vw, 54px);
+    }
+
+    .data-table th,
+    .data-table td {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .admin-content .page-header h1,
+    .admin-main .page-header h1,
+    .panel .page-header h1 {
+        font-size: 38px;
+    }
+}
