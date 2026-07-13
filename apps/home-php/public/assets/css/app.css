@@ -705,3 +705,32 @@ h2 {
         border-radius: 24px !important;
     }
 }
+
+/* Admin sidebar left alignment correction */
+.page-section > .container:has(.admin-shell) {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 16px;
+}
+
+.admin-shell {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    gap: 24px;
+}
+
+.admin-sidebar {
+    margin-left: 0 !important;
+    border-radius: 0 24px 24px 0 !important;
+}
+
+.admin-content,
+.admin-main {
+    flex: 1;
+    min-width: 0;
+}
