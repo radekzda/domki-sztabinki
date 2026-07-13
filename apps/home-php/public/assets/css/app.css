@@ -838,3 +838,10 @@ body {
     }
 }
 
+
+/* Admin remove secondary eyebrow labels */
+.admin-shell .eyebrow,
+.admin-content .eyebrow,
+.admin-main .eyebrow {
+    display: none !important;
+}
