@@ -43,7 +43,9 @@ foreach ($images as $image) {
 }
 ?>
 
-<div class="admin-shell">
+<section class="page-section">
+    <div class="container">
+        <div class="admin-shell">
     <?php View::partial('partials/admin_sidebar', ['active' => 'media']); ?>
 
     <main class="admin-main">
@@ -231,3 +233,5 @@ foreach ($images as $image) {
         <?php endforeach; ?>
     </main>
 </div>
+    </div>
+</section>
