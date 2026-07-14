@@ -413,9 +413,15 @@ $reservationBarClass = static function (array $reservation): string {
 
 
 $reservationAddressLine = static function (array $reservation): string {
+    $linkedGuestAddress = trim((string) ($reservation['linked_guest_address'] ?? ''));
+
+    if ($linkedGuestAddress !== '') {
+        return 'Adres: ' . $linkedGuestAddress;
+    }
+
     $parts = [];
 
-    foreach (['street', 'postal_code', 'city', 'country'] as $field) {
+    foreach (['street', 'postal_code', 'city'] as $field) {
         $value = trim((string) ($reservation[$field] ?? ''));
 
         if ($value !== '') {
@@ -423,15 +429,19 @@ $reservationAddressLine = static function (array $reservation): string {
         }
     }
 
-    if ($parts === []) {
-        return 'Adres: —';
+    if ($parts !== []) {
+        return 'Adres: ' . implode(', ', $parts);
     }
 
-    return 'Adres: ' . implode(', ', $parts);
+    return 'Adres: —';
 };
 
 $reservationPhoneLine = static function (array $reservation): string {
     $phone = trim((string) ($reservation['phone'] ?? ''));
+
+    if ($phone === '') {
+        $phone = trim((string) ($reservation['linked_guest_phone'] ?? ''));
+    }
 
     return $phone !== '' ? 'Tel.: ' . $phone : 'Tel.: —';
 };
