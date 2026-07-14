@@ -47,6 +47,10 @@ declare(strict_types=1);
                         </div>
 
                         <div class="page-header__actions">
+                            <a class="button button--secondary" href="/admin/domki/import">
+                                Import
+                            </a>
+
                             <a class="button button--primary" href="/admin/domki/nowy">
                                 Dodaj domek
                             </a>

@@ -25,6 +25,7 @@ require dirname(__DIR__) . '/app/Repositories/SettingsRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SiteImageRepository.php';
 require dirname(__DIR__) . '/app/Controllers/MediaController.php';
 require dirname(__DIR__) . '/app/Controllers/GuestImportController.php';
+require dirname(__DIR__) . '/app/Controllers/CabinImportController.php';
 
 $router = new Router();
 
@@ -194,6 +195,14 @@ $router->get('/admin/domki', function (): void {
         'databaseMessage' => $databaseMessage,
         'successMessage' => $successMessage,
     ]));
+});
+
+$router->get('/admin/domki/import', function (): void {
+    CabinImportController::show();
+});
+
+$router->post('/admin/domki/import', function (): void {
+    CabinImportController::store();
 });
 
 $router->get('/admin/domki/nowy', function (): void {
