@@ -27,6 +27,7 @@ require dirname(__DIR__) . '/app/Controllers/MediaController.php';
 require dirname(__DIR__) . '/app/Controllers/GuestImportController.php';
 require dirname(__DIR__) . '/app/Controllers/CabinImportController.php';
 require dirname(__DIR__) . '/app/Controllers/ReservationImportController.php';
+require dirname(__DIR__) . '/app/Controllers/ImportAuditController.php';
 
 $router = new Router();
 
@@ -2076,6 +2077,10 @@ $router->post('/admin/system/database/seed', function (): void {
         'messageType' => $messageType,
         'checks' => Database::diagnostics(),
     ]));
+});
+
+$router->get('/admin/system/importy', function (): void {
+    ImportAuditController::show();
 });
 
 $router->dispatch($_SERVER['REQUEST_METHOD'] ?? 'GET', $_SERVER['REQUEST_URI'] ?? '/');

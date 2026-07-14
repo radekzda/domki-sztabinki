@@ -75,5 +75,6 @@ $items = [
                 <?= htmlspecialchars($itemLabel, ENT_QUOTES, 'UTF-8') ?>
             </a>
         <?php endforeach; ?>
-    </nav>
+            <a class="admin-sidebar__link" href="/admin/system/importy">Importy</a>
+</nav>
 </aside>
