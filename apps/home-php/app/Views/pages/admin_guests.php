@@ -12,6 +12,7 @@ declare(strict_types=1);
  *     phone: string|null,
  *     country: string|null,
  *     city: string|null,
+ *     full_address: string|null,
  *     is_vip: int,
  *     source: string,
  *     created_at: string
@@ -82,7 +83,7 @@ declare(strict_types=1);
                                     <tr>
                                         <th>Gość</th>
                                         <th>Kontakt</th>
-                                        <th>Miejscowość</th>
+                                        <th>Adres</th>
                                         <th>Kraj</th>
                                         <th>VIP</th>
                                         <th>Źródło</th>
@@ -116,7 +117,15 @@ declare(strict_types=1);
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($guest['city'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
+                                                <?php
+                                                $guestAddress = trim((string) ($guest['full_address'] ?? ''));
+
+                                                if ($guestAddress === '') {
+                                                    $guestAddress = trim((string) ($guest['city'] ?? ''));
+                                                }
+                                                ?>
+
+                                                <?= htmlspecialchars($guestAddress !== '' ? $guestAddress : '—', ENT_QUOTES, 'UTF-8') ?>
                                             </td>
 
                                             <td>
