@@ -24,6 +24,7 @@ require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SettingsRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SiteImageRepository.php';
 require dirname(__DIR__) . '/app/Controllers/MediaController.php';
+require dirname(__DIR__) . '/app/Controllers/GuestImportController.php';
 
 $router = new Router();
 
@@ -1391,6 +1392,14 @@ $router->get('/admin/goscie', function (): void {
         'databaseMessage' => $databaseMessage,
         'successMessage' => $successMessage,
     ]));
+});
+
+$router->get('/admin/goscie/import', function (): void {
+    GuestImportController::show();
+});
+
+$router->post('/admin/goscie/import', function (): void {
+    GuestImportController::store();
 });
 
 $router->get('/admin/goscie/nowy', function (): void {
