@@ -85,6 +85,8 @@ final class ReservationRepository
                 'phone' => isset($row['phone']) ? (string) $row['phone'] : null,
                 'start_date' => (string) ($row['start_date'] ?? ''),
                 'end_date' => (string) ($row['end_date'] ?? ''),
+                  'check_in_at' => isset($row['check_in_at']) ? (string) $row['check_in_at'] : null,
+                  'check_out_at' => isset($row['check_out_at']) ? (string) $row['check_out_at'] : null,
                 'nights' => (int) ($row['nights'] ?? 0),
                 'guests' => (int) ($row['guests'] ?? 0),
                 'adults' => (int) ($row['adults'] ?? 0),

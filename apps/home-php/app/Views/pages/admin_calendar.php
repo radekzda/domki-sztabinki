@@ -238,6 +238,24 @@ $formatDate = static function (string $date): string {
     }
 };
 
+$formatDateTime = static function (mixed $value): string {
+    if ($value === null) {
+        return '—';
+    }
+
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return '—';
+    }
+
+    try {
+        return (new DateTimeImmutable($value))->format('d.m.Y H:i');
+    } catch (Throwable $exception) {
+        return $value;
+    }
+};
+
 $statusLabel = static function (string $status) use ($statusLabels): string {
     return $statusLabels[$status] ?? $status;
 };
@@ -272,13 +290,19 @@ $reservationCabinName = static function (array $reservation): string {
     return 'Domek';
 };
 
-$cellTitle = static function (array $reservation) use ($reservationGuestName, $formatDate, $statusLabel): string {
+$cellTitle = static function (array $reservation) use ($reservationGuestName, $formatDate, $formatDateTime, $statusLabel): string {
     $guest = $reservationGuestName($reservation);
     $start = $formatDate(substr((string) ($reservation['start_date'] ?? ''), 0, 10));
     $end = $formatDate(substr((string) ($reservation['end_date'] ?? ''), 0, 10));
+    $checkIn = $formatDateTime($reservation['check_in_at'] ?? null);
+    $checkOut = $formatDateTime($reservation['check_out_at'] ?? null);
     $status = $statusLabel((string) ($reservation['status'] ?? ''));
 
-    return $guest . ' | ' . $start . ' - ' . $end . ' | ' . $status;
+    return $guest
+        . ' | termin: ' . $start . ' - ' . $end
+        . ' | przyjazd: ' . $checkIn
+        . ' | wyjazd: ' . $checkOut
+        . ' | status: ' . $status;
 };
 
 $summaryCards = [
@@ -626,6 +650,7 @@ $summaryCards = [
 
                             <p style="margin: 6px 0 0;">
                                 Kliknij zajęty dzień, aby przejść do szczegółów rezerwacji.
+                                Godziny przyjazdu i wyjazdu pochodzą z importu Base44 lub ręcznej edycji rezerwacji.
                             </p>
                         </div>
 
@@ -829,6 +854,7 @@ $summaryCards = [
                                     <thead>
                                         <tr>
                                             <th>Termin</th>
+                                            <th>Godziny</th>
                                             <th>Gość</th>
                                             <th>Domek</th>
                                             <th>Status</th>
@@ -850,6 +876,16 @@ $summaryCards = [
                                                         —
                                                         <?= htmlspecialchars($formatDate(substr((string) ($reservation['end_date'] ?? ''), 0, 10)), ENT_QUOTES, 'UTF-8') ?>
                                                     </strong>
+                                                </td>
+
+                                                <td>
+                                                    <strong>Przyjazd</strong><br>
+                                                    <?= htmlspecialchars($formatDateTime($reservation['check_in_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+
+                                                    <br>
+
+                                                    <strong>Wyjazd</strong><br>
+                                                    <?= htmlspecialchars($formatDateTime($reservation['check_out_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>
                                                 </td>
 
                                                 <td>
