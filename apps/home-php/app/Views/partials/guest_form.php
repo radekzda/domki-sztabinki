@@ -101,16 +101,6 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
         </div>
 
         <div class="form-field">
-            <label for="nationality">Narodowość</label>
-            <input
-                id="nationality"
-                name="nationality"
-                type="text"
-                value="<?= htmlspecialchars($form['nationality'], ENT_QUOTES, 'UTF-8') ?>"
-            >
-        </div>
-
-        <div class="form-field">
             <label for="birth_date">Data urodzenia</label>
             <input
                 id="birth_date"
