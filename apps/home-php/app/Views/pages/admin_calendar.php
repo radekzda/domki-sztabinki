@@ -188,14 +188,36 @@ foreach ($reservations as $reservation) {
         continue;
     }
 
-    while ($currentDate < $rangeEndDate) {
+    while ($currentDate <= $rangeEndDate) {
         $dateKey = $currentDate->format('Y-m-d');
+
+        if ($dateKey < $monthStartString || $dateKey >= $monthEndString) {
+            $currentDate = $currentDate->modify('+1 day');
+            continue;
+        }
+
+        $dayType = 'STAY';
+
+        if ($dateKey === $reservationStart) {
+            $dayType = 'ARRIVAL';
+        } elseif ($dateKey === $reservationEnd) {
+            $dayType = 'DEPARTURE';
+        }
+
+        if ($dayType === 'DEPARTURE' && $reservationEnd >= $monthEndString) {
+            $currentDate = $currentDate->modify('+1 day');
+            continue;
+        }
 
         if (!isset($calendarByCabin[$reservationCabinId][$dateKey])) {
             $calendarByCabin[$reservationCabinId][$dateKey] = [];
         }
 
-        $calendarByCabin[$reservationCabinId][$dateKey][] = $reservation;
+        $calendarByCabin[$reservationCabinId][$dateKey][] = [
+            'reservation' => $reservation,
+            'type' => $dayType,
+        ];
+
         $currentDate = $currentDate->modify('+1 day');
     }
 }
@@ -466,19 +488,45 @@ $summaryCards = [
     }
 
     .pms-calendar-cell__booking {
-        display: flex;
+        display: grid;
         align-items: center;
         justify-content: center;
         width: 100%;
-        height: 32px;
+        min-height: 34px;
         border-radius: 10px;
         color: #ffffff;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 900;
-        line-height: 1;
+        line-height: 1.05;
         text-decoration: none;
         overflow: hidden;
         white-space: nowrap;
+        text-align: center;
+        padding: 3px 4px;
+    }
+
+    .pms-calendar-cell__booking small {
+        display: block;
+        margin-top: 2px;
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+    }
+
+    .pms-calendar-cell__booking--arrival {
+        border-radius: 10px 4px 4px 10px;
+        box-shadow: inset 4px 0 0 rgba(255, 255, 255, 0.62);
+    }
+
+    .pms-calendar-cell__booking--stay {
+        border-radius: 4px;
+        opacity: 0.92;
+    }
+
+    .pms-calendar-cell__booking--departure {
+        border-radius: 4px 10px 10px 4px;
+        box-shadow: inset -4px 0 0 rgba(255, 255, 255, 0.62);
     }
 
     .calendar-status--pending {
@@ -629,6 +677,21 @@ $summaryCards = [
                             <i class="pms-calendar-legend__dot calendar-status--cancelled"></i>
                             Anulowana
                         </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <strong>Prz.</strong>
+                            Przyjazd
+                        </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <strong>Pob.</strong>
+                            Pobyt
+                        </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <strong>Wyj.</strong>
+                            Wyjazd
+                        </span>
                     </div>
 
                     <?php if ($cabins === []): ?>
@@ -694,19 +757,48 @@ $summaryCards = [
                                                 <td class="<?= htmlspecialchars($cellClass, ENT_QUOTES, 'UTF-8') ?>">
                                                     <?php if (is_array($firstReservation)): ?>
                                                         <?php
-                                                        $reservationId = (int) ($firstReservation['id'] ?? 0);
-                                                        $reservationStatus = (string) ($firstReservation['status'] ?? '');
-                                                        $guestInitial = substr($reservationGuestName($firstReservation), 0, 1);
+                                                        $calendarEntry = $firstReservation;
+                                                        $entryReservation = isset($calendarEntry['reservation']) && is_array($calendarEntry['reservation'])
+                                                            ? $calendarEntry['reservation']
+                                                            : $calendarEntry;
+                                                        $entryType = isset($calendarEntry['type']) ? (string) $calendarEntry['type'] : 'STAY';
+
+                                                        $reservationId = (int) ($entryReservation['id'] ?? 0);
+                                                        $reservationStatus = (string) ($entryReservation['status'] ?? '');
                                                         $extraCount = count($dayReservations) - 1;
+
+                                                        $entryLabel = match ($entryType) {
+                                                            'ARRIVAL' => 'Prz.',
+                                                            'DEPARTURE' => 'Wyj.',
+                                                            default => 'Pob.',
+                                                        };
+
+                                                        $entryFullLabel = match ($entryType) {
+                                                            'ARRIVAL' => 'Przyjazd',
+                                                            'DEPARTURE' => 'Wyjazd',
+                                                            default => 'Pobyt',
+                                                        };
+
+                                                        $entryClass = match ($entryType) {
+                                                            'ARRIVAL' => 'pms-calendar-cell__booking--arrival',
+                                                            'DEPARTURE' => 'pms-calendar-cell__booking--departure',
+                                                            default => 'pms-calendar-cell__booking--stay',
+                                                        };
+
+                                                        $tooltip = $entryFullLabel . ' | ' . $cellTitle($entryReservation);
                                                         ?>
 
                                                         <a
-                                                            class="pms-calendar-cell__booking <?= htmlspecialchars($statusClass($reservationStatus), ENT_QUOTES, 'UTF-8') ?>"
+                                                            class="pms-calendar-cell__booking <?= htmlspecialchars($statusClass($reservationStatus), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($entryClass, ENT_QUOTES, 'UTF-8') ?>"
                                                             href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>"
-                                                            title="<?= htmlspecialchars($cellTitle($firstReservation), ENT_QUOTES, 'UTF-8') ?>"
+                                                            title="<?= htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') ?>"
                                                         >
-                                                            <?= htmlspecialchars($guestInitial !== '' ? $guestInitial : 'R', ENT_QUOTES, 'UTF-8') ?>
-                                                            <?= $extraCount > 0 ? '+' . htmlspecialchars((string) $extraCount, ENT_QUOTES, 'UTF-8') : '' ?>
+                                                            <?= htmlspecialchars($entryLabel, ENT_QUOTES, 'UTF-8') ?>
+                                                            <?php if ($extraCount > 0): ?>
+                                                                <small>+<?= htmlspecialchars((string) $extraCount, ENT_QUOTES, 'UTF-8') ?></small>
+                                                            <?php else: ?>
+                                                                <small><?= htmlspecialchars($statusLabel($reservationStatus), ENT_QUOTES, 'UTF-8') ?></small>
+                                                            <?php endif; ?>
                                                         </a>
                                                     <?php else: ?>
                                                         <span class="pms-calendar-cell__free"></span>
