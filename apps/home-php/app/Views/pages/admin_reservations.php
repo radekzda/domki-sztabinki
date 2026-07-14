@@ -97,18 +97,15 @@ $paymentLabels = [
                         </div>
                     <?php else: ?>
                         <div class="table-wrapper">
-                            <table class="data-table">
+                            <table class="data-table" style="min-width: 0;">
                                 <thead>
                                     <tr>
-                                        <th>Termin</th>
-                                        <th>Gość</th>
-                                        <th>Domek</th>
-                                        <th>Osoby</th>
-                                        <th>Status</th>
-                                        <th>Płatność</th>
-                                        <th>Kwota</th>
-                                        <th>Źródło</th>
-                                        <th>Akcje</th>
+                                        <th style="width: 18%;">Termin</th>
+                                        <th style="width: 22%;">Gość</th>
+                                        <th style="width: 13%;">Domek</th>
+                                        <th style="width: 15%;">Status / płatność</th>
+                                        <th style="width: 13%;">Kwota</th>
+                                        <th style="width: 19%;">Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -117,6 +114,8 @@ $paymentLabels = [
                                         <?php
                                         $status = $reservation['status'];
                                         $paymentStatus = $reservation['payment_status'] ?? '';
+                                        $statusText = $statusLabels[$status] ?? $status;
+                                        $paymentText = $paymentLabels[$paymentStatus] ?? ($paymentStatus !== '' ? $paymentStatus : '—');
                                         ?>
 
                                         <tr>
@@ -127,12 +126,15 @@ $paymentLabels = [
                                                     <?= htmlspecialchars(formatDateForDisplay($reservation['end_date']), ENT_QUOTES, 'UTF-8') ?>
                                                 </strong>
 
-                                                <br>
-
-                                                <span>
+                                                <div style="margin-top: 6px; color: #6b7280;">
                                                     <?= htmlspecialchars((string) $reservation['nights'], ENT_QUOTES, 'UTF-8') ?>
                                                     noc.
-                                                </span>
+                                                </div>
+
+                                                <div style="margin-top: 6px; color: #6b7280;">
+                                                    Źródło:
+                                                    <strong><?= htmlspecialchars($reservation['source'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                                </div>
                                             </td>
 
                                             <td>
@@ -140,53 +142,53 @@ $paymentLabels = [
                                                     <?= htmlspecialchars($reservation['guest_name'], ENT_QUOTES, 'UTF-8') ?>
                                                 </strong>
 
-                                                <br>
-
-                                                <span>
+                                                <div style="margin-top: 6px; color: #6b7280;">
                                                     <?= htmlspecialchars($reservation['email'], ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
+                                                </div>
 
                                                 <?php if ($reservation['phone'] !== null && $reservation['phone'] !== ''): ?>
-                                                    <br>
-
-                                                    <span>
+                                                    <div style="margin-top: 4px; color: #6b7280;">
                                                         <?= htmlspecialchars($reservation['phone'], ENT_QUOTES, 'UTF-8') ?>
-                                                    </span>
+                                                    </div>
                                                 <?php endif; ?>
-                                            </td>
 
-                                            <td>
-                                                <?= htmlspecialchars($reservation['cabin_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
-                                            </td>
-
-                                            <td>
-                                                <?= htmlspecialchars((string) $reservation['guests'], ENT_QUOTES, 'UTF-8') ?>
-                                                os.
-
-                                                <br>
-
-                                                <span>
-                                                    dorośli:
-                                                    <?= htmlspecialchars((string) $reservation['adults'], ENT_QUOTES, 'UTF-8') ?>,
-                                                    dzieci:
-                                                    <?= htmlspecialchars((string) $reservation['children'], ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
-                                            </td>
-
-                                            <td>
-                                                <?php if ($status === 'CONFIRMED' || $status === 'CHECKED_IN'): ?>
-                                                    <span class="status-pill status-pill--success">
-                                                        <?= htmlspecialchars($statusLabels[$status] ?? $status, ENT_QUOTES, 'UTF-8') ?>
+                                                <div style="margin-top: 8px;">
+                                                    <strong>
+                                                        <?= htmlspecialchars((string) $reservation['guests'], ENT_QUOTES, 'UTF-8') ?>
+                                                        os.
+                                                    </strong>
+                                                    <span style="color: #6b7280;">
+                                                        dorośli:
+                                                        <?= htmlspecialchars((string) $reservation['adults'], ENT_QUOTES, 'UTF-8') ?>,
+                                                        dzieci:
+                                                        <?= htmlspecialchars((string) $reservation['children'], ENT_QUOTES, 'UTF-8') ?>
                                                     </span>
-                                                <?php else: ?>
-                                                    <span class="status-pill status-pill--muted">
-                                                        <?= htmlspecialchars($statusLabels[$status] ?? $status, ENT_QUOTES, 'UTF-8') ?>
-                                                    </span>
-                                                <?php endif; ?>
+                                                </div>
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($paymentLabels[$paymentStatus] ?? ($paymentStatus !== '' ? $paymentStatus : '—'), ENT_QUOTES, 'UTF-8') ?>
+                                                <strong>
+                                                    <?= htmlspecialchars($reservation['cabin_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
+                                                </strong>
+                                            </td>
+
+                                            <td>
+                                                <div style="display: grid; gap: 8px;">
+                                                    <?php if ($status === 'CONFIRMED' || $status === 'CHECKED_IN'): ?>
+                                                        <span class="status-pill status-pill--success">
+                                                            <?= htmlspecialchars($statusText, ENT_QUOTES, 'UTF-8') ?>
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <span class="status-pill status-pill--muted">
+                                                            <?= htmlspecialchars($statusText, ENT_QUOTES, 'UTF-8') ?>
+                                                        </span>
+                                                    <?php endif; ?>
+
+                                                    <span style="color: #6b7280;">
+                                                        Płatność:
+                                                        <strong><?= htmlspecialchars($paymentText, ENT_QUOTES, 'UTF-8') ?></strong>
+                                                    </span>
+                                                </div>
                                             </td>
 
                                             <td>
@@ -194,42 +196,40 @@ $paymentLabels = [
                                                     <?= htmlspecialchars(formatMoneyForDisplay($reservation['total_price']), ENT_QUOTES, 'UTF-8') ?>
                                                 </strong>
 
-                                                <br>
-
-                                                <span>
+                                                <div style="margin-top: 6px; color: #6b7280;">
                                                     wpłacono:
-                                                    <?= htmlspecialchars(formatMoneyForDisplay($reservation['paid_amount']), ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
+                                                    <strong>
+                                                        <?= htmlspecialchars(formatMoneyForDisplay($reservation['paid_amount']), ENT_QUOTES, 'UTF-8') ?>
+                                                    </strong>
+                                                </div>
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($reservation['source'], ENT_QUOTES, 'UTF-8') ?>
-                                            </td>
+                                                <div style="display: grid; gap: 10px; min-width: 190px;">
+                                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                                        <a
+                                                            class="button button--secondary button--small"
+                                                            href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+                                                            Szczegóły
+                                                        </a>
 
-                                            <td>
-                                                <div class="table-actions">
-                                                    <a
-                                                        class="button button--secondary button--small"
-                                                        href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                                    >
-                                                        Szczegóły
-                                                    </a>
+                                                        <a
+                                                            class="button button--secondary button--small"
+                                                            href="/admin/rezerwacje/edytuj?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+                                                            Edytuj
+                                                        </a>
+                                                    </div>
 
-                                                    <a
-                                                        class="button button--secondary button--small"
-                                                        href="/admin/rezerwacje/edytuj?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                                    >
-                                                        Edytuj
-                                                    </a>
-
-                                                    <form method="post" action="/admin/rezerwacje/status">
+                                                    <form method="post" action="/admin/rezerwacje/status" style="display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0;">
                                                         <input
                                                             type="hidden"
                                                             name="id"
                                                             value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
                                                         >
 
-                                                        <select name="status">
+                                                        <select name="status" aria-label="Status rezerwacji">
                                                             <?php foreach ($statusLabels as $statusValue => $statusLabel): ?>
                                                                 <?php if ($statusValue !== 'COMPLETED'): ?>
                                                                     <option
@@ -243,18 +243,18 @@ $paymentLabels = [
                                                         </select>
 
                                                         <button class="button button--primary button--small" type="submit">
-                                                            Status
+                                                            Zmień
                                                         </button>
                                                     </form>
 
-                                                    <form method="post" action="/admin/rezerwacje/platnosc">
+                                                    <form method="post" action="/admin/rezerwacje/platnosc" style="display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0;">
                                                         <input
                                                             type="hidden"
                                                             name="id"
                                                             value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
                                                         >
 
-                                                        <select name="payment_status">
+                                                        <select name="payment_status" aria-label="Status płatności">
                                                             <?php foreach ($paymentLabels as $paymentValue => $paymentLabel): ?>
                                                                 <option
                                                                     value="<?= htmlspecialchars($paymentValue, ENT_QUOTES, 'UTF-8') ?>"
@@ -270,11 +270,33 @@ $paymentLabels = [
                                                         </button>
                                                     </form>
 
-                                                    <?php if ($reservation['status'] !== 'CANCELLED'): ?>
+                                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                                        <?php if ($reservation['status'] !== 'CANCELLED'): ?>
+                                                            <form
+                                                                method="post"
+                                                                action="/admin/rezerwacje/anuluj"
+                                                                onsubmit="return confirm('Czy na pewno anulować tę rezerwację?')"
+                                                                style="margin: 0;"
+                                                            >
+                                                                <input
+                                                                    type="hidden"
+                                                                    name="id"
+                                                                    value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                                >
+
+                                                                <button class="button button--secondary button--small" type="submit" style="width: 100%;">
+                                                                    Anuluj
+                                                                </button>
+                                                            </form>
+                                                        <?php else: ?>
+                                                            <span></span>
+                                                        <?php endif; ?>
+
                                                         <form
                                                             method="post"
-                                                            action="/admin/rezerwacje/anuluj"
-                                                            onsubmit="return confirm('Czy na pewno anulować tę rezerwację?')"
+                                                            action="/admin/rezerwacje/usun"
+                                                            onsubmit="return confirm('Czy na pewno trwale usunąć tę rezerwację? Tej operacji nie można cofnąć.')"
+                                                            style="margin: 0;"
                                                         >
                                                             <input
                                                                 type="hidden"
@@ -282,27 +304,11 @@ $paymentLabels = [
                                                                 value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
                                                             >
 
-                                                            <button class="button button--secondary button--small" type="submit">
-                                                                Anuluj
+                                                            <button class="button button--secondary button--small" type="submit" style="width: 100%;">
+                                                                Usuń
                                                             </button>
                                                         </form>
-                                                    <?php endif; ?>
-
-                                                    <form
-                                                        method="post"
-                                                        action="/admin/rezerwacje/usun"
-                                                        onsubmit="return confirm('Czy na pewno trwale usunąć tę rezerwację? Tej operacji nie można cofnąć.')"
-                                                    >
-                                                        <input
-                                                            type="hidden"
-                                                            name="id"
-                                                            value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                                        >
-
-                                                        <button class="button button--secondary button--small" type="submit">
-                                                            Usuń
-                                                        </button>
-                                                    </form>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
