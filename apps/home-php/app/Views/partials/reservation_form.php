@@ -43,8 +43,22 @@ declare(strict_types=1);
 
 $actionValue = isset($action) && is_string($action) ? $action : '';
 $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabel : 'Zapisz rezerwację';
+$returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
+
+if ($returnUrl === '' && isset($_POST['return_url']) && is_string($_POST['return_url'])) {
+    $returnUrl = $_POST['return_url'];
+}
+
+$canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
 ?>
 <form class="form form--wide" method="post" action="<?= htmlspecialchars($actionValue, ENT_QUOTES, 'UTF-8') ?>">
+<?php if ($canReturnToCalendar): ?>
+        <input
+            type="hidden"
+            name="return_url"
+            value="<?= htmlspecialchars($returnUrl, ENT_QUOTES, 'UTF-8') ?>"
+        >
+    <?php endif; ?>
     <div class="form-grid">
         <div class="form-field form-field--full">
             <label for="guest_id">Powiązany gość</label>
@@ -117,6 +131,34 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
 
             <?php if (isset($errors['end_date'])): ?>
                 <span class="form-error"><?= htmlspecialchars($errors['end_date'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field">
+            <label for="check_in_time">Godzina przyjazdu</label>
+            <input
+                id="check_in_time"
+                name="check_in_time"
+                type="time"
+                value="<?= htmlspecialchars($form['check_in_time'] ?? '15:00', ENT_QUOTES, 'UTF-8') ?>"
+            >
+
+            <?php if (isset($errors['check_in_time'])): ?>
+                <span class="form-error"><?= htmlspecialchars($errors['check_in_time'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field">
+            <label for="check_out_time">Godzina wyjazdu</label>
+            <input
+                id="check_out_time"
+                name="check_out_time"
+                type="time"
+                value="<?= htmlspecialchars($form['check_out_time'] ?? '11:00', ENT_QUOTES, 'UTF-8') ?>"
+            >
+
+            <?php if (isset($errors['check_out_time'])): ?>
+                <span class="form-error"><?= htmlspecialchars($errors['check_out_time'], ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </div>
 
@@ -302,6 +344,15 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
         >
             <?= htmlspecialchars($submitLabelValue, ENT_QUOTES, 'UTF-8') ?>
         </button>
+          <?php if ($canReturnToCalendar): ?>
+              <a
+                  class="button button--secondary"
+                  href="<?= htmlspecialchars($returnUrl, ENT_QUOTES, 'UTF-8') ?>"
+              >
+                  Wróć do kalendarza
+              </a>
+          <?php endif; ?>
+
 
         <a class="button button--secondary" href="/admin/rezerwacje">
             Anuluj

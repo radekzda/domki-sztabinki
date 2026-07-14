@@ -794,6 +794,7 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
     $guests = [];
     $databaseMessage = null;
     $form = defaultReservationForm();
+    $form = reservationFormFromCalendarQuery($form);
     $inquiryId = inquiryIdFromQueryForReservation();
 
     if (!Database::canAttemptConnection()) {
@@ -830,7 +831,27 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
     ]));
 });
 
+
+function reservationReturnUrlFromPost(): string
+{
+    $returnUrl = $_POST['return_url'] ?? '';
+
+    if (!is_string($returnUrl)) {
+        return '';
+    }
+
+    $returnUrl = trim($returnUrl);
+
+    if (str_starts_with($returnUrl, '/admin/kalendarz')) {
+        return $returnUrl;
+    }
+
+    return '';
+}
+
 $router->post('/admin/rezerwacje/nowa', function (): void {
+    $returnUrl = reservationReturnUrlFromPost();
+
     Auth::requireAdmin();
 
     $form = reservationFormFromPost();
@@ -931,7 +952,11 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
 
         ReservationRepository::create(reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice, $guestId));
 
-        Response::redirect('/admin/rezerwacje?created=1');
+        if ($returnUrl !== '') {
+        Response::redirect($returnUrl);
+    }
+
+    Response::redirect('/admin/rezerwacje?created=1');
     } catch (Throwable $exception) {
         Response::html(View::render('pages/admin_reservations_new', [
             'title' => 'Dodaj rezerwację',

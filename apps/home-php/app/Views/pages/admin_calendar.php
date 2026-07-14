@@ -501,10 +501,6 @@ $summaryCards = [
         'value' => (string) $departures,
     ],
     [
-        'label' => 'Zajęte',
-        'value' => (string) $blockingReservations,
-    ],
-    [
         'label' => 'Anulowane',
         'value' => (string) $cancelledReservations,
     ],
@@ -751,20 +747,7 @@ $summaryCards = [
         background: #dc2626;
         opacity: 0.78;
     }
-
-    .pms-calendar-list {
-        margin-top: 26px;
-    }
-
-    .pms-calendar-list h2 {
-        margin-bottom: 14px;
-    }
-
-    .pms-calendar-list .data-table {
-        min-width: 760px;
-    }
-
-    @media (max-width: 1200px) {
+@media (max-width: 1200px) {
         .pms-calendar-summary {
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
@@ -1233,6 +1216,123 @@ $summaryCards = [
         color: #075985;
     }
 
+
+    /* M13.62 — compact calendar header and quick selection */
+    .admin-content .panel > .page-header {
+        margin-bottom: 10px !important;
+    }
+
+    .admin-content .panel > .page-header h1 {
+        margin: 0 !important;
+        font-size: 24px !important;
+        line-height: 1.05 !important;
+    }
+
+    .admin-content .panel > .page-header .page-header__actions {
+        gap: 8px !important;
+    }
+
+    .admin-content .panel > .page-header .button {
+        min-height: 36px !important;
+        padding: 0 14px !important;
+        font-size: 12px !important;
+    }
+
+    .pms-calendar-toolbar--compact {
+        margin-top: 8px !important;
+        gap: 10px !important;
+    }
+
+    .pms-calendar-help {
+        color: var(--color-muted);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .pms-calendar-toolbar--compact .form-actions {
+        gap: 8px !important;
+    }
+
+    .pms-calendar-toolbar--compact input[type="month"] {
+        min-height: 36px !important;
+        max-width: 165px;
+        font-size: 13px;
+    }
+
+    .pms-calendar-toolbar--compact .button {
+        min-height: 36px !important;
+        padding: 0 14px !important;
+        font-size: 12px !important;
+    }
+
+    .pms-calendar-summary {
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin-top: 10px !important;
+    }
+
+    .pms-calendar-summary__card {
+        border-radius: 12px !important;
+        padding: 8px 10px !important;
+    }
+
+    .pms-calendar-summary__card span {
+        font-size: 10px !important;
+    }
+
+    .pms-calendar-summary__card strong {
+        margin-top: 2px !important;
+        font-size: 14px !important;
+    }
+
+    .pms-calendar-legend {
+        gap: 8px !important;
+        margin-top: 10px !important;
+    }
+
+    .pms-calendar-legend__item {
+        font-size: 11px !important;
+    }
+
+    .pms-calendar-table-wrap {
+        margin-top: 12px !important;
+    }
+
+    .pms-calendar-bar,
+    .pms-calendar-bar--continues-left,
+    .pms-calendar-bar--continues-right {
+        border-radius: 13px !important;
+    }
+
+    .pms-calendar-bg-cell {
+        cursor: crosshair;
+    }
+
+    .pms-calendar-bg-cell:hover {
+        background: rgba(59, 130, 246, 0.12) !important;
+    }
+
+    .pms-calendar-bg-cell--selected-start {
+        background: rgba(249, 115, 22, 0.22) !important;
+        box-shadow: inset 0 0 0 2px rgba(249, 115, 22, 0.55);
+    }
+
+    .pms-calendar-bg-cell--selected-range {
+        background: rgba(249, 115, 22, 0.12) !important;
+    }
+
+
+    /* M13.62.2 — legend below calendar */
+    .pms-calendar-legend--bottom {
+        margin-top: 12px !important;
+        margin-bottom: 0 !important;
+        padding: 8px 10px;
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        background: #ffffff;
+    }
+
 </style>
 
 <section class="page-section">
@@ -1247,14 +1347,16 @@ $summaryCards = [
                             <p class="eyebrow">Kalendarz</p>
 
                             <h1>Kalendarz</h1>
-
-                            <p>
-                                Widok PMS pokazuje domki w wierszach oraz dni miesiąca w kolumnach.
-                                Zajęte dni wynikają z rezerwacji w systemie.
-                            </p>
                         </div>
 
                         <div class="page-header__actions">
+                            <a
+                                class="button button--primary"
+                                href="/admin/rezerwacje/nowa?return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
+                            >
+                                Nowa rezerwacja
+                            </a>
+
                             <a class="button button--secondary" href="/admin/kalendarz?month=<?= htmlspecialchars($previousMonth, ENT_QUOTES, 'UTF-8') ?>">
                                 Poprzedni
                             </a>
@@ -1307,55 +1409,7 @@ $summaryCards = [
                             </div>
                         <?php endforeach; ?>
                     </div>
-
-                    <div class="pms-calendar-legend">
-                        <span class="pms-calendar-legend__item">
-                            <i class="pms-calendar-legend__dot calendar-status--pending"></i>
-                            Oczekuje
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <i class="pms-calendar-legend__dot calendar-status--remaining"></i>
-                            Pozostało do zapłaty
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <i class="pms-calendar-legend__dot calendar-status--confirmed"></i>
-                            Potwierdzona
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <i class="pms-calendar-legend__dot calendar-status--checked-in"></i>
-                            Zameldowany
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <i class="pms-calendar-legend__dot calendar-status--checked-out"></i>
-                            Wymeldowany
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <i class="pms-calendar-legend__dot calendar-status--cancelled"></i>
-                            Anulowana
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <strong>Prz.</strong>
-                            Przyjazd
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <strong>Pob.</strong>
-                            Pobyt
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <strong>Wyj.</strong>
-                            Wyjazd
-                        </span>
-                    </div>
-
-                    <?php if ($cabins === []): ?>
+<?php if ($cabins === []): ?>
                         <div class="empty-state">
                             <strong>Brak aktywnych domków</strong>
 
@@ -1425,6 +1479,10 @@ $summaryCards = [
                                                         <span
                                                             class="<?= htmlspecialchars($dayClass, ENT_QUOTES, 'UTF-8') ?>"
                                                             style="grid-column: <?= htmlspecialchars((string) $dayColumn, ENT_QUOTES, 'UTF-8') ?>; grid-row: 1;"
+                                                            data-calendar-date="<?= htmlspecialchars((string) $day['date'], ENT_QUOTES, 'UTF-8') ?>"
+                                                            data-calendar-cabin-id="<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>"
+                                                            data-calendar-month="<?= htmlspecialchars($monthStart->format('Y-m'), ENT_QUOTES, 'UTF-8') ?>"
+                                                            title="Kliknij, aby wybrać początek albo koniec rezerwacji"
                                                         ></span>
                                                     <?php endforeach; ?>
 
@@ -1541,88 +1599,161 @@ $summaryCards = [
                         </div>
                     <?php endif; ?>
 
-                    <div class="pms-calendar-list">
-                        <h2>Rezerwacje w miesiącu</h2>
+                    
 
-                        <?php if ($monthReservations === []): ?>
-                            <div class="empty-state">
-                                <strong>Brak rezerwacji w tym miesiącu</strong>
+                    <div class="pms-calendar-legend pms-calendar-legend--bottom">
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--pending"></i>
+                            Oczekuje
+                        </span>
 
-                                <p>
-                                    W wybranym miesiącu nie ma rezerwacji blokujących ani anulowanych.
-                                </p>
-                            </div>
-                        <?php else: ?>
-                            <div class="table-wrapper">
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Termin</th>
-                                            <th>Godziny</th>
-                                            <th>Gość</th>
-                                            <th>Domek</th>
-                                            <th>Status</th>
-                                            <th>Akcje</th>
-                                        </tr>
-                                    </thead>
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--remaining"></i>
+                            Pozostało do zapłaty
+                        </span>
 
-                                    <tbody>
-                                        <?php foreach ($monthReservations as $reservation): ?>
-                                            <?php
-                                            $status = (string) ($reservation['status'] ?? '');
-                                            $reservationId = (int) ($reservation['id'] ?? 0);
-                                            ?>
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--confirmed"></i>
+                            Potwierdzona
+                        </span>
 
-                                            <tr>
-                                                <td>
-                                                    <strong>
-                                                        <?= htmlspecialchars($formatDate(substr((string) ($reservation['start_date'] ?? ''), 0, 10)), ENT_QUOTES, 'UTF-8') ?>
-                                                        —
-                                                        <?= htmlspecialchars($formatDate(substr((string) ($reservation['end_date'] ?? ''), 0, 10)), ENT_QUOTES, 'UTF-8') ?>
-                                                    </strong>
-                                                </td>
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--checked-in"></i>
+                            Zameldowany
+                        </span>
 
-                                                <td>
-                                                    <strong>Przyjazd</strong><br>
-                                                    <?= htmlspecialchars($formatDateTime($reservation['check_in_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--checked-out"></i>
+                            Wymeldowany
+                        </span>
 
-                                                    <br>
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--cancelled"></i>
+                            Anulowana
+                        </span>
 
-                                                    <strong>Wyjazd</strong><br>
-                                                    <?= htmlspecialchars($formatDateTime($reservation['check_out_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>
-                                                </td>
+                        <span class="pms-calendar-legend__item">
+                            <strong>Prz.</strong>
+                            Przyjazd
+                        </span>
 
-                                                <td>
-                                                    <?= htmlspecialchars($reservationGuestName($reservation), ENT_QUOTES, 'UTF-8') ?>
-                                                </td>
+                        <span class="pms-calendar-legend__item">
+                            <strong>Pob.</strong>
+                            Pobyt
+                        </span>
 
-                                                <td>
-                                                    <?= htmlspecialchars($reservationCabinName($reservation), ENT_QUOTES, 'UTF-8') ?>
-                                                </td>
-
-                                                <td>
-                                                    <span class="status-pill status-pill--muted">
-                                                        <?= htmlspecialchars($statusLabel($status), ENT_QUOTES, 'UTF-8') ?>
-                                                    </span>
-                                                </td>
-
-                                                <td>
-                                                    <a
-                                                        class="button button--secondary button--small"
-                                                        href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
-                                                    >
-                                                        Szczegóły
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <?php endif; ?>
+                        <span class="pms-calendar-legend__item">
+                            <strong>Wyj.</strong>
+                            Wyjazd
+                        </span>
                     </div>
-                </div>
+</div>
             </div>
         </div>
     </div>
 </section>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var selected = null;
+        var cells = Array.prototype.slice.call(document.querySelectorAll('[data-calendar-date][data-calendar-cabin-id]'));
+
+        function pad(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function nextDay(dateString) {
+            var parts = dateString.split('-').map(Number);
+            var date = new Date(parts[0], parts[1] - 1, parts[2]);
+            date.setDate(date.getDate() + 1);
+
+            return [
+                date.getFullYear(),
+                pad(date.getMonth() + 1),
+                pad(date.getDate())
+            ].join('-');
+        }
+
+        function clearSelection() {
+            cells.forEach(function (cell) {
+                cell.classList.remove('pms-calendar-bg-cell--selected-start');
+                cell.classList.remove('pms-calendar-bg-cell--selected-range');
+            });
+        }
+
+        function markRange(cabinId, startDate, endDate) {
+            clearSelection();
+
+            cells.forEach(function (cell) {
+                if (cell.dataset.calendarCabinId !== cabinId) {
+                    return;
+                }
+
+                var date = cell.dataset.calendarDate;
+
+                if (date === startDate) {
+                    cell.classList.add('pms-calendar-bg-cell--selected-start');
+                }
+
+                if (date >= startDate && date <= endDate) {
+                    cell.classList.add('pms-calendar-bg-cell--selected-range');
+                }
+            });
+        }
+
+        function openReservation(cabinId, startDate, endDate, month) {
+            if (endDate <= startDate) {
+                endDate = nextDay(startDate);
+            }
+
+            var returnUrl = '/admin/kalendarz?month=' + month;
+            var url = '/admin/rezerwacje/nowa'
+                + '?cabin_id=' + encodeURIComponent(cabinId)
+                + '&start_date=' + encodeURIComponent(startDate)
+                + '&end_date=' + encodeURIComponent(endDate)
+                + '&return=' + encodeURIComponent(returnUrl);
+
+            window.location.href = url;
+        }
+
+        cells.forEach(function (cell) {
+            cell.addEventListener('click', function (event) {
+                event.preventDefault();
+
+                var cabinId = cell.dataset.calendarCabinId;
+                var date = cell.dataset.calendarDate;
+                var month = cell.dataset.calendarMonth;
+
+                if (
+                    selected !== null
+                    && selected.cabinId === cabinId
+                ) {
+                    var startDate = selected.date <= date ? selected.date : date;
+                    var endDate = selected.date <= date ? date : selected.date;
+
+                    openReservation(cabinId, startDate, endDate, month);
+                    return;
+                }
+
+                selected = {
+                    cabinId: cabinId,
+                    date: date,
+                    month: month
+                };
+
+                markRange(cabinId, date, date);
+            });
+
+            cell.addEventListener('dblclick', function (event) {
+                event.preventDefault();
+
+                var cabinId = cell.dataset.calendarCabinId;
+                var date = cell.dataset.calendarDate;
+                var month = cell.dataset.calendarMonth;
+
+                openReservation(cabinId, date, nextDay(date), month);
+            });
+        });
+    });
+</script>

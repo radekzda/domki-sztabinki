@@ -239,6 +239,8 @@ function defaultReservationForm(): array
         'phone' => '',
         'start_date' => '',
         'end_date' => '',
+        'check_in_time' => '15:00',
+        'check_out_time' => '11:00',
         'adults' => '2',
         'children' => '0',
         'status' => 'PENDING',
@@ -252,6 +254,50 @@ function defaultReservationForm(): array
 /**
  * @return array<string, string>
  */
+
+
+function reservationNormalizeTime(mixed $value, string $fallback): string
+{
+    if (!is_string($value) && !is_int($value)) {
+        return $fallback;
+    }
+
+    $value = trim((string) $value);
+
+    if (preg_match('/^\d{2}:\d{2}$/', $value) === 1) {
+        return $value;
+    }
+
+    if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $value) === 1) {
+        return substr($value, 0, 5);
+    }
+
+    return $fallback;
+}
+
+function reservationTimeFromDateTime(mixed $value, string $fallback): string
+{
+    if ($value === null) {
+        return $fallback;
+    }
+
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return $fallback;
+    }
+
+    try {
+        return (new DateTimeImmutable($value))->format('H:i');
+    } catch (Throwable $exception) {
+        if (preg_match('/^\d{2}:\d{2}$/', $value) === 1) {
+            return $value;
+        }
+
+        return $fallback;
+    }
+}
+
 function reservationFormFromPost(): array
 {
     $defaults = defaultReservationForm();
@@ -261,6 +307,9 @@ function reservationFormFromPost(): array
         $value = $_POST[$key] ?? $defaultValue;
         $form[$key] = is_string($value) ? trim($value) : $defaultValue;
     }
+
+    $form['check_in_time'] = reservationNormalizeTime($_POST['check_in_time'] ?? null, '15:00');
+    $form['check_out_time'] = reservationNormalizeTime($_POST['check_out_time'] ?? null, '11:00');
 
     return $form;
 }
@@ -301,6 +350,8 @@ function reservationFormFromReservation(array $reservation): array
         'phone' => $reservation['phone'] ?? '',
         'start_date' => substr($reservation['start_date'], 0, 10),
         'end_date' => substr($reservation['end_date'], 0, 10),
+        'check_in_time' => reservationTimeFromDateTime($reservation['check_in_at'] ?? null, '15:00'),
+        'check_out_time' => reservationTimeFromDateTime($reservation['check_out_at'] ?? null, '11:00'),
         'adults' => (string) $reservation['adults'],
         'children' => (string) $reservation['children'],
         'status' => $reservation['status'],
@@ -336,6 +387,38 @@ function reservationFormFromReservation(array $reservation): array
  * } $inquiry
  * @return array<string, string>
  */
+
+/**
+ * @param array<string, string> $form
+ * @return array<string, string>
+ */
+function reservationFormFromCalendarQuery(array $form): array
+{
+    $cabinId = $_GET['cabin_id'] ?? null;
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
+
+    if ((is_string($cabinId) || is_int($cabinId)) && ctype_digit((string) $cabinId)) {
+        $form['cabin_id'] = (string) $cabinId;
+    }
+
+    if (is_string($startDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) === 1) {
+        $form['start_date'] = $startDate;
+    }
+
+    if (is_string($endDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate) === 1) {
+        $form['end_date'] = $endDate;
+    }
+
+    $form['source'] = 'MANUAL';
+    $form['status'] = 'PENDING';
+    $form['payment_status'] = 'PENDING';
+    $form['check_in_time'] = '15:00';
+    $form['check_out_time'] = '11:00';
+
+    return $form;
+}
+
 function reservationFormFromInquiry(array $inquiry): array
 {
     $form = defaultReservationForm();
@@ -391,6 +474,17 @@ function validateReservationForm(array $form): array
     if ($form['end_date'] === '') {
         $errors['end_date'] = 'Podaj datę zakończenia pobytu.';
     }
+
+    if (!isset($form['check_in_time']) || preg_match('/^\d{2}:\d{2}$/', $form['check_in_time']) !== 1) {
+        $errors['check_in_time'] = 'Podaj godzinę przyjazdu.';
+    }
+
+    if (!isset($form['check_out_time']) || preg_match('/^\d{2}:\d{2}$/', $form['check_out_time']) !== 1) {
+        $errors['check_out_time'] = 'Podaj godzinę wyjazdu.';
+    }
+
+    $form['check_in_time'] = reservationNormalizeTime($form['check_in_time'] ?? null, '15:00');
+    $form['check_out_time'] = reservationNormalizeTime($form['check_out_time'] ?? null, '11:00');
 
     $nights = calculateReservationNights($form['start_date'], $form['end_date']);
 
@@ -537,6 +631,8 @@ function reservationDataFromForm(array $form, int $nights, int $totalPrice, ?int
         'phone' => $form['phone'] !== '' ? $form['phone'] : null,
         'start_date' => $form['start_date'],
         'end_date' => $form['end_date'],
+        'check_in_at' => $form['start_date'] . ' ' . $form['check_in_time'] . ':00',
+        'check_out_at' => $form['end_date'] . ' ' . $form['check_out_time'] . ':00',
         'nights' => $nights,
         'guests' => $adults + $children,
         'adults' => $adults,
