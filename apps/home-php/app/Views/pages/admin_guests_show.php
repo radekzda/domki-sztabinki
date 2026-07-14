@@ -4,41 +4,8 @@ declare(strict_types=1);
 
 /**
  * @var string $title
- * @var array{
- *     id: int,
- *     first_name: string,
- *     last_name: string,
- *     email: string,
- *     phone: string|null,
- *     country: string|null,
- *     city: string|null,
- *     is_vip: int,
- *     source: string,
- *     notes: string|null,
- *     created_at: string
- * } $guest
- * @var array<int, array{
- *     id: int,
- *     cabin_id: int,
- *     guest_id: int|null,
- *     cabin_name: string|null,
- *     linked_guest_name: string|null,
- *     guest_name: string,
- *     email: string,
- *     phone: string|null,
- *     start_date: string,
- *     end_date: string,
- *     nights: int,
- *     guests: int,
- *     adults: int,
- *     children: int,
- *     status: string,
- *     source: string,
- *     payment_status: string|null,
- *     total_price: string|null,
- *     paid_amount: string|null,
- *     created_at: string
- * }> $reservations
+ * @var array<string, mixed> $guest
+ * @var array<int, array<string, mixed>> $reservations
  */
 
 $statusLabels = [
@@ -55,6 +22,24 @@ $paymentLabels = [
     'PARTIAL' => 'Częściowa',
     'REFUNDED' => 'Zwrócona',
 ];
+
+$displayValue = static function (mixed $value): string {
+    if ($value === null) {
+        return '—';
+    }
+
+    $value = trim((string) $value);
+
+    return $value !== '' ? $value : '—';
+};
+
+$displayDate = static function (mixed $value): string {
+    if ($value === null || trim((string) $value) === '') {
+        return '—';
+    }
+
+    return formatDateForDisplay((string) $value);
+};
 ?>
 <section class="page-section">
     <div class="container">
@@ -68,8 +53,8 @@ $paymentLabels = [
                             <p class="eyebrow">Goście</p>
 
                             <h1>
-                                <?= htmlspecialchars($guest['first_name'], ENT_QUOTES, 'UTF-8') ?>
-                                <?= htmlspecialchars($guest['last_name'], ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars((string) $guest['first_name'], ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars((string) $guest['last_name'], ENT_QUOTES, 'UTF-8') ?>
                             </h1>
 
                             <p>
@@ -95,53 +80,83 @@ $paymentLabels = [
                         <div class="status-row">
                             <span>Imię i nazwisko</span>
                             <strong>
-                                <?= htmlspecialchars($guest['first_name'], ENT_QUOTES, 'UTF-8') ?>
-                                <?= htmlspecialchars($guest['last_name'], ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars((string) $guest['first_name'], ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars((string) $guest['last_name'], ENT_QUOTES, 'UTF-8') ?>
                             </strong>
                         </div>
 
                         <div class="status-row">
                             <span>E-mail</span>
-                            <strong><?= htmlspecialchars($guest['email'], ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars((string) $guest['email'], ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">
                             <span>Telefon</span>
-                            <strong><?= htmlspecialchars($guest['phone'] ?? '—', ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars($displayValue($guest['phone'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">
                             <span>Miejscowość</span>
-                            <strong><?= htmlspecialchars($guest['city'] ?? '—', ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars($displayValue($guest['city'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">
                             <span>Kraj</span>
-                            <strong><?= htmlspecialchars($guest['country'] ?? '—', ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars($displayValue($guest['country'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Pełny adres</span>
+                            <strong><?= htmlspecialchars($displayValue($guest['full_address'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Narodowość</span>
+                            <strong><?= htmlspecialchars($displayValue($guest['nationality'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Data urodzenia</span>
+                            <strong><?= htmlspecialchars($displayDate($guest['birth_date'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>PESEL</span>
+                            <strong><?= htmlspecialchars($displayValue($guest['pesel'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Numer dokumentu</span>
+                            <strong><?= htmlspecialchars($displayValue($guest['document_number'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">
                             <span>VIP</span>
-                            <strong><?= $guest['is_vip'] === 1 ? 'Tak' : 'Nie' ?></strong>
+                            <strong><?= (int) $guest['is_vip'] === 1 ? 'Tak' : 'Nie' ?></strong>
                         </div>
 
                         <div class="status-row">
                             <span>Źródło</span>
-                            <strong><?= htmlspecialchars($guest['source'], ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars((string) $guest['source'], ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>ID z Base44</span>
+                            <strong><?= htmlspecialchars($displayValue($guest['external_id'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">
                             <span>Utworzono</span>
-                            <strong><?= htmlspecialchars(formatDateForDisplay($guest['created_at']), ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars(formatDateForDisplay((string) $guest['created_at']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
                     </div>
 
-                    <?php if ($guest['notes'] !== null && $guest['notes'] !== ''): ?>
+                    <?php if (($guest['notes'] ?? null) !== null && (string) $guest['notes'] !== ''): ?>
                         <div class="empty-state">
                             <strong>Notatki</strong>
 
                             <p>
-                                <?= nl2br(htmlspecialchars($guest['notes'], ENT_QUOTES, 'UTF-8')) ?>
+                                <?= nl2br(htmlspecialchars((string) $guest['notes'], ENT_QUOTES, 'UTF-8')) ?>
                             </p>
                         </div>
                     <?php endif; ?>
@@ -157,11 +172,11 @@ $paymentLabels = [
                             <input
                                 type="hidden"
                                 name="is_vip"
-                                value="<?= $guest['is_vip'] === 1 ? '0' : '1' ?>"
+                                value="<?= (int) $guest['is_vip'] === 1 ? '0' : '1' ?>"
                             >
 
                             <button class="button button--primary" type="submit">
-                                <?= $guest['is_vip'] === 1 ? 'Usuń oznaczenie VIP' : 'Oznacz jako VIP' ?>
+                                <?= (int) $guest['is_vip'] === 1 ? 'Usuń oznaczenie VIP' : 'Oznacz jako VIP' ?>
                             </button>
                         </form>
 
@@ -219,9 +234,9 @@ $paymentLabels = [
                                         <tr>
                                             <td>
                                                 <strong>
-                                                    <?= htmlspecialchars(formatDateForDisplay($reservation['start_date']), ENT_QUOTES, 'UTF-8') ?>
+                                                    <?= htmlspecialchars(formatDateForDisplay((string) $reservation['start_date']), ENT_QUOTES, 'UTF-8') ?>
                                                     —
-                                                    <?= htmlspecialchars(formatDateForDisplay($reservation['end_date']), ENT_QUOTES, 'UTF-8') ?>
+                                                    <?= htmlspecialchars(formatDateForDisplay((string) $reservation['end_date']), ENT_QUOTES, 'UTF-8') ?>
                                                 </strong>
 
                                                 <br>
@@ -233,15 +248,15 @@ $paymentLabels = [
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($reservation['cabin_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars($displayValue($reservation['cabin_name'] ?? null), ENT_QUOTES, 'UTF-8') ?>
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($statusLabels[$reservation['status']] ?? $reservation['status'], ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars($statusLabels[(string) $reservation['status']] ?? (string) $reservation['status'], ENT_QUOTES, 'UTF-8') ?>
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($paymentLabels[$paymentStatus] ?? ($paymentStatus !== '' ? $paymentStatus : '—'), ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars($paymentLabels[(string) $paymentStatus] ?? ((string) $paymentStatus !== '' ? (string) $paymentStatus : '—'), ENT_QUOTES, 'UTF-8') ?>
                                             </td>
 
                                             <td>

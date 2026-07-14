@@ -626,12 +626,18 @@ function reservationStatusBlocks(string $status): bool
 function defaultGuestForm(): array
 {
     return [
+        'external_id' => '',
         'first_name' => '',
         'last_name' => '',
         'email' => '',
         'phone' => '',
         'city' => '',
-        'country' => 'Polska',
+        'country' => '',
+        'full_address' => '',
+        'pesel' => '',
+        'document_number' => '',
+        'nationality' => '',
+        'birth_date' => '',
         'is_vip' => '0',
         'source' => 'MANUAL',
         'notes' => '',
@@ -646,9 +652,9 @@ function guestFormFromPost(): array
     $defaults = defaultGuestForm();
     $form = [];
 
-    foreach ($defaults as $key => $defaultValue) {
-        $value = $_POST[$key] ?? $defaultValue;
-        $form[$key] = is_string($value) ? trim($value) : $defaultValue;
+    foreach ($defaults as $key => $value) {
+        $postedValue = $_POST[$key] ?? $value;
+        $form[$key] = is_string($postedValue) ? trim($postedValue) : $value;
     }
 
     return $form;
@@ -673,15 +679,21 @@ function guestFormFromPost(): array
 function guestFormFromGuest(array $guest): array
 {
     return [
-        'first_name' => $guest['first_name'],
-        'last_name' => $guest['last_name'],
-        'email' => $guest['email'],
-        'phone' => $guest['phone'] ?? '',
-        'city' => $guest['city'] ?? '',
-        'country' => $guest['country'] ?? '',
-        'is_vip' => (string) $guest['is_vip'],
-        'source' => $guest['source'],
-        'notes' => $guest['notes'] ?? '',
+        'external_id' => isset($guest['external_id']) ? (string) $guest['external_id'] : '',
+        'first_name' => (string) ($guest['first_name'] ?? ''),
+        'last_name' => (string) ($guest['last_name'] ?? ''),
+        'email' => (string) ($guest['email'] ?? ''),
+        'phone' => isset($guest['phone']) ? (string) $guest['phone'] : '',
+        'city' => isset($guest['city']) ? (string) $guest['city'] : '',
+        'country' => isset($guest['country']) ? (string) $guest['country'] : '',
+        'full_address' => isset($guest['full_address']) ? (string) $guest['full_address'] : '',
+        'pesel' => isset($guest['pesel']) ? (string) $guest['pesel'] : '',
+        'document_number' => isset($guest['document_number']) ? (string) $guest['document_number'] : '',
+        'nationality' => isset($guest['nationality']) ? (string) $guest['nationality'] : '',
+        'birth_date' => isset($guest['birth_date']) ? (string) $guest['birth_date'] : '',
+        'is_vip' => (string) ((int) ($guest['is_vip'] ?? 0)),
+        'source' => (string) ($guest['source'] ?? 'MANUAL'),
+        'notes' => isset($guest['notes']) ? (string) $guest['notes'] : '',
     ];
 }
 
@@ -693,26 +705,43 @@ function validateGuestForm(array $form): array
 {
     $errors = [];
 
-    if ($form['first_name'] === '') {
+    if (trim((string) $form['first_name']) === '') {
         $errors['first_name'] = 'Podaj imię gościa.';
     }
 
-    if ($form['last_name'] === '') {
+    if (trim((string) $form['last_name']) === '') {
         $errors['last_name'] = 'Podaj nazwisko gościa.';
     }
 
-    if ($form['email'] === '' || filter_var($form['email'], FILTER_VALIDATE_EMAIL) === false) {
-        $errors['email'] = 'Podaj prawidłowy adres e-mail.';
+    if (trim((string) $form['email']) === '') {
+        $errors['email'] = 'Podaj e-mail gościa.';
+    } elseif (!filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
+        $errors['email'] = 'Podaj poprawny adres e-mail.';
     }
 
-    if (!in_array($form['is_vip'], ['0', '1'], true)) {
-        $errors['is_vip'] = 'Nieprawidłowe oznaczenie VIP.';
+    if (!in_array((string) $form['is_vip'], ['0', '1'], true)) {
+        $errors['is_vip'] = 'Nieprawidłowa wartość VIP.';
     }
 
-    $allowedSources = ['MANUAL', 'WWW', 'BOOKING', 'PHONE', 'AIRBNB'];
+    $allowedSources = [
+        'MANUAL',
+        'WWW',
+        'BOOKING',
+        'PHONE',
+        'AIRBNB',
+        'BASE44',
+    ];
 
-    if (!in_array($form['source'], $allowedSources, true)) {
+    if (!in_array((string) $form['source'], $allowedSources, true)) {
         $errors['source'] = 'Nieprawidłowe źródło gościa.';
+    }
+
+    if ((string) $form['birth_date'] !== '') {
+        try {
+            new DateTimeImmutable((string) $form['birth_date']);
+        } catch (Throwable $exception) {
+            $errors['birth_date'] = 'Podaj poprawną datę urodzenia.';
+        }
     }
 
     return $errors;
@@ -735,15 +764,21 @@ function validateGuestForm(array $form): array
 function guestDataFromForm(array $form): array
 {
     return [
-        'first_name' => $form['first_name'],
-        'last_name' => $form['last_name'],
-        'email' => $form['email'],
-        'phone' => $form['phone'] !== '' ? $form['phone'] : null,
-        'country' => $form['country'] !== '' ? $form['country'] : null,
-        'city' => $form['city'] !== '' ? $form['city'] : null,
+        'external_id' => trim((string) $form['external_id']) !== '' ? trim((string) $form['external_id']) : null,
+        'first_name' => trim((string) $form['first_name']),
+        'last_name' => trim((string) $form['last_name']),
+        'email' => strtolower(trim((string) $form['email'])),
+        'phone' => trim((string) $form['phone']) !== '' ? trim((string) $form['phone']) : null,
+        'country' => trim((string) $form['country']) !== '' ? trim((string) $form['country']) : null,
+        'city' => trim((string) $form['city']) !== '' ? trim((string) $form['city']) : null,
+        'full_address' => trim((string) $form['full_address']) !== '' ? trim((string) $form['full_address']) : null,
+        'pesel' => trim((string) $form['pesel']) !== '' ? trim((string) $form['pesel']) : null,
+        'document_number' => trim((string) $form['document_number']) !== '' ? trim((string) $form['document_number']) : null,
+        'nationality' => trim((string) $form['nationality']) !== '' ? trim((string) $form['nationality']) : null,
+        'birth_date' => trim((string) $form['birth_date']) !== '' ? (new DateTimeImmutable((string) $form['birth_date']))->format('Y-m-d') : null,
         'is_vip' => (int) $form['is_vip'],
-        'source' => $form['source'],
-        'notes' => $form['notes'] !== '' ? $form['notes'] : null,
+        'source' => (string) $form['source'],
+        'notes' => trim((string) $form['notes']) !== '' ? trim((string) $form['notes']) : null,
     ];
 }
 

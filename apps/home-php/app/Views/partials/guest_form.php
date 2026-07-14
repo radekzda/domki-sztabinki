@@ -90,6 +90,60 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
             >
         </div>
 
+        <div class="form-field form-field--full">
+            <label for="full_address">Pełny adres</label>
+            <input
+                id="full_address"
+                name="full_address"
+                type="text"
+                value="<?= htmlspecialchars($form['full_address'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="nationality">Narodowość</label>
+            <input
+                id="nationality"
+                name="nationality"
+                type="text"
+                value="<?= htmlspecialchars($form['nationality'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="birth_date">Data urodzenia</label>
+            <input
+                id="birth_date"
+                name="birth_date"
+                type="date"
+                value="<?= htmlspecialchars($form['birth_date'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+
+            <?php if (isset($errors['birth_date'])): ?>
+                <span class="form-error"><?= htmlspecialchars($errors['birth_date'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field">
+            <label for="pesel">PESEL</label>
+            <input
+                id="pesel"
+                name="pesel"
+                type="text"
+                value="<?= htmlspecialchars($form['pesel'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="document_number">Numer dokumentu</label>
+            <input
+                id="document_number"
+                name="document_number"
+                type="text"
+                value="<?= htmlspecialchars($form['document_number'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
         <div class="form-field">
             <label for="is_vip">VIP</label>
             <select id="is_vip" name="is_vip">
@@ -124,11 +178,28 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
                 <option value="AIRBNB" <?= $form['source'] === 'AIRBNB' ? 'selected' : '' ?>>
                     Airbnb
                 </option>
+                <option value="BASE44" <?= $form['source'] === 'BASE44' ? 'selected' : '' ?>>
+                    Base44
+                </option>
             </select>
 
             <?php if (isset($errors['source'])): ?>
                 <span class="form-error"><?= htmlspecialchars($errors['source'], ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
+        </div>
+
+        <div class="form-field form-field--full">
+            <label for="external_id">ID z Base44</label>
+            <input
+                id="external_id"
+                name="external_id"
+                type="text"
+                value="<?= htmlspecialchars($form['external_id'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+
+            <small>
+                To pole służy do dopasowania importu. Nie jest widoczne dla gościa.
+            </small>
         </div>
 
         <div class="form-field form-field--full">
