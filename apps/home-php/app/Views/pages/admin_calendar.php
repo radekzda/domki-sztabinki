@@ -6,38 +6,32 @@ declare(strict_types=1);
  * @var string $title
  */
 
-$monthParam = isset($_GET['month']) && is_string($_GET['month'])
-    ? trim($_GET['month'])
-    : '';
+$databaseMessage = null;
+$cabins = [];
+$reservations = [];
 
-if (!preg_match('/^\d{4}-\d{2}$/', $monthParam)) {
-    $monthParam = date('Y-m');
+$requestedMonth = isset($_GET['month'])
+    ? (string) $_GET['month']
+    : date('Y-m');
+
+if (!preg_match('/^\d{4}-\d{2}$/', $requestedMonth)) {
+    $requestedMonth = date('Y-m');
 }
 
-$monthStart = DateTimeImmutable::createFromFormat('!Y-m-d', $monthParam . '-01');
-
-if (!$monthStart instanceof DateTimeImmutable) {
+try {
+    $monthStart = new DateTimeImmutable($requestedMonth . '-01');
+} catch (Throwable $exception) {
     $monthStart = new DateTimeImmutable(date('Y-m-01'));
 }
 
-$monthValue = $monthStart->format('Y-m');
-$monthEnd = $monthStart->modify('last day of this month');
-$nextMonthStart = $monthStart->modify('first day of next month');
-
-$calendarStart = $monthStart;
-
-while ((int) $calendarStart->format('N') !== 1) {
-    $calendarStart = $calendarStart->modify('-1 day');
-}
-
-$calendarEnd = $monthEnd;
-
-while ((int) $calendarEnd->format('N') !== 7) {
-    $calendarEnd = $calendarEnd->modify('+1 day');
-}
-
+$monthEnd = $monthStart->modify('first day of next month');
 $previousMonth = $monthStart->modify('-1 month')->format('Y-m');
+$currentMonth = date('Y-m');
 $nextMonth = $monthStart->modify('+1 month')->format('Y-m');
+
+$monthStartString = $monthStart->format('Y-m-d');
+$monthEndString = $monthEnd->format('Y-m-d');
+$daysInMonth = (int) $monthStart->format('t');
 
 $monthNames = [
     '01' => 'styczeń',
@@ -54,145 +48,490 @@ $monthNames = [
     '12' => 'grudzień',
 ];
 
-$dayNames = [
-    'Pon',
-    'Wt',
-    'Śr',
-    'Czw',
-    'Pt',
-    'Sob',
-    'Nd',
+$weekdayShortNames = [
+    '1' => 'Pn',
+    '2' => 'Wt',
+    '3' => 'Śr',
+    '4' => 'Cz',
+    '5' => 'Pt',
+    '6' => 'So',
+    '7' => 'Nd',
 ];
+
+$monthLabel = ($monthNames[$monthStart->format('m')] ?? $monthStart->format('m'))
+    . ' '
+    . $monthStart->format('Y');
+
+$days = [];
+
+for ($day = 1; $day <= $daysInMonth; $day++) {
+    $date = $monthStart->setDate(
+        (int) $monthStart->format('Y'),
+        (int) $monthStart->format('m'),
+        $day
+    );
+
+    $days[] = [
+        'date' => $date->format('Y-m-d'),
+        'day' => $date->format('d'),
+        'weekday' => $weekdayShortNames[$date->format('N')] ?? '',
+        'is_weekend' => in_array($date->format('N'), ['6', '7'], true),
+        'is_today' => $date->format('Y-m-d') === date('Y-m-d'),
+    ];
+}
+
+if (!Database::canAttemptConnection()) {
+    $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana.';
+} else {
+    try {
+        $allCabins = CabinRepository::all();
+
+        foreach ($allCabins as $cabin) {
+            if ((int) ($cabin['is_active'] ?? 0) !== 1) {
+                continue;
+            }
+
+            $cabins[] = $cabin;
+        }
+
+        $reservations = ReservationRepository::all();
+    } catch (Throwable $exception) {
+        $databaseMessage = 'Nie udało się pobrać danych kalendarza: ' . $exception->getMessage();
+        $cabins = [];
+        $reservations = [];
+    }
+}
 
 $statusLabels = [
     'PENDING' => 'Oczekuje',
     'CONFIRMED' => 'Potwierdzona',
     'CHECKED_IN' => 'Zameldowany',
     'CHECKED_OUT' => 'Wymeldowany',
-    'CANCELLED' => 'Anulowana',
     'COMPLETED' => 'Wymeldowany',
+    'CANCELLED' => 'Anulowana',
 ];
 
-$paymentLabels = [
-    'PENDING' => 'Oczekuje',
-    'PAID' => 'Opłacona',
-    'PARTIAL' => 'Częściowa',
-    'REFUNDED' => 'Zwrócona',
+$statusClasses = [
+    'PENDING' => 'calendar-status--pending',
+    'CONFIRMED' => 'calendar-status--confirmed',
+    'CHECKED_IN' => 'calendar-status--checked-in',
+    'CHECKED_OUT' => 'calendar-status--checked-out',
+    'COMPLETED' => 'calendar-status--checked-out',
+    'CANCELLED' => 'calendar-status--cancelled',
 ];
 
-$reservations = [];
+$blockingStatuses = [
+    'PENDING',
+    'CONFIRMED',
+    'CHECKED_IN',
+];
+
+$calendarByCabin = [];
 $monthReservations = [];
-$databaseMessage = null;
+$arrivals = 0;
+$departures = 0;
+$blockingReservations = 0;
+$cancelledReservations = 0;
 
-if (!Database::canAttemptConnection()) {
-    $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Kalendarz zostanie pokazany po ustawieniu danych MySQL w pliku .env.';
-} else {
-    try {
-        $reservations = ReservationRepository::all();
-    } catch (Throwable $exception) {
-        $databaseMessage = 'Nie udało się pobrać rezerwacji do kalendarza: ' . $exception->getMessage();
-    }
+foreach ($cabins as $cabin) {
+    $calendarByCabin[(int) $cabin['id']] = [];
 }
-
-$monthStartDate = $monthStart->format('Y-m-d');
-$nextMonthStartDate = $nextMonthStart->format('Y-m-d');
 
 foreach ($reservations as $reservation) {
-    $startDate = substr($reservation['start_date'], 0, 10);
-    $endDate = substr($reservation['end_date'], 0, 10);
+    $reservationCabinId = (int) ($reservation['cabin_id'] ?? 0);
+    $reservationStatus = (string) ($reservation['status'] ?? '');
+    $reservationStart = substr((string) ($reservation['start_date'] ?? ''), 0, 10);
+    $reservationEnd = substr((string) ($reservation['end_date'] ?? ''), 0, 10);
 
-    if ($startDate < $nextMonthStartDate && $endDate > $monthStartDate) {
-        $monthReservations[] = $reservation;
+    if ($reservationCabinId < 1 || $reservationStart === '' || $reservationEnd === '') {
+        continue;
+    }
+
+    if ($reservationEnd <= $monthStartString || $reservationStart >= $monthEndString) {
+        continue;
+    }
+
+    $monthReservations[] = $reservation;
+
+    if ($reservationStart >= $monthStartString && $reservationStart < $monthEndString) {
+        $arrivals++;
+    }
+
+    if ($reservationEnd > $monthStartString && $reservationEnd <= $monthEndString) {
+        $departures++;
+    }
+
+    if (in_array($reservationStatus, $blockingStatuses, true)) {
+        $blockingReservations++;
+    }
+
+    if ($reservationStatus === 'CANCELLED') {
+        $cancelledReservations++;
+    }
+
+    if (!isset($calendarByCabin[$reservationCabinId])) {
+        continue;
+    }
+
+    $rangeStartString = $reservationStart > $monthStartString
+        ? $reservationStart
+        : $monthStartString;
+
+    $rangeEndString = $reservationEnd < $monthEndString
+        ? $reservationEnd
+        : $monthEndString;
+
+    try {
+        $currentDate = new DateTimeImmutable($rangeStartString);
+        $rangeEndDate = new DateTimeImmutable($rangeEndString);
+    } catch (Throwable $exception) {
+        continue;
+    }
+
+    while ($currentDate < $rangeEndDate) {
+        $dateKey = $currentDate->format('Y-m-d');
+
+        if (!isset($calendarByCabin[$reservationCabinId][$dateKey])) {
+            $calendarByCabin[$reservationCabinId][$dateKey] = [];
+        }
+
+        $calendarByCabin[$reservationCabinId][$dateKey][] = $reservation;
+        $currentDate = $currentDate->modify('+1 day');
     }
 }
 
-$arrivalsCount = 0;
-$departuresCount = 0;
-$activeBlockingCount = 0;
-$cancelledCount = 0;
+usort($monthReservations, static function (array $first, array $second): int {
+    return strcmp((string) ($first['start_date'] ?? ''), (string) ($second['start_date'] ?? ''));
+});
 
-foreach ($monthReservations as $reservation) {
-    $startDate = substr($reservation['start_date'], 0, 10);
-    $endDate = substr($reservation['end_date'], 0, 10);
-
-    if ($startDate >= $monthStartDate && $startDate < $nextMonthStartDate) {
-        $arrivalsCount++;
+$formatDate = static function (string $date): string {
+    if ($date === '') {
+        return '—';
     }
 
-    if ($endDate >= $monthStartDate && $endDate < $nextMonthStartDate) {
-        $departuresCount++;
+    try {
+        return (new DateTimeImmutable($date))->format('d.m.Y');
+    } catch (Throwable $exception) {
+        return $date;
     }
-
-    if (in_array($reservation['status'], ['PENDING', 'CONFIRMED', 'CHECKED_IN'], true)) {
-        $activeBlockingCount++;
-    }
-
-    if ($reservation['status'] === 'CANCELLED') {
-        $cancelledCount++;
-    }
-}
-
-$getItemsForDate = static function (string $date) use ($monthReservations): array {
-    $items = [];
-
-    foreach ($monthReservations as $reservation) {
-        $startDate = substr($reservation['start_date'], 0, 10);
-        $endDate = substr($reservation['end_date'], 0, 10);
-
-        if ($date === $startDate) {
-            $items[] = [
-                'type' => 'Przyjazd',
-                'reservation' => $reservation,
-            ];
-
-            continue;
-        }
-
-        if ($date === $endDate) {
-            $items[] = [
-                'type' => 'Wyjazd',
-                'reservation' => $reservation,
-            ];
-
-            continue;
-        }
-
-        if ($date > $startDate && $date < $endDate) {
-            $items[] = [
-                'type' => 'Pobyt',
-                'reservation' => $reservation,
-            ];
-        }
-    }
-
-    return $items;
 };
 
-$getStatusClass = static function (string $status): string {
-    if (in_array($status, ['CONFIRMED', 'CHECKED_IN'], true)) {
-        return 'status-pill status-pill--success';
-    }
-
-    return 'status-pill status-pill--muted';
+$statusLabel = static function (string $status) use ($statusLabels): string {
+    return $statusLabels[$status] ?? $status;
 };
 
-$calendarWeeks = [];
-$currentDay = $calendarStart;
+$statusClass = static function (string $status) use ($statusClasses): string {
+    return $statusClasses[$status] ?? 'calendar-status--pending';
+};
 
-while ($currentDay <= $calendarEnd) {
-    $week = [];
+$reservationGuestName = static function (array $reservation): string {
+    $guestName = trim((string) ($reservation['guest_name'] ?? ''));
 
-    for ($day = 1; $day <= 7; $day++) {
-        $week[] = $currentDay;
-        $currentDay = $currentDay->modify('+1 day');
+    if ($guestName !== '') {
+        return $guestName;
     }
 
-    $calendarWeeks[] = $week;
-}
+    $linkedGuestName = trim((string) ($reservation['linked_guest_name'] ?? ''));
 
-$monthTitle = ($monthNames[$monthStart->format('m')] ?? $monthStart->format('m')) . ' ' . $monthStart->format('Y');
-$today = date('Y-m-d');
+    if ($linkedGuestName !== '') {
+        return $linkedGuestName;
+    }
+
+    return 'Gość';
+};
+
+$reservationCabinName = static function (array $reservation): string {
+    $cabinName = trim((string) ($reservation['cabin_name'] ?? ''));
+
+    if ($cabinName !== '') {
+        return $cabinName;
+    }
+
+    return 'Domek';
+};
+
+$cellTitle = static function (array $reservation) use ($reservationGuestName, $formatDate, $statusLabel): string {
+    $guest = $reservationGuestName($reservation);
+    $start = $formatDate(substr((string) ($reservation['start_date'] ?? ''), 0, 10));
+    $end = $formatDate(substr((string) ($reservation['end_date'] ?? ''), 0, 10));
+    $status = $statusLabel((string) ($reservation['status'] ?? ''));
+
+    return $guest . ' | ' . $start . ' - ' . $end . ' | ' . $status;
+};
+
+$summaryCards = [
+    [
+        'label' => 'Miesiąc',
+        'value' => $monthLabel,
+    ],
+    [
+        'label' => 'Rezerwacje',
+        'value' => (string) count($monthReservations),
+    ],
+    [
+        'label' => 'Przyjazdy',
+        'value' => (string) $arrivals,
+    ],
+    [
+        'label' => 'Wyjazdy',
+        'value' => (string) $departures,
+    ],
+    [
+        'label' => 'Blokujące',
+        'value' => (string) $blockingReservations,
+    ],
+    [
+        'label' => 'Anulowane',
+        'value' => (string) $cancelledReservations,
+    ],
+];
 ?>
+
+<style>
+    .pms-calendar-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-top: 24px;
+    }
+
+    .pms-calendar-summary {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .pms-calendar-summary__card {
+        border: 1px solid var(--color-border);
+        border-radius: 16px;
+        background: #ffffff;
+        padding: 14px 16px;
+    }
+
+    .pms-calendar-summary__card span {
+        display: block;
+        color: var(--color-muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .pms-calendar-summary__card strong {
+        display: block;
+        margin-top: 6px;
+        color: var(--color-text);
+        font-size: 18px;
+    }
+
+    .pms-calendar-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .pms-calendar-legend__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--color-muted);
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .pms-calendar-legend__dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        display: inline-block;
+    }
+
+    .pms-calendar-table-wrap {
+        margin-top: 24px;
+        overflow-x: auto;
+        border: 1px solid var(--color-border);
+        border-radius: 18px;
+        background: #ffffff;
+    }
+
+    .pms-calendar-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .pms-calendar-table th,
+    .pms-calendar-table td {
+        border-bottom: 1px solid var(--color-border);
+        border-right: 1px solid var(--color-border);
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .pms-calendar-table th:last-child,
+    .pms-calendar-table td:last-child {
+        border-right: 0;
+    }
+
+    .pms-calendar-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .pms-calendar-table th {
+        background: #fafafa;
+        color: var(--color-muted);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 9px 4px;
+    }
+
+    .pms-calendar-table__cabin {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        width: 170px;
+        min-width: 170px;
+        background: #ffffff;
+        text-align: left !important;
+        padding: 12px 14px !important;
+    }
+
+    .pms-calendar-table th.pms-calendar-table__cabin {
+        z-index: 5;
+        background: #fafafa;
+    }
+
+    .pms-calendar-cabin-name {
+        display: block;
+        color: var(--color-text);
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .pms-calendar-cabin-short {
+        display: block;
+        margin-top: 4px;
+        color: var(--color-muted);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .pms-calendar-day-head {
+        display: grid;
+        gap: 2px;
+    }
+
+    .pms-calendar-day-head strong {
+        color: var(--color-text);
+        font-size: 12px;
+    }
+
+    .pms-calendar-day-head span {
+        color: var(--color-muted);
+        font-size: 10px;
+    }
+
+    .pms-calendar-day-head--today strong,
+    .pms-calendar-day-head--today span {
+        color: var(--color-primary);
+    }
+
+    .pms-calendar-cell {
+        height: 54px;
+        padding: 4px;
+        background: #ffffff;
+    }
+
+    .pms-calendar-cell--weekend {
+        background: #fbfbfb;
+    }
+
+    .pms-calendar-cell--today {
+        box-shadow: inset 0 0 0 2px rgba(21, 128, 61, 0.28);
+    }
+
+    .pms-calendar-cell__free {
+        display: block;
+        width: 100%;
+        height: 28px;
+        border-radius: 10px;
+        background: #f7faf8;
+    }
+
+    .pms-calendar-cell__booking {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 32px;
+        border-radius: 10px;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 1;
+        text-decoration: none;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    .calendar-status--pending {
+        background: #f59e0b;
+    }
+
+    .calendar-status--confirmed {
+        background: #15803d;
+    }
+
+    .calendar-status--checked-in {
+        background: #2563eb;
+    }
+
+    .calendar-status--checked-out {
+        background: #6b7280;
+    }
+
+    .calendar-status--cancelled {
+        background: #dc2626;
+        opacity: 0.78;
+    }
+
+    .pms-calendar-list {
+        margin-top: 26px;
+    }
+
+    .pms-calendar-list h2 {
+        margin-bottom: 14px;
+    }
+
+    .pms-calendar-list .data-table {
+        min-width: 760px;
+    }
+
+    @media (max-width: 1200px) {
+        .pms-calendar-summary {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 700px) {
+        .pms-calendar-summary {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pms-calendar-table__cabin {
+            width: 140px;
+            min-width: 140px;
+        }
+    }
+</style>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
@@ -204,10 +543,11 @@ $today = date('Y-m-d');
                         <div>
                             <p class="eyebrow">Kalendarz</p>
 
-                            <h1>Kalendarz rezerwacji</h1>
+                            <h1>Kalendarz</h1>
 
                             <p>
-                                Widok miesięczny pokazuje przyjazdy, wyjazdy i pobyty według danych z MySQL.
+                                Widok PMS pokazuje domki w wierszach oraz dni miesiąca w kolumnach.
+                                Zajęte dni wynikają z rezerwacji w systemie.
                             </p>
                         </div>
 
@@ -216,7 +556,7 @@ $today = date('Y-m-d');
                                 Poprzedni
                             </a>
 
-                            <a class="button button--secondary" href="/admin/kalendarz">
+                            <a class="button button--secondary" href="/admin/kalendarz?month=<?= htmlspecialchars($currentMonth, ENT_QUOTES, 'UTF-8') ?>">
                                 Bieżący
                             </a>
 
@@ -232,235 +572,223 @@ $today = date('Y-m-d');
                         </div>
                     <?php endif; ?>
 
-                    <div class="dashboard-grid">
-                        <div class="stat-card">
-                            <span>Miesiąc</span>
-                            <strong><?= htmlspecialchars($monthTitle, ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
+                    <div class="pms-calendar-toolbar">
+                        <div>
+                            <h2><?= htmlspecialchars($monthLabel, ENT_QUOTES, 'UTF-8') ?></h2>
 
-                        <div class="stat-card">
-                            <span>Rezerwacje w miesiącu</span>
-                            <strong><?= htmlspecialchars((string) count($monthReservations), ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
-
-                        <div class="stat-card">
-                            <span>Przyjazdy</span>
-                            <strong><?= htmlspecialchars((string) $arrivalsCount, ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
-
-                        <div class="stat-card">
-                            <span>Wyjazdy</span>
-                            <strong><?= htmlspecialchars((string) $departuresCount, ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
-                    </div>
-
-                    <div class="dashboard-grid">
-                        <div class="stat-card">
-                            <span>Blokujące termin</span>
-                            <strong><?= htmlspecialchars((string) $activeBlockingCount, ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
-
-                        <div class="stat-card">
-                            <span>Anulowane</span>
-                            <strong><?= htmlspecialchars((string) $cancelledCount, ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
-                    </div>
-
-                    <?php if ($monthReservations === []): ?>
-                        <div class="empty-state">
-                            <strong>Brak rezerwacji w tym miesiącu</strong>
-
-                            <p>
-                                Po dodaniu rezerwacji w wybranym miesiącu pojawią się tutaj przyjazdy,
-                                wyjazdy oraz dni pobytu.
+                            <p style="margin: 6px 0 0;">
+                                Kliknij zajęty dzień, aby przejść do szczegółów rezerwacji.
                             </p>
                         </div>
-                    <?php endif; ?>
 
-                    <div class="table-wrapper">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <?php foreach ($dayNames as $dayName): ?>
-                                        <th style="width: 14.285%;">
-                                            <?= htmlspecialchars($dayName, ENT_QUOTES, 'UTF-8') ?>
-                                        </th>
-                                    <?php endforeach; ?>
-                                </tr>
-                            </thead>
+                        <form method="get" action="/admin/kalendarz" class="form-actions" style="margin-top: 0;">
+                            <input
+                                type="month"
+                                name="month"
+                                value="<?= htmlspecialchars($monthStart->format('Y-m'), ENT_QUOTES, 'UTF-8') ?>"
+                                style="min-height: 42px; border: 1px solid var(--color-border); border-radius: 999px; padding: 0 14px;"
+                            >
 
-                            <tbody>
-                                <?php foreach ($calendarWeeks as $week): ?>
-                                    <tr>
-                                        <?php foreach ($week as $day): ?>
-                                            <?php
-                                            $dateValue = $day->format('Y-m-d');
-                                            $isCurrentMonth = $day->format('Y-m') === $monthValue;
-                                            $isToday = $dateValue === $today;
-                                            $items = $getItemsForDate($dateValue);
-                                            ?>
-
-                                            <td style="vertical-align: top; min-width: 150px; height: 130px; <?= $isCurrentMonth ? '' : 'opacity: 0.45;' ?>">
-                                                <div>
-                                                    <strong>
-                                                        <?= htmlspecialchars($day->format('d'), ENT_QUOTES, 'UTF-8') ?>
-                                                    </strong>
-
-                                                    <?php if ($isToday): ?>
-                                                        <span class="status-pill status-pill--success">dziś</span>
-                                                    <?php endif; ?>
-                                                </div>
-
-                                                <?php if ($items === []): ?>
-                                                    <div style="margin-top: 10px;">
-                                                        <span>—</span>
-                                                    </div>
-                                                <?php else: ?>
-                                                    <div style="margin-top: 10px; display: grid; gap: 8px;">
-                                                        <?php foreach ($items as $item): ?>
-                                                            <?php
-                                                            $reservation = $item['reservation'];
-                                                            $status = $reservation['status'];
-                                                            $statusLabel = $statusLabels[$status] ?? $status;
-                                                            ?>
-
-                                                            <div style="border-top: 1px solid #e5e7eb; padding-top: 8px;">
-                                                                <div>
-                                                                    <span class="<?= htmlspecialchars($getStatusClass($status), ENT_QUOTES, 'UTF-8') ?>">
-                                                                        <?= htmlspecialchars($item['type'], ENT_QUOTES, 'UTF-8') ?>
-                                                                    </span>
-                                                                </div>
-
-                                                                <div style="margin-top: 4px;">
-                                                                    <a href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
-                                                                        <strong>
-                                                                            <?= htmlspecialchars($reservation['guest_name'], ENT_QUOTES, 'UTF-8') ?>
-                                                                        </strong>
-                                                                    </a>
-                                                                </div>
-
-                                                                <div>
-                                                                    <span>
-                                                                        <?= htmlspecialchars($reservation['cabin_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
-                                                                    </span>
-                                                                </div>
-
-                                                                <div>
-                                                                    <span>
-                                                                        <?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?>
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        <?php endforeach; ?>
-                                                    </div>
-                                                <?php endif; ?>
-                                            </td>
-                                        <?php endforeach; ?>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                            <button class="button button--primary" type="submit">
+                                Pokaż miesiąc
+                            </button>
+                        </form>
                     </div>
 
-                    <?php if ($monthReservations !== []): ?>
-                        <div class="page-header">
-                            <div>
-                                <p class="eyebrow">Lista</p>
-
-                                <h2>Rezerwacje w miesiącu</h2>
+                    <div class="pms-calendar-summary">
+                        <?php foreach ($summaryCards as $card): ?>
+                            <div class="pms-calendar-summary__card">
+                                <span><?= htmlspecialchars($card['label'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <strong><?= htmlspecialchars($card['value'], ENT_QUOTES, 'UTF-8') ?></strong>
                             </div>
-                        </div>
+                        <?php endforeach; ?>
+                    </div>
 
-                        <div class="table-wrapper">
-                            <table class="data-table">
+                    <div class="pms-calendar-legend">
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--pending"></i>
+                            Oczekuje
+                        </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--confirmed"></i>
+                            Potwierdzona
+                        </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--checked-in"></i>
+                            Zameldowany
+                        </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--checked-out"></i>
+                            Wymeldowany
+                        </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--cancelled"></i>
+                            Anulowana
+                        </span>
+                    </div>
+
+                    <?php if ($cabins === []): ?>
+                        <div class="empty-state">
+                            <strong>Brak aktywnych domków</strong>
+
+                            <p>
+                                Dodaj domki albo ustaw istniejące domki jako aktywne, aby zobaczyć kalendarz.
+                            </p>
+                        </div>
+                    <?php else: ?>
+                        <div class="pms-calendar-table-wrap">
+                            <table class="pms-calendar-table">
                                 <thead>
                                     <tr>
-                                        <th>Termin</th>
-                                        <th>Gość</th>
-                                        <th>Domek</th>
-                                        <th>Status</th>
-                                        <th>Płatność</th>
-                                        <th>Kwota</th>
-                                        <th>Akcje</th>
+                                        <th class="pms-calendar-table__cabin">Domek</th>
+
+                                        <?php foreach ($days as $day): ?>
+                                            <th>
+                                                <span class="pms-calendar-day-head <?= $day['is_today'] ? 'pms-calendar-day-head--today' : '' ?>">
+                                                    <strong><?= htmlspecialchars($day['day'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                                    <span><?= htmlspecialchars($day['weekday'], ENT_QUOTES, 'UTF-8') ?></span>
+                                                </span>
+                                            </th>
+                                        <?php endforeach; ?>
                                     </tr>
                                 </thead>
 
                                 <tbody>
-                                    <?php foreach ($monthReservations as $reservation): ?>
+                                    <?php foreach ($cabins as $cabin): ?>
                                         <?php
-                                        $status = $reservation['status'];
-                                        $paymentStatus = $reservation['payment_status'] ?? '';
+                                        $cabinId = (int) ($cabin['id'] ?? 0);
+                                        $cabinCalendar = $calendarByCabin[$cabinId] ?? [];
                                         ?>
 
                                         <tr>
-                                            <td>
-                                                <strong>
-                                                    <?= htmlspecialchars(formatDateForDisplay($reservation['start_date']), ENT_QUOTES, 'UTF-8') ?>
-                                                    —
-                                                    <?= htmlspecialchars(formatDateForDisplay($reservation['end_date']), ENT_QUOTES, 'UTF-8') ?>
-                                                </strong>
+                                            <td class="pms-calendar-table__cabin">
+                                                <span class="pms-calendar-cabin-name">
+                                                    <?= htmlspecialchars((string) ($cabin['name'] ?? 'Domek'), ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
 
-                                                <br>
-
-                                                <span>
-                                                    <?= htmlspecialchars((string) $reservation['nights'], ENT_QUOTES, 'UTF-8') ?>
-                                                    noc.
+                                                <span class="pms-calendar-cabin-short">
+                                                    <?= htmlspecialchars((string) ($cabin['short_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
                                                 </span>
                                             </td>
 
-                                            <td>
-                                                <strong>
-                                                    <?= htmlspecialchars($reservation['guest_name'], ENT_QUOTES, 'UTF-8') ?>
-                                                </strong>
+                                            <?php foreach ($days as $day): ?>
+                                                <?php
+                                                $date = (string) $day['date'];
+                                                $dayReservations = $cabinCalendar[$date] ?? [];
+                                                $firstReservation = $dayReservations[0] ?? null;
+                                                $cellClass = 'pms-calendar-cell';
 
-                                                <br>
+                                                if ($day['is_weekend']) {
+                                                    $cellClass .= ' pms-calendar-cell--weekend';
+                                                }
 
-                                                <span>
-                                                    <?= htmlspecialchars($reservation['email'], ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
-                                            </td>
+                                                if ($day['is_today']) {
+                                                    $cellClass .= ' pms-calendar-cell--today';
+                                                }
+                                                ?>
 
-                                            <td>
-                                                <?= htmlspecialchars($reservation['cabin_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
-                                            </td>
+                                                <td class="<?= htmlspecialchars($cellClass, ENT_QUOTES, 'UTF-8') ?>">
+                                                    <?php if (is_array($firstReservation)): ?>
+                                                        <?php
+                                                        $reservationId = (int) ($firstReservation['id'] ?? 0);
+                                                        $reservationStatus = (string) ($firstReservation['status'] ?? '');
+                                                        $guestInitial = substr($reservationGuestName($firstReservation), 0, 1);
+                                                        $extraCount = count($dayReservations) - 1;
+                                                        ?>
 
-                                            <td>
-                                                <span class="<?= htmlspecialchars($getStatusClass($status), ENT_QUOTES, 'UTF-8') ?>">
-                                                    <?= htmlspecialchars($statusLabels[$status] ?? $status, ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
-                                            </td>
-
-                                            <td>
-                                                <?= htmlspecialchars($paymentLabels[$paymentStatus] ?? ($paymentStatus !== '' ? $paymentStatus : '—'), ENT_QUOTES, 'UTF-8') ?>
-                                            </td>
-
-                                            <td>
-                                                <?= htmlspecialchars(formatMoneyForDisplay($reservation['total_price']), ENT_QUOTES, 'UTF-8') ?>
-                                            </td>
-
-                                            <td>
-                                                <div class="table-actions">
-                                                    <a
-                                                        class="button button--secondary button--small"
-                                                        href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                                    >
-                                                        Szczegóły
-                                                    </a>
-
-                                                    <a
-                                                        class="button button--secondary button--small"
-                                                        href="/admin/rezerwacje/edytuj?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                                    >
-                                                        Edytuj
-                                                    </a>
-                                                </div>
-                                            </td>
+                                                        <a
+                                                            class="pms-calendar-cell__booking <?= htmlspecialchars($statusClass($reservationStatus), ENT_QUOTES, 'UTF-8') ?>"
+                                                            href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>"
+                                                            title="<?= htmlspecialchars($cellTitle($firstReservation), ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+                                                            <?= htmlspecialchars($guestInitial !== '' ? $guestInitial : 'R', ENT_QUOTES, 'UTF-8') ?>
+                                                            <?= $extraCount > 0 ? '+' . htmlspecialchars((string) $extraCount, ENT_QUOTES, 'UTF-8') : '' ?>
+                                                        </a>
+                                                    <?php else: ?>
+                                                        <span class="pms-calendar-cell__free"></span>
+                                                    <?php endif; ?>
+                                                </td>
+                                            <?php endforeach; ?>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
                     <?php endif; ?>
+
+                    <div class="pms-calendar-list">
+                        <h2>Rezerwacje w miesiącu</h2>
+
+                        <?php if ($monthReservations === []): ?>
+                            <div class="empty-state">
+                                <strong>Brak rezerwacji w tym miesiącu</strong>
+
+                                <p>
+                                    W wybranym miesiącu nie ma rezerwacji blokujących ani anulowanych.
+                                </p>
+                            </div>
+                        <?php else: ?>
+                            <div class="table-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Termin</th>
+                                            <th>Gość</th>
+                                            <th>Domek</th>
+                                            <th>Status</th>
+                                            <th>Akcje</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <?php foreach ($monthReservations as $reservation): ?>
+                                            <?php
+                                            $status = (string) ($reservation['status'] ?? '');
+                                            $reservationId = (int) ($reservation['id'] ?? 0);
+                                            ?>
+
+                                            <tr>
+                                                <td>
+                                                    <strong>
+                                                        <?= htmlspecialchars($formatDate(substr((string) ($reservation['start_date'] ?? ''), 0, 10)), ENT_QUOTES, 'UTF-8') ?>
+                                                        —
+                                                        <?= htmlspecialchars($formatDate(substr((string) ($reservation['end_date'] ?? ''), 0, 10)), ENT_QUOTES, 'UTF-8') ?>
+                                                    </strong>
+                                                </td>
+
+                                                <td>
+                                                    <?= htmlspecialchars($reservationGuestName($reservation), ENT_QUOTES, 'UTF-8') ?>
+                                                </td>
+
+                                                <td>
+                                                    <?= htmlspecialchars($reservationCabinName($reservation), ENT_QUOTES, 'UTF-8') ?>
+                                                </td>
+
+                                                <td>
+                                                    <span class="status-pill status-pill--muted">
+                                                        <?= htmlspecialchars($statusLabel($status), ENT_QUOTES, 'UTF-8') ?>
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    <a
+                                                        class="button button--secondary button--small"
+                                                        href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>"
+                                                    >
+                                                        Szczegóły
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
