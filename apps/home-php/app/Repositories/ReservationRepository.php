@@ -35,6 +35,7 @@ final class ReservationRepository
         $statement = $connection->query(
             'SELECT
                 reservations.id,
+                reservations.external_id,
                 reservations.cabin_id,
                 reservations.guest_id,
                 cabins.name AS cabin_name,
@@ -44,6 +45,8 @@ final class ReservationRepository
                 reservations.phone,
                 reservations.start_date,
                 reservations.end_date,
+                reservations.check_in_at,
+                reservations.check_out_at,
                 reservations.nights,
                 reservations.guests,
                 reservations.adults,
@@ -128,6 +131,7 @@ final class ReservationRepository
         $statement = $connection->prepare(
             'SELECT
                 reservations.id,
+                reservations.external_id,
                 reservations.cabin_id,
                 reservations.guest_id,
                 cabins.name AS cabin_name,
@@ -137,6 +141,8 @@ final class ReservationRepository
                 reservations.phone,
                 reservations.start_date,
                 reservations.end_date,
+                reservations.check_in_at,
+                reservations.check_out_at,
                 reservations.nights,
                 reservations.guests,
                 reservations.adults,
@@ -167,6 +173,7 @@ final class ReservationRepository
 
         return [
             'id' => (int) ($row['id'] ?? 0),
+              'external_id' => isset($row['external_id']) ? (string) $row['external_id'] : null,
             'cabin_id' => (int) ($row['cabin_id'] ?? 0),
             'guest_id' => isset($row['guest_id']) ? (int) $row['guest_id'] : null,
             'cabin_name' => isset($row['cabin_name']) ? (string) $row['cabin_name'] : null,
@@ -176,6 +183,8 @@ final class ReservationRepository
             'phone' => isset($row['phone']) ? (string) $row['phone'] : null,
             'start_date' => (string) ($row['start_date'] ?? ''),
             'end_date' => (string) ($row['end_date'] ?? ''),
+              'check_in_at' => isset($row['check_in_at']) ? (string) $row['check_in_at'] : null,
+              'check_out_at' => isset($row['check_out_at']) ? (string) $row['check_out_at'] : null,
             'nights' => (int) ($row['nights'] ?? 0),
             'guests' => (int) ($row['guests'] ?? 0),
             'adults' => (int) ($row['adults'] ?? 0),

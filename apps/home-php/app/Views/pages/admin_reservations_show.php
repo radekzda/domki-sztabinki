@@ -45,6 +45,28 @@ $paymentLabels = [
 ];
 
 $paymentStatus = $reservation['payment_status'] ?? '';
+
+$displayValue = static function (mixed $value): string {
+    if ($value === null) {
+        return '—';
+    }
+
+    $value = trim((string) $value);
+
+    return $value !== '' ? $value : '—';
+};
+
+$displayDateTime = static function (mixed $value): string {
+    if ($value === null || trim((string) $value) === '') {
+        return '—';
+    }
+
+    try {
+        return (new DateTimeImmutable((string) $value))->format('d.m.Y H:i');
+    } catch (Throwable $exception) {
+        return (string) $value;
+    }
+};
 ?>
 <section class="page-section">
     <div class="container">
@@ -79,7 +101,13 @@ $paymentStatus = $reservation['payment_status'] ?? '';
                     </div>
 
                     <div class="status-list">
+                        
                         <div class="status-row">
+                            <span>ID z Base44</span>
+                            <strong><?= htmlspecialchars($displayValue($reservation['external_id'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+<div class="status-row">
                             <span>Gość z rezerwacji</span>
                             <strong><?= htmlspecialchars($reservation['guest_name'], ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
@@ -111,6 +139,15 @@ $paymentStatus = $reservation['payment_status'] ?? '';
                             <span>Domek</span>
                             <strong><?= htmlspecialchars($reservation['cabin_name'] ?? '—', ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
+                        <div class="status-row">
+                            <span>Powiązany domek</span>
+                            <strong>
+                                <a href="/admin/domki/edytuj?id=<?= htmlspecialchars((string) $reservation['cabin_id'], ENT_QUOTES, 'UTF-8') ?>">
+                                    Domek #<?= htmlspecialchars((string) $reservation['cabin_id'], ENT_QUOTES, 'UTF-8') ?>
+                                </a>
+                            </strong>
+                        </div>
+
 
                         <div class="status-row">
                             <span>Termin</span>
@@ -120,6 +157,16 @@ $paymentStatus = $reservation['payment_status'] ?? '';
                                 <?= htmlspecialchars(formatDateForDisplay($reservation['end_date']), ENT_QUOTES, 'UTF-8') ?>
                             </strong>
                         </div>
+                        <div class="status-row">
+                            <span>Godzina przyjazdu</span>
+                            <strong><?= htmlspecialchars($displayDateTime($reservation['check_in_at'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Godzina wyjazdu</span>
+                            <strong><?= htmlspecialchars($displayDateTime($reservation['check_out_at'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
 
                         <div class="status-row">
                             <span>Liczba nocy</span>
