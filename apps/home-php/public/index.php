@@ -26,6 +26,7 @@ require dirname(__DIR__) . '/app/Repositories/SiteImageRepository.php';
 require dirname(__DIR__) . '/app/Controllers/MediaController.php';
 require dirname(__DIR__) . '/app/Controllers/GuestImportController.php';
 require dirname(__DIR__) . '/app/Controllers/CabinImportController.php';
+require dirname(__DIR__) . '/app/Controllers/ReservationImportController.php';
 
 $router = new Router();
 
@@ -775,6 +776,14 @@ $router->get('/admin/rezerwacje', function (): void {
         'databaseMessage' => $databaseMessage,
         'successMessage' => $successMessage,
     ]));
+});
+
+$router->get('/admin/rezerwacje/import', function (): void {
+    ReservationImportController::show();
+});
+
+$router->post('/admin/rezerwacje/import', function (): void {
+    ReservationImportController::store();
 });
 
 $router->get('/admin/rezerwacje/nowa', function (): void {

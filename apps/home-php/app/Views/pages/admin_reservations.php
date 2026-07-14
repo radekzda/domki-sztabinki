@@ -64,6 +64,10 @@ $paymentLabels = [
                         </div>
 
                         <div class="page-header__actions">
+                            <a class="button button--secondary" href="/admin/rezerwacje/import">
+                                Import
+                            </a>
+
                             <a class="button button--primary" href="/admin/rezerwacje/nowa">
                                 Dodaj rezerwację
                             </a>
