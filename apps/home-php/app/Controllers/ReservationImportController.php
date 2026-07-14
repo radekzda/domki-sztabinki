@@ -292,6 +292,19 @@ final class ReservationImportController
             $lastName = null;
         }
 
+        if ($guest === null && $guestName !== '') {
+            $guest = self::findGuestByName($pdo, $guestName);
+        }
+
+        if ($guest === null) {
+            $guest = self::createGuestFromReservation(
+                $pdo,
+                $guestExternalId !== '' ? $guestExternalId : null,
+                $guestName,
+                $externalId
+            );
+        }
+
         $email = $guest !== null && trim((string) ($guest['email'] ?? '')) !== ''
             ? strtolower(trim((string) $guest['email']))
             : 'brak-email-rezerwacja-' . preg_replace('/[^a-zA-Z0-9_-]/', '', $externalId) . '@base44.local';
@@ -579,6 +592,106 @@ final class ReservationImportController
         $row = $statement->fetch();
 
         return is_array($row) ? $row : null;
+    }
+
+    private static function findGuestByName(PDO $pdo, string $guestName): ?array
+    {
+        $guestName = trim($guestName);
+
+        if ($guestName === '') {
+            return null;
+        }
+
+        $statement = $pdo->prepare(
+            'SELECT
+                id,
+                first_name,
+                last_name,
+                email,
+                phone,
+                city,
+                country
+            FROM guests
+            WHERE LOWER(CONCAT(first_name, " ", last_name)) = LOWER(:guest_name)
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'guest_name' => $guestName,
+        ]);
+
+        $row = $statement->fetch();
+
+        return is_array($row) ? $row : null;
+    }
+
+    private static function createGuestFromReservation(
+        PDO $pdo,
+        ?string $guestExternalId,
+        string $guestName,
+        string $reservationExternalId
+    ): array {
+        $guestName = trim($guestName);
+
+        if ($guestName === '') {
+            $guestName = 'Gość Base44';
+        }
+
+        $nameParts = preg_split('/\s+/', $guestName) ?: [];
+        $firstName = $nameParts[0] ?? 'Gość';
+        $lastNameParts = array_slice($nameParts, 1);
+        $lastName = implode(' ', $lastNameParts);
+
+        if ($lastName === '') {
+            $lastName = '—';
+        }
+
+        $email = 'brak-email-rezerwacja-' . preg_replace('/[^a-zA-Z0-9_-]/', '', $reservationExternalId) . '@base44.local';
+
+        $statement = $pdo->prepare(
+            'INSERT INTO guests (
+                external_id,
+                first_name,
+                last_name,
+                email,
+                phone,
+                country,
+                city,
+                is_vip,
+                source,
+                notes
+            ) VALUES (
+                :external_id,
+                :first_name,
+                :last_name,
+                :email,
+                NULL,
+                NULL,
+                NULL,
+                0,
+                :source,
+                :notes
+            )'
+        );
+
+        $statement->execute([
+            'external_id' => $guestExternalId,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'source' => 'BASE44',
+            'notes' => 'Gość utworzony automatycznie podczas importu rezerwacji Base44.',
+        ]);
+
+        return [
+            'id' => (int) $pdo->lastInsertId(),
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'phone' => null,
+            'city' => null,
+            'country' => null,
+        ];
     }
 
     private static function findExistingReservation(PDO $pdo, string $externalId): ?array
