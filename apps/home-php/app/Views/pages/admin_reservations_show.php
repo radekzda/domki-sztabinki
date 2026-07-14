@@ -46,6 +46,9 @@ $paymentLabels = [
 
 $paymentStatus = $reservation['payment_status'] ?? '';
 
+$returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
+$canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
+
 $displayValue = static function (mixed $value): string {
     if ($value === null) {
         return '—';
@@ -87,6 +90,14 @@ $displayDateTime = static function (mixed $value): string {
                         </div>
 
                         <div class="page-header__actions">
+                            <?php if ($canReturnToCalendar): ?>
+                                <a
+                                    class="button button--secondary"
+                                    href="<?= htmlspecialchars($returnUrl, ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                                    Wróć do kalendarza
+                                </a>
+                            <?php endif; ?>
                             <a
                                 class="button button--primary"
                                 href="/admin/rezerwacje/edytuj?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"

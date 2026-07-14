@@ -147,6 +147,11 @@ foreach ($reservations as $reservation) {
         continue;
     }
 
+    if ($reservationStatus === 'CANCELLED') {
+        $cancelledReservations++;
+        continue;
+    }
+
     if ($reservationEnd <= $monthStartString || $reservationStart >= $monthEndString) {
         continue;
     }
@@ -165,9 +170,6 @@ foreach ($reservations as $reservation) {
         $blockingReservations++;
     }
 
-    if ($reservationStatus === 'CANCELLED') {
-        $cancelledReservations++;
-    }
 
     if (!isset($calendarByCabin[$reservationCabinId])) {
         continue;
@@ -389,6 +391,71 @@ $cellTitle = static function (array $reservation) use ($reservationGuestName, $f
 };
 
 
+
+$reservationBarClass = static function (array $reservation): string {
+    $total = (float) ($reservation['total_price'] ?? 0);
+    $paid = (float) ($reservation['paid_amount'] ?? 0);
+    $remaining = max($total - $paid, 0);
+    $status = (string) ($reservation['status'] ?? '');
+
+    if ($remaining > 0) {
+        return 'calendar-status--remaining';
+    }
+
+    return match ($status) {
+        'PENDING' => 'calendar-status--pending',
+        'CONFIRMED' => 'calendar-status--confirmed',
+        'CHECKED_IN' => 'calendar-status--checked-in',
+        'CHECKED_OUT', 'COMPLETED' => 'calendar-status--checked-out',
+        default => 'calendar-status--pending',
+    };
+};
+
+
+$reservationAddressLine = static function (array $reservation): string {
+    $parts = [];
+
+    foreach (['street', 'postal_code', 'city', 'country'] as $field) {
+        $value = trim((string) ($reservation[$field] ?? ''));
+
+        if ($value !== '') {
+            $parts[] = $value;
+        }
+    }
+
+    if ($parts === []) {
+        return 'Adres: —';
+    }
+
+    return 'Adres: ' . implode(', ', $parts);
+};
+
+$reservationPhoneLine = static function (array $reservation): string {
+    $phone = trim((string) ($reservation['phone'] ?? ''));
+
+    return $phone !== '' ? 'Tel.: ' . $phone : 'Tel.: —';
+};
+
+$paymentStatusLabel = static function (?string $status): string {
+    return match ($status) {
+        'PAID' => 'Opłacona',
+        'PARTIAL' => 'Częściowa',
+        'REFUNDED' => 'Zwrócona',
+        'PENDING' => 'Oczekuje',
+        default => '—',
+    };
+};
+
+$paymentStatusClass = static function (?string $status): string {
+    return match ($status) {
+        'PAID' => 'pms-calendar-tooltip__payment--paid',
+        'PARTIAL' => 'pms-calendar-tooltip__payment--partial',
+        'REFUNDED' => 'pms-calendar-tooltip__payment--refunded',
+        'PENDING' => 'pms-calendar-tooltip__payment--pending',
+        default => 'pms-calendar-tooltip__payment--pending',
+    };
+};
+
 $reservationAmountLine = static function (array $reservation): string {
     $total = (float) ($reservation['total_price'] ?? 0);
     $paid = (float) ($reservation['paid_amount'] ?? 0);
@@ -424,7 +491,7 @@ $summaryCards = [
         'value' => (string) $departures,
     ],
     [
-        'label' => 'Blokujące',
+        'label' => 'Zajęte',
         'value' => (string) $blockingReservations,
     ],
     [
@@ -936,6 +1003,226 @@ $summaryCards = [
         text-align: right;
     }
 
+
+    /* M13.60.1 — calendar colors and dropdown tooltip */
+    .calendar-status--pending {
+        background: #facc15;
+        color: #111827;
+    }
+
+    .calendar-status--remaining {
+        background: #f97316;
+        color: #ffffff;
+    }
+
+    .calendar-status--confirmed {
+        background: #3b82f6;
+        color: #ffffff;
+    }
+
+    .calendar-status--checked-in {
+        background: #22c55e;
+        color: #ffffff;
+    }
+
+    .calendar-status--checked-out {
+        background: #9ca3af;
+        color: #ffffff;
+    }
+
+    .calendar-status--cancelled {
+        display: none;
+    }
+
+    .pms-calendar-table-wrap {
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
+    .pms-calendar-tooltip {
+        top: calc(100% + 12px);
+        bottom: auto;
+        left: 50%;
+        transform: translateX(-50%) translateY(-6px);
+    }
+
+    .pms-calendar-tooltip::after {
+        top: -7px;
+        bottom: auto;
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 1px solid rgba(15, 23, 42, 0.12);
+        border-top: 1px solid rgba(15, 23, 42, 0.12);
+    }
+
+    .pms-calendar-bar:hover .pms-calendar-tooltip {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .pms-calendar-bar.calendar-status--pending .pms-calendar-bar__line {
+        color: #111827;
+    }
+
+
+    /* M13.60.2 — no-scroll calendar and safer tooltip */
+    .pms-calendar-table-wrap {
+        overflow: visible !important;
+        width: 100%;
+    }
+
+    .pms-calendar-table {
+        width: 100%;
+        min-width: 0 !important;
+        table-layout: fixed;
+    }
+
+    .pms-calendar-table__cabin {
+        width: 150px !important;
+        min-width: 150px !important;
+    }
+
+    .pms-calendar-day-head strong {
+        font-size: 11px;
+    }
+
+    .pms-calendar-day-head span {
+        font-size: 9px;
+    }
+
+    .pms-calendar-row-grid {
+        grid-template-columns: repeat(var(--days), minmax(0, 1fr)) !important;
+        overflow: visible !important;
+    }
+
+    .pms-calendar-row-cell {
+        overflow: visible !important;
+    }
+
+    .pms-calendar-bg-cell {
+        min-width: 0;
+    }
+
+    .pms-calendar-bar {
+        overflow: visible !important;
+        height: 60px;
+        padding: 5px 7px;
+    }
+
+    .pms-calendar-bar__line {
+        font-size: 13px !important;
+        font-weight: 400 !important;
+        line-height: 1.08;
+    }
+
+    .pms-calendar-bar__guest {
+        font-size: 14px !important;
+        font-weight: 400 !important;
+    }
+
+    .pms-calendar-tooltip {
+        top: 50%;
+        bottom: auto;
+        left: 50%;
+        width: min(260px, calc(100vw - 48px));
+        max-width: 260px;
+        gap: 6px;
+        padding: 12px 13px;
+        transform: translate(-50%, -50%);
+    }
+
+    .pms-calendar-tooltip::after {
+        display: none;
+    }
+
+    .pms-calendar-bar:hover .pms-calendar-tooltip {
+        transform: translate(-50%, -50%);
+    }
+
+    .pms-calendar-tooltip strong {
+        font-size: 15px;
+    }
+
+    .pms-calendar-tooltip span {
+        gap: 10px;
+        padding-top: 5px;
+        font-size: 12px;
+    }
+
+    .pms-calendar-tooltip b {
+        max-width: 145px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1500px) {
+        .pms-calendar-table__cabin {
+            width: 130px !important;
+            min-width: 130px !important;
+            padding: 8px 10px !important;
+        }
+
+        .pms-calendar-cabin-name {
+            font-size: 12px;
+        }
+
+        .pms-calendar-cabin-short {
+            font-size: 10px;
+        }
+
+        .pms-calendar-bar__line {
+            font-size: 11px !important;
+        }
+
+        .pms-calendar-bar__guest {
+            font-size: 12px !important;
+        }
+    }
+
+
+    /* M13.60.3 — tooltip details and payment status */
+    .pms-calendar-tooltip__subline {
+        display: block;
+        overflow: hidden;
+        color: #475569;
+        font-size: 12px;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .pms-calendar-tooltip__payment {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center !important;
+        margin-top: 4px;
+        border-radius: 999px;
+        padding: 7px 10px !important;
+        font-size: 12px !important;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .pms-calendar-tooltip__payment--paid {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .pms-calendar-tooltip__payment--partial {
+        background: #ffedd5;
+        color: #9a3412;
+    }
+
+    .pms-calendar-tooltip__payment--pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .pms-calendar-tooltip__payment--refunded {
+        background: #e0f2fe;
+        color: #075985;
+    }
+
 </style>
 
 <section class="page-section">
@@ -1015,6 +1302,11 @@ $summaryCards = [
                         <span class="pms-calendar-legend__item">
                             <i class="pms-calendar-legend__dot calendar-status--pending"></i>
                             Oczekuje
+                        </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--remaining"></i>
+                            Pozostało do zapłaty
                         </span>
 
                         <span class="pms-calendar-legend__item">
@@ -1131,7 +1423,7 @@ $summaryCards = [
                                                         $barReservation = $bar['reservation'];
                                                         $reservationId = (int) ($barReservation['id'] ?? 0);
                                                         $reservationStatus = (string) ($barReservation['status'] ?? '');
-                                                        $barClass = 'pms-calendar-bar ' . $statusClass($reservationStatus);
+                                                        $barClass = 'pms-calendar-bar ' . $reservationBarClass($barReservation);
 
                                                         if ((bool) ($bar['starts_before_month'] ?? false)) {
                                                             $barClass .= ' pms-calendar-bar--continues-left';
@@ -1155,7 +1447,7 @@ $summaryCards = [
                                                         <a
                                                             class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
                                                             style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
-                                                            href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>"
+                                                            href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
                                                             title="<?= htmlspecialchars($cellTitle($barReservation), ENT_QUOTES, 'UTF-8') ?>"
                                                         >
                                                             <span class="pms-calendar-bar__line pms-calendar-bar__guest">
@@ -1182,6 +1474,14 @@ $summaryCards = [
 
                                                             <span class="pms-calendar-tooltip">
                                                                 <strong><?= htmlspecialchars($reservationGuestName($barReservation), ENT_QUOTES, 'UTF-8') ?></strong>
+
+                                                                <small class="pms-calendar-tooltip__subline">
+                                                                    <?= htmlspecialchars($reservationAddressLine($barReservation), ENT_QUOTES, 'UTF-8') ?>
+                                                                </small>
+
+                                                                <small class="pms-calendar-tooltip__subline">
+                                                                    <?= htmlspecialchars($reservationPhoneLine($barReservation), ENT_QUOTES, 'UTF-8') ?>
+                                                                </small>
 
                                                                 <span>
                                                                     <em>Zameldowanie</em>
@@ -1299,7 +1599,7 @@ $summaryCards = [
                                                 <td>
                                                     <a
                                                         class="button button--secondary button--small"
-                                                        href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>"
+                                                        href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
                                                     >
                                                         Szczegóły
                                                     </a>

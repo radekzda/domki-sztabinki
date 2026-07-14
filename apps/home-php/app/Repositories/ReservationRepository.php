@@ -56,6 +56,10 @@ final class ReservationRepository
                 reservations.payment_status,
                 reservations.total_price,
                 reservations.paid_amount,
+                  reservations.street,
+                  reservations.postal_code,
+                  reservations.city,
+                  reservations.country,
                 reservations.created_at
             FROM reservations
             LEFT JOIN cabins ON cabins.id = reservations.cabin_id
@@ -96,6 +100,10 @@ final class ReservationRepository
                 'payment_status' => isset($row['payment_status']) ? (string) $row['payment_status'] : null,
                 'total_price' => isset($row['total_price']) ? (string) $row['total_price'] : null,
                 'paid_amount' => isset($row['paid_amount']) ? (string) $row['paid_amount'] : null,
+                  'street' => isset($row['street']) ? (string) $row['street'] : null,
+                  'postal_code' => isset($row['postal_code']) ? (string) $row['postal_code'] : null,
+                  'city' => isset($row['city']) ? (string) $row['city'] : null,
+                  'country' => isset($row['country']) ? (string) $row['country'] : null,
                 'created_at' => (string) ($row['created_at'] ?? ''),
             ];
         }, $rows);
