@@ -223,6 +223,7 @@ $router->get('/admin/domki/nowy', function (): void {
 
 $router->post('/admin/domki/nowy', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $form = cabinFormFromPost();
     $errors = validateCabinForm($form);
@@ -268,6 +269,7 @@ $router->post('/admin/domki/nowy', function (): void {
 
 $router->post('/admin/domki/status', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = cabinIdFromPost();
     $isActive = activeStatusFromPost();
@@ -363,6 +365,7 @@ $router->get('/admin/domki/edytuj', function (): void {
 
 $router->post('/admin/domki/edytuj', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = cabinIdFromQuery();
 
@@ -1649,6 +1652,7 @@ $router->get('/admin/goscie/nowy', function (): void {
 
 $router->post('/admin/goscie/nowy', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $form = guestFormFromPost();
     $errors = validateGuestForm($form);
@@ -1803,6 +1807,7 @@ $router->get('/admin/goscie/edytuj', function (): void {
 
 $router->post('/admin/goscie/edytuj', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = guestIdFromQuery();
 
@@ -1862,6 +1867,7 @@ $router->post('/admin/goscie/edytuj', function (): void {
 
 $router->post('/admin/goscie/vip', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = guestIdFromPost();
     $isVip = guestVipStatusFromPost();
@@ -1898,6 +1904,7 @@ $router->post('/admin/goscie/vip', function (): void {
 
 $router->post('/admin/goscie/usun', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = guestIdFromPost();
 
@@ -2131,6 +2138,7 @@ $router->get('/admin/ustawienia', function (): void {
 
 $router->post('/admin/ustawienia', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $form = settingsFormFromPost();
     $errors = validateSettingsForm($form);

@@ -165,6 +165,7 @@ declare(strict_types=1);
                                                     </a>
 
                                                     <form method="post" action="/admin/goscie/vip">
+    <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
                                                             name="id"
@@ -187,6 +188,7 @@ declare(strict_types=1);
                                                         action="/admin/goscie/usun"
                                                         onsubmit="return confirm('Czy na pewno usunąć tego gościa? Powiązane rezerwacje zostaną odłączone od karty gościa, ale nie zostaną usunięte.')"
                                                     >
+    <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
                                                             name="id"

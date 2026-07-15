@@ -192,6 +192,7 @@ declare(strict_types=1);
                                                     </a>
 
                                                     <form method="post" action="/admin/domki/status">
+    <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
                                                             name="id"

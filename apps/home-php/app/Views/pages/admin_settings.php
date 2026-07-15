@@ -56,6 +56,7 @@ declare(strict_types=1);
                     <?php endif; ?>
 
                     <form class="form form--wide" method="post" action="/admin/ustawienia">
+    <?= csrfField() ?>
                         <div class="form-grid">
                             <div class="form-field form-field--full">
                                 <label for="property_name">Nazwa obiektu</label>

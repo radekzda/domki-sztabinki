@@ -14,6 +14,7 @@ $actionValue = isset($action) && is_string($action) ? $action : '';
 $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabel : 'Zapisz gościa';
 ?>
 <form class="form form--wide" method="post" action="<?= htmlspecialchars($actionValue, ENT_QUOTES, 'UTF-8') ?>">
+    <?= csrfField() ?>
     <div class="form-grid">
         <div class="form-field">
             <label for="first_name">Imię</label>
