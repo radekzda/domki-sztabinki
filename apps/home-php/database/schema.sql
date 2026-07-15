@@ -1,9 +1,17 @@
 CREATE TABLE IF NOT EXISTS cabins (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    external_id VARCHAR(80) NULL,
     name VARCHAR(160) NOT NULL,
     short_name VARCHAR(80) NULL,
     description TEXT NOT NULL,
+    amenities TEXT NULL,
+    location VARCHAR(120) NULL,
+    cabin_type VARCHAR(80) NULL,
+    pets_allowed TINYINT(1) NOT NULL DEFAULT 0,
+    has_parking TINYINT(1) NOT NULL DEFAULT 0,
+    has_kitchen TINYINT(1) NOT NULL DEFAULT 0,
     max_guests INT UNSIGNED NOT NULL DEFAULT 6,
+    area_sqm INT NULL,
     bedrooms INT UNSIGNED NOT NULL DEFAULT 2,
     bathrooms INT UNSIGNED NOT NULL DEFAULT 1,
     price_per_night INT UNSIGNED NOT NULL DEFAULT 440,
@@ -20,6 +28,7 @@ CREATE TABLE IF NOT EXISTS cabins (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    INDEX idx_cabins_external_id (external_id),
     INDEX cabins_is_active_index (is_active),
     INDEX cabins_sort_order_index (sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -42,6 +51,7 @@ CREATE TABLE IF NOT EXISTS cabin_images (
 
 CREATE TABLE IF NOT EXISTS guests (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    external_id VARCHAR(80) NULL,
     first_name VARCHAR(120) NOT NULL,
     last_name VARCHAR(120) NOT NULL,
     email VARCHAR(190) NOT NULL,
@@ -61,6 +71,7 @@ CREATE TABLE IF NOT EXISTS guests (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    INDEX idx_guests_external_id (external_id),
     INDEX guests_email_index (email),
     INDEX guests_phone_index (phone),
     INDEX guests_source_index (source)
@@ -68,6 +79,7 @@ CREATE TABLE IF NOT EXISTS guests (
 
 CREATE TABLE IF NOT EXISTS reservations (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    external_id VARCHAR(80) NULL,
     cabin_id INT UNSIGNED NOT NULL,
     guest_id INT UNSIGNED NULL,
     guest_name VARCHAR(190) NOT NULL,
@@ -97,6 +109,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    INDEX idx_reservations_external_id (external_id),
     INDEX reservations_cabin_id_index (cabin_id),
     INDEX reservations_guest_id_index (guest_id),
     INDEX reservations_status_index (status),
@@ -167,6 +180,21 @@ CREATE TABLE IF NOT EXISTS admin_users (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY admin_users_email_unique (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS site_images (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    image_url VARCHAR(255) NOT NULL,
+    alt_text VARCHAR(255) NULL,
+    image_type VARCHAR(50) NOT NULL DEFAULT 'GALLERY',
+    sort_order INT NOT NULL DEFAULT 0,
+    is_main TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX site_images_image_type_idx (image_type),
+    INDEX site_images_is_main_idx (is_main),
+    INDEX site_images_sort_order_idx (sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS system_settings (
