@@ -368,6 +368,50 @@ if ($heroImagePath === '') {
 $heroBackground = $heroImagePath !== ''
     ? "linear-gradient(90deg, rgba(250,247,239,0.96) 0%, rgba(250,247,239,0.84) 34%, rgba(250,247,239,0.24) 62%, rgba(250,247,239,0.10) 100%), url('" . htmlspecialchars($heroImagePath, ENT_QUOTES, 'UTF-8') . "')"
     : 'linear-gradient(135deg, #f7f2e8 0%, #e9f1e8 55%, #dce9ef 100%)';
+
+// M13.75 inquiry availability picker
+$inquiryAvailabilityReservations = [];
+
+if (isset($reservations) && is_array($reservations)) {
+    foreach ($reservations as $reservation) {
+        if (!is_array($reservation)) {
+            continue;
+        }
+
+        $status = (string) ($reservation['status'] ?? '');
+
+        if ($status === 'CANCELLED' || $status === 'CHECKED_OUT') {
+            continue;
+        }
+
+        $cabinId = (int) ($reservation['cabin_id'] ?? $reservation['cabinId'] ?? 0);
+        $startDate = (string) ($reservation['start_date'] ?? $reservation['startDate'] ?? '');
+        $endDate = (string) ($reservation['end_date'] ?? $reservation['endDate'] ?? '');
+
+        if ($cabinId <= 0 || $startDate === '' || $endDate === '') {
+            continue;
+        }
+
+        if (!isset($inquiryAvailabilityReservations[$cabinId])) {
+            $inquiryAvailabilityReservations[$cabinId] = [];
+        }
+
+        $inquiryAvailabilityReservations[$cabinId][] = [
+            'start' => substr($startDate, 0, 10),
+            'end' => substr($endDate, 0, 10),
+        ];
+    }
+}
+
+$inquiryAvailabilityJson = json_encode(
+    $inquiryAvailabilityReservations,
+    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+);
+
+if (!is_string($inquiryAvailabilityJson)) {
+    $inquiryAvailabilityJson = '{}';
+}
+
 ?>
 
 <style>
@@ -779,6 +823,129 @@ $heroBackground = $heroImagePath !== ''
         color: var(--public-text);
     }
 
+    /* M13.75 inquiry availability picker */
+    .inquiry-availability-picker {
+        display: none;
+        margin-top: 12px;
+        border: 1px solid var(--public-border);
+        border-radius: 18px;
+        background: #ffffff;
+        padding: 14px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    }
+
+    .inquiry-availability-picker--wide {
+        grid-column: 1 / -1;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .inquiry-availability-picker.is-visible {
+        display: block;
+    }
+
+    .inquiry-availability-picker__top {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+        color: var(--public-muted);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .inquiry-availability-picker__top strong {
+        color: var(--public-text);
+    }
+
+    .inquiry-availability-picker__months {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .inquiry-availability-month {
+        border: 1px solid var(--public-border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fafafa;
+    }
+
+    .inquiry-availability-month__title {
+        padding: 10px;
+        background: #f4f4f5;
+        color: var(--public-text);
+        font-size: 13px;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .inquiry-availability-month__grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        padding: 8px;
+    }
+
+    .inquiry-availability-day-name,
+    .inquiry-availability-day {
+        min-height: 34px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--public-muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .inquiry-availability-day-name {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 24px;
+        color: #a1a1aa;
+    }
+
+    .inquiry-availability-day {
+        cursor: pointer;
+        color: var(--public-text);
+    }
+
+    .inquiry-availability-day:hover:not(:disabled) {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .inquiry-availability-day:disabled,
+    .inquiry-availability-day.is-past {
+        cursor: not-allowed;
+        background: #fee2e2;
+        color: #991b1b;
+        opacity: 0.8;
+    }
+
+    .inquiry-availability-day.is-selected {
+        background: var(--public-primary);
+        color: #ffffff;
+    }
+
+    .inquiry-availability-day.is-range {
+        background: #bbf7d0;
+        color: #166534;
+    }
+
+    .inquiry-availability-empty {
+        min-height: 30px;
+    }
+
+    @media (max-width: 900px) {
+        .inquiry-availability-picker__months {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .public-textarea {
         min-height: 120px;
         resize: vertical;
@@ -1163,6 +1330,50 @@ $heroBackground = $heroImagePath !== ''
             grid-template-columns: 1fr;
         }
     }
+
+    /* M13.75.3 — kolory kalendarza formularza zapytania */
+    .inquiry-availability-day--selected,
+    .inquiry-availability-day--selected-start,
+    .inquiry-availability-day--selected-end,
+    .inquiry-availability-day--in-range,
+    .inquiry-availability-day.is-selected,
+    .inquiry-availability-day[data-selected="true"] {
+        background: #1f8a4c !important;
+        border-color: #1f8a4c !important;
+        color: #ffffff !important;
+    }
+
+    .inquiry-availability-day--selected:hover,
+    .inquiry-availability-day--selected-start:hover,
+    .inquiry-availability-day--selected-end:hover,
+    .inquiry-availability-day--in-range:hover,
+    .inquiry-availability-day.is-selected:hover,
+    .inquiry-availability-day[data-selected="true"]:hover {
+        background: #18703d !important;
+        border-color: #18703d !important;
+        color: #ffffff !important;
+    }
+
+    .inquiry-availability-day--past,
+    .inquiry-availability-day--disabled,
+    .inquiry-availability-day[data-disabled-reason="past"],
+    .inquiry-availability-day[data-disabled-reason="today"],
+    .inquiry-availability-day[data-past="true"] {
+        background: #fde8e8 !important;
+        border-color: #f2b8b8 !important;
+        color: #b54747 !important;
+    }
+
+    .inquiry-availability-day--past:hover,
+    .inquiry-availability-day--disabled:hover,
+    .inquiry-availability-day[data-disabled-reason="past"]:hover,
+    .inquiry-availability-day[data-disabled-reason="today"]:hover,
+    .inquiry-availability-day[data-past="true"]:hover {
+        background: #fde8e8 !important;
+        border-color: #f2b8b8 !important;
+        color: #b54747 !important;
+    }
+
 </style>
 
 <section class="public-page">
@@ -1755,6 +1966,28 @@ $heroBackground = $heroImagePath !== ''
                                     <?php endforeach; ?>
                                 </select>
 
+                            <div
+                                class="inquiry-availability-picker inquiry-availability-picker--wide"
+                                id="inquiry-availability-picker"
+                                aria-live="polite"
+                            >
+                                <div class="inquiry-availability-picker__top">
+                                    <div>
+                                        <strong>Wybierz termin z kalendarza</strong><br>
+                                        Kliknij datę przyjazdu, a potem datę wyjazdu.
+                                    </div>
+                                    <div id="inquiry-availability-status">
+                                        Dostępne terminy dla wybranego domku.
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="inquiry-availability-picker__months"
+                                    id="inquiry-availability-months"
+                                ></div>
+                            </div>
+
+
                                 <?php if (isset($errors['cabin_id'])): ?>
                                     <span class="public-error"><?= htmlspecialchars($errors['cabin_id'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
@@ -1972,3 +2205,271 @@ $heroBackground = $heroImagePath !== ''
         </div>
     </footer>
 </section>
+
+<script>
+    // M13.75 inquiry availability picker
+    window.domkiInquiryAvailability = <?= $inquiryAvailabilityJson ?>;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const cabinSelect = document.querySelector('select[name="cabin_id"]');
+        const dateFromInput = document.querySelector('input[name="date_from"]');
+        const dateToInput = document.querySelector('input[name="date_to"]');
+        const picker = document.getElementById('inquiry-availability-picker');
+        const monthsContainer = document.getElementById('inquiry-availability-months');
+        const statusBox = document.getElementById('inquiry-availability-status');
+
+        if (!cabinSelect || !dateFromInput || !dateToInput || !picker || !monthsContainer || !statusBox) {
+            return;
+        }
+
+        const inquiryForm = cabinSelect.closest('form');
+        const cabinField = cabinSelect.closest('.public-form-field, .public-field, label, div');
+
+        if (inquiryForm && cabinField && picker.parentElement !== inquiryForm) {
+            cabinField.insertAdjacentElement('afterend', picker);
+        }
+
+        const busyByCabin = window.domkiInquiryAvailability || {};
+        let selectedStart = '';
+        let selectedEnd = '';
+
+        const monthNames = [
+            'Styczeń',
+            'Luty',
+            'Marzec',
+            'Kwiecień',
+            'Maj',
+            'Czerwiec',
+            'Lipiec',
+            'Sierpień',
+            'Wrzesień',
+            'Październik',
+            'Listopad',
+            'Grudzień'
+        ];
+
+        const dayNames = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+
+        function pad(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function formatDate(date) {
+            return [
+                date.getFullYear(),
+                pad(date.getMonth() + 1),
+                pad(date.getDate())
+            ].join('-');
+        }
+
+        function todayValue() {
+            const today = new Date();
+            return formatDate(today);
+        }
+
+        function parseDate(value) {
+            const parts = String(value).split('-').map(Number);
+
+            if (parts.length !== 3 || parts.some(Number.isNaN)) {
+                return null;
+            }
+
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        function addDays(date, days) {
+            const next = new Date(date);
+            next.setDate(next.getDate() + days);
+            return next;
+        }
+
+        function isDateBusy(cabinId, dateValue) {
+            const ranges = busyByCabin[String(cabinId)] || [];
+
+            return ranges.some(function (range) {
+                return dateValue >= range.start && dateValue < range.end;
+            });
+        }
+
+        function rangeTouchesBusy(cabinId, startValue, endValue) {
+            const startDate = parseDate(startValue);
+            const endDate = parseDate(endValue);
+
+            if (!startDate || !endDate || endDate <= startDate) {
+                return true;
+            }
+
+            let current = new Date(startDate);
+
+            while (current < endDate) {
+                if (isDateBusy(cabinId, formatDate(current))) {
+                    return true;
+                }
+
+                current = addDays(current, 1);
+            }
+
+            return false;
+        }
+
+        function isInSelectedRange(dateValue) {
+            if (!selectedStart || !selectedEnd) {
+                return false;
+            }
+
+            return dateValue > selectedStart && dateValue < selectedEnd;
+        }
+
+        function buildMonth(year, month, cabinId) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'inquiry-availability-month';
+
+            const title = document.createElement('div');
+            title.className = 'inquiry-availability-month__title';
+            title.textContent = monthNames[month] + ' ' + year;
+            wrapper.appendChild(title);
+
+            const grid = document.createElement('div');
+            grid.className = 'inquiry-availability-month__grid';
+
+            dayNames.forEach(function (name) {
+                const dayName = document.createElement('div');
+                dayName.className = 'inquiry-availability-day-name';
+                dayName.textContent = name;
+                grid.appendChild(dayName);
+            });
+
+            const firstDay = new Date(year, month, 1);
+            const firstWeekday = (firstDay.getDay() + 6) % 7;
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let i = 0; i < firstWeekday; i += 1) {
+                const empty = document.createElement('div');
+                empty.className = 'inquiry-availability-empty';
+                grid.appendChild(empty);
+            }
+
+            for (let day = 1; day <= daysInMonth; day += 1) {
+                const date = new Date(year, month, day);
+                const dateValue = formatDate(date);
+                const button = document.createElement('button');
+
+                button.type = 'button';
+                button.className = 'inquiry-availability-day';
+                button.textContent = String(day);
+                button.dataset.date = dateValue;
+
+                if (dateValue <= todayValue()) {
+                    button.disabled = true;
+                    button.title = 'Termin niedostępny';
+                    button.classList.add('is-past');
+                } else if (isDateBusy(cabinId, dateValue)) {
+                    button.disabled = true;
+                    button.title = 'Termin zajęty';
+                }
+
+                if (dateValue === selectedStart || dateValue === selectedEnd) {
+                    button.classList.add('is-selected');
+                }
+
+                if (isInSelectedRange(dateValue)) {
+                    button.classList.add('is-range');
+                }
+
+                button.addEventListener('click', function () {
+                    selectDate(cabinId, dateValue);
+                });
+
+                grid.appendChild(button);
+            }
+
+            wrapper.appendChild(grid);
+
+            return wrapper;
+        }
+
+        function renderCalendar() {
+            const cabinId = cabinSelect.value;
+
+            monthsContainer.innerHTML = '';
+
+            if (!cabinId) {
+                picker.classList.remove('is-visible');
+                return;
+            }
+
+            picker.classList.add('is-visible');
+
+            const today = new Date();
+            const firstMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+            for (let i = 0; i < 3; i += 1) {
+                const monthDate = new Date(firstMonth.getFullYear(), firstMonth.getMonth() + i, 1);
+                monthsContainer.appendChild(
+                    buildMonth(monthDate.getFullYear(), monthDate.getMonth(), cabinId)
+                );
+            }
+
+            if (selectedStart && selectedEnd) {
+                statusBox.textContent = 'Wybrano: ' + selectedStart + ' → ' + selectedEnd;
+            } else if (selectedStart) {
+                statusBox.textContent = 'Data przyjazdu: ' + selectedStart + '. Teraz wybierz datę wyjazdu.';
+            } else {
+                statusBox.textContent = 'Najpierw kliknij datę przyjazdu.';
+            }
+        }
+
+        function selectDate(cabinId, dateValue) {
+            if (!selectedStart || selectedEnd || dateValue <= selectedStart) {
+                selectedStart = dateValue;
+                selectedEnd = '';
+                dateFromInput.value = selectedStart;
+                dateToInput.value = '';
+                renderCalendar();
+                return;
+            }
+
+            if (rangeTouchesBusy(cabinId, selectedStart, dateValue)) {
+                selectedStart = dateValue;
+                selectedEnd = '';
+                dateFromInput.value = selectedStart;
+                dateToInput.value = '';
+                renderCalendar();
+                statusBox.textContent = 'Wybrany zakres zahacza o zajęty termin. Wybierz datę wyjazdu ponownie.';
+                return;
+            }
+
+            selectedEnd = dateValue;
+            dateFromInput.value = selectedStart;
+            dateToInput.value = selectedEnd;
+            renderCalendar();
+        }
+
+        cabinSelect.addEventListener('change', function () {
+            selectedStart = '';
+            selectedEnd = '';
+            dateFromInput.value = '';
+            dateToInput.value = '';
+            renderCalendar();
+        });
+
+        dateFromInput.addEventListener('change', function () {
+            selectedStart = dateFromInput.value;
+            selectedEnd = dateToInput.value;
+            renderCalendar();
+        });
+
+        dateToInput.addEventListener('change', function () {
+            selectedStart = dateFromInput.value;
+            selectedEnd = dateToInput.value;
+            renderCalendar();
+        });
+
+        if (cabinSelect.value) {
+            selectedStart = dateFromInput.value;
+            selectedEnd = dateToInput.value;
+            renderCalendar();
+        }
+    });
+</script>
+
