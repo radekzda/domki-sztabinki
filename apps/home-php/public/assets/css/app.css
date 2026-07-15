@@ -158,20 +158,20 @@ h2 {
 .form-actions {
     display: flex;
     flex-wrap: wrap;
-    margin-top: 32px;
-    gap: 16px;
+    margin-top: 24px;
+    gap: 12px;
 }
 
 .button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 44px;
+    min-height: 38px;
     border: 0;
     border-radius: 999px;
     cursor: pointer;
-    padding: 0 22px;
-    font-size: 14px;
+    padding: 0 16px;
+    font-size: 13px;
     font-weight: 800;
     text-decoration: none;
 }
@@ -182,9 +182,9 @@ h2 {
 }
 
 .button--small {
-    min-height: 34px;
-    padding: 0 14px;
-    font-size: 12px;
+    min-height: 30px;
+    padding: 0 11px;
+    font-size: 11px;
 }
 
 .button--primary {
@@ -812,10 +812,10 @@ body {
 .data-table button.button--small,
 .data-table .table-actions .button,
 .data-table .table-actions button {
-    min-height: 34px;
-    padding: 0 12px;
+    min-height: 30px;
+    padding: 0 10px;
     border-radius: 999px;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 @media (max-width: 1100px) {
