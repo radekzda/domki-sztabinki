@@ -238,6 +238,7 @@ $displayDateTime = static function (mixed $value): string {
 
                             <form method="post" action="/admin/rezerwacje/status" class="reservation-action-inline">
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 
                                 <select name="status">
                                     <?php foreach ($statusLabels as $statusValue => $statusLabel): ?>
@@ -257,6 +258,7 @@ $displayDateTime = static function (mixed $value): string {
 
                             <form method="post" action="/admin/rezerwacje/platnosc" class="reservation-action-inline">
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 
                                 <select name="payment_status">
                                     <?php foreach ($paymentLabels as $paymentValue => $paymentLabel): ?>
@@ -299,6 +301,7 @@ $displayDateTime = static function (mixed $value): string {
                                     onsubmit="return confirm('Czy na pewno anulować tę rezerwację?')"
                                 >
                                     <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 
                                     <button class="button button--danger" type="submit">
                                         Anuluj rezerwację
@@ -312,6 +315,7 @@ $displayDateTime = static function (mixed $value): string {
                                 onsubmit="return confirm('Czy na pewno trwale usunąć tę rezerwację? Tej operacji nie można cofnąć.')"
                             >
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 
                                 <button class="button button--danger" type="submit">
                                     Usuń trwale

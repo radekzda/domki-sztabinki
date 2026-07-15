@@ -852,6 +852,22 @@ function reservationActionReturnUrlFromPost(int $id): string
     return '/admin/rezerwacje/pokaz?id=' . $id;
 }
 
+
+function reservationDeleteReturnUrlFromPost(): string
+{
+    $returnUrl = $_POST['return_url'] ?? '';
+
+    if (is_string($returnUrl)) {
+        $returnUrl = trim($returnUrl);
+
+        if (str_starts_with($returnUrl, '/admin/kalendarz')) {
+            return $returnUrl;
+        }
+    }
+
+    return '/admin/rezerwacje?deleted=1';
+}
+
 function reservationReturnUrlFromPost(): string
 {
     $returnUrl = $_POST['return_url'] ?? '';
@@ -1444,7 +1460,7 @@ $router->post('/admin/rezerwacje/status', function (): void {
 
         ReservationRepository::setStatus($id, $status);
 
-        Response::redirect('/admin/rezerwacje?status_changed=1');
+        Response::redirect(reservationActionReturnUrlFromPost($id));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić statusu',
@@ -1480,7 +1496,7 @@ $router->post('/admin/rezerwacje/platnosc', function (): void {
     try {
         ReservationRepository::setPaymentStatus($id, $paymentStatus);
 
-        Response::redirect('/admin/rezerwacje?payment_changed=1');
+        Response::redirect(reservationActionReturnUrlFromPost($id));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić płatności',
@@ -1515,7 +1531,7 @@ $router->post('/admin/rezerwacje/anuluj', function (): void {
     try {
         ReservationRepository::cancel($id);
 
-        Response::redirect('/admin/rezerwacje?cancelled=1');
+        Response::redirect(reservationActionReturnUrlFromPost($id));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się anulować rezerwacji',
@@ -1550,7 +1566,7 @@ $router->post('/admin/rezerwacje/usun', function (): void {
     try {
         ReservationRepository::delete($id);
 
-        Response::redirect('/admin/rezerwacje?deleted=1');
+        Response::redirect(reservationDeleteReturnUrlFromPost());
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się usunąć rezerwacji',
