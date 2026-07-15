@@ -227,6 +227,7 @@ $paymentLabels = [
                                                     </div>
 
                                                     <form method="post" action="/admin/rezerwacje/status" style="display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0;">
+                                                    <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
                                                             name="id"
@@ -252,6 +253,7 @@ $paymentLabels = [
                                                     </form>
 
                                                     <form method="post" action="/admin/rezerwacje/platnosc" style="display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0;">
+                                                    <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
                                                             name="id"
@@ -282,6 +284,7 @@ $paymentLabels = [
                                                                 onsubmit="return confirm('Czy na pewno anulować tę rezerwację?')"
                                                                 style="margin: 0;"
                                                             >
+                                                    <?= csrfField() ?>
                                                                 <input
                                                                     type="hidden"
                                                                     name="id"
@@ -302,6 +305,7 @@ $paymentLabels = [
                                                             onsubmit="return confirm('Czy na pewno trwale usunąć tę rezerwację? Tej operacji nie można cofnąć.')"
                                                             style="margin: 0;"
                                                         >
+                                                    <?= csrfField() ?>
                                                             <input
                                                                 type="hidden"
                                                                 name="id"

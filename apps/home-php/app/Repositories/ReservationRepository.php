@@ -529,10 +529,10 @@ final class ReservationRepository
 
         $statement = $connection->prepare(
             'UPDATE reservations
-             SET paid_amount = LEAST(COALESCE(total_price, 0), COALESCE(paid_amount, 0) + :amount),
+             SET paid_amount = LEAST(COALESCE(total_price, 0), COALESCE(paid_amount, 0) + :amount_for_paid_amount),
                  payment_status = CASE
                      WHEN COALESCE(total_price, 0) <= 0 THEN payment_status
-                     WHEN COALESCE(paid_amount, 0) + :amount >= COALESCE(total_price, 0) THEN "PAID"
+                     WHEN COALESCE(paid_amount, 0) + :amount_for_status >= COALESCE(total_price, 0) THEN "PAID"
                      ELSE "PARTIAL"
                  END
              WHERE id = :id'
@@ -540,7 +540,8 @@ final class ReservationRepository
 
         $statement->execute([
             'id' => $id,
-            'amount' => $amount,
+            'amount_for_paid_amount' => $amount,
+            'amount_for_status' => $amount,
         ]);
     }
 
