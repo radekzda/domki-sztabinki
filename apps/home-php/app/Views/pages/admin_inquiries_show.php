@@ -151,6 +151,7 @@ $cabinName = $inquiry['linked_cabin_name']
 
                     <div class="admin-actions">
                         <form method="post" action="/admin/zapytania/status">
+    <?= csrfField() ?>
                             <input
                                 type="hidden"
                                 name="id"
@@ -185,6 +186,7 @@ $cabinName = $inquiry['linked_cabin_name']
                             action="/admin/zapytania/usun"
                             onsubmit="return confirm('Czy na pewno usunąć to zapytanie?')"
                         >
+    <?= csrfField() ?>
                             <input
                                 type="hidden"
                                 name="id"

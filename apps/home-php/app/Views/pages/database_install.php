@@ -73,6 +73,7 @@ $statusLabels = [
                     </div>
 
                     <form class="form" method="post" action="/admin/system/database/install">
+    <?= csrfField() ?>
                         <div class="form-actions">
                             <button
                                 class="button button--primary"

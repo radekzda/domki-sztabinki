@@ -55,6 +55,7 @@ declare(strict_types=1);
                     <?php endif; ?>
 
                     <form method="post" action="/admin/goscie/import" enctype="multipart/form-data" class="form-grid">
+    <?= csrfField() ?>
                         <label>
                             Plik CSV z Base44
 

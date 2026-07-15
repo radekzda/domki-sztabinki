@@ -204,6 +204,7 @@ $router->get('/admin/domki/import', function (): void {
 });
 
 $router->post('/admin/domki/import', function (): void {
+    requireValidCsrf();
     CabinImportController::store();
 });
 
@@ -532,6 +533,7 @@ $router->get('/admin/domki/zdjecia', function (): void {
 
 $router->post('/admin/domki/zdjecia/dodaj', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $cabinIdValue = $_POST['cabin_id'] ?? null;
     $cabinId = filter_var($cabinIdValue, FILTER_VALIDATE_INT);
@@ -694,6 +696,7 @@ $router->post('/admin/domki/zdjecia/dodaj', function (): void {
 
 $router->post('/admin/domki/zdjecia/glowne', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $cabinId = filter_var($_POST['cabin_id'] ?? null, FILTER_VALIDATE_INT);
     $imageId = filter_var($_POST['image_id'] ?? null, FILTER_VALIDATE_INT);
@@ -730,6 +733,7 @@ $router->post('/admin/domki/zdjecia/glowne', function (): void {
 
 $router->post('/admin/domki/zdjecia/usun', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $cabinId = filter_var($_POST['cabin_id'] ?? null, FILTER_VALIDATE_INT);
     $imageId = filter_var($_POST['image_id'] ?? null, FILTER_VALIDATE_INT);
@@ -828,6 +832,7 @@ $router->get('/admin/rezerwacje/import', function (): void {
 });
 
 $router->post('/admin/rezerwacje/import', function (): void {
+    requireValidCsrf();
     ReservationImportController::store();
 });
 
@@ -1674,6 +1679,7 @@ $router->get('/admin/goscie/import', function (): void {
 });
 
 $router->post('/admin/goscie/import', function (): void {
+    requireValidCsrf();
     GuestImportController::store();
 });
 
@@ -2061,6 +2067,7 @@ $router->get('/admin/zapytania/pokaz', function (): void {
 
 $router->post('/admin/zapytania/status', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = inquiryIdFromPost();
     $status = inquiryStatusFromPost();
@@ -2097,6 +2104,7 @@ $router->post('/admin/zapytania/status', function (): void {
 
 $router->post('/admin/zapytania/usun', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = inquiryIdFromPost();
 
@@ -2143,6 +2151,7 @@ $router->get('/admin/media', function (): void {
 });
 
 $router->post('/admin/media', function (): void {
+    requireValidCsrf();
     MediaController::handle();
 });
 
@@ -2278,6 +2287,7 @@ $router->get('/admin/system/database/install', function (): void {
 
 $router->post('/admin/system/database/install', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $message = '';
     $messageType = 'warning';
@@ -2316,6 +2326,7 @@ $router->get('/admin/system/database/seed', function (): void {
 
 $router->post('/admin/system/database/seed', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $message = '';
     $messageType = 'warning';

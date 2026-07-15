@@ -87,6 +87,7 @@ foreach ($images as $image) {
             </div>
 
             <form class="form form--wide" method="post" action="/admin/media" enctype="multipart/form-data">
+    <?= csrfField() ?>
                 <input type="hidden" name="action" value="upload">
 
                 <div class="form-grid">
@@ -202,6 +203,7 @@ foreach ($images as $image) {
 
                                 <div class="form-actions" style="display: grid; gap: 8px; margin-top: 12px;">
                                     <form method="post" action="/admin/media">
+    <?= csrfField() ?>
                                         <input type="hidden" name="action" value="set_main">
                                         <input type="hidden" name="id" value="<?= htmlspecialchars((string) $image['id'], ENT_QUOTES, 'UTF-8') ?>">
 
@@ -211,6 +213,7 @@ foreach ($images as $image) {
                                     </form>
 
                                     <form method="post" action="/admin/media" onsubmit="return confirm('Usunąć to zdjęcie?');">
+    <?= csrfField() ?>
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="id" value="<?= htmlspecialchars((string) $image['id'], ENT_QUOTES, 'UTF-8') ?>">
 

@@ -35,6 +35,7 @@ declare(strict_types=1);
             <?php endif; ?>
 
             <form class="form" method="post" action="/logowanie">
+    <?= csrfField() ?>
                 <div class="form-field">
                     <label for="email">Adres e-mail</label>
                     <input

@@ -1987,6 +1987,7 @@ if (isset($settings) && is_array($settings)) {
                     <?php endif; ?>
 
                     <form method="post" action="/zapytanie#zapytanie">
+    <?= csrfField() ?>
                         <div class="public-form-grid">
                             <label class="public-label" for="first_name">
                                 Imię

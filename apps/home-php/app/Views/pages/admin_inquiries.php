@@ -239,6 +239,7 @@ $getStatusClass = static function (string $status): string {
                                                     </a>
 
                                                     <form method="post" action="/admin/zapytania/status">
+    <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
                                                             name="id"
@@ -266,6 +267,7 @@ $getStatusClass = static function (string $status): string {
                                                         action="/admin/zapytania/usun"
                                                         onsubmit="return confirm('Czy na pewno usunąć to zapytanie?')"
                                                     >
+    <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
                                                             name="id"

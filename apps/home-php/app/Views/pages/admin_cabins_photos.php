@@ -88,6 +88,7 @@ declare(strict_types=1);
                         action="/admin/domki/zdjecia/dodaj"
                         enctype="multipart/form-data"
                     >
+    <?= csrfField() ?>
                         <input
                             type="hidden"
                             name="cabin_id"
@@ -190,6 +191,7 @@ declare(strict_types=1);
                                                 <div class="table-actions">
                                                     <?php if ($image['is_main'] !== 1): ?>
                                                         <form method="post" action="/admin/domki/zdjecia/glowne">
+    <?= csrfField() ?>
                                                             <input
                                                                 type="hidden"
                                                                 name="cabin_id"
@@ -213,6 +215,7 @@ declare(strict_types=1);
                                                         action="/admin/domki/zdjecia/usun"
                                                         onsubmit="return confirm('Czy na pewno usunąć to zdjęcie?')"
                                                     >
+    <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
                                                             name="cabin_id"

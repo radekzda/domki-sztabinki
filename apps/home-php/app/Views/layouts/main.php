@@ -40,6 +40,7 @@ $adminEmail = $isLoggedIn ? Auth::adminEmail() : '';
                     </span>
 
                     <form class="site-nav__form" method="post" action="/wyloguj">
+    <?= csrfField() ?>
                         <button type="submit">
                             Wyloguj
                         </button>
