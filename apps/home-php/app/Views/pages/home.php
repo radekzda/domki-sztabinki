@@ -736,6 +736,12 @@ $heroBackground = $heroImagePath !== ''
         padding: 13px 14px;
     }
 
+    .public-input::placeholder,
+    .public-textarea::placeholder {
+        color: #a1a1aa;
+        opacity: 1;
+    }
+
     .public-textarea {
         min-height: 120px;
         resize: vertical;
@@ -1623,7 +1629,7 @@ $heroBackground = $heroImagePath !== ''
                         </div>
                     <?php endif; ?>
 
-                    <form method="post" action="/zapytanie">
+                    <form method="post" action="/zapytanie#zapytanie">
                         <div class="public-form-grid">
                             <label class="public-label" for="first_name">
                                 Imię
@@ -1632,6 +1638,7 @@ $heroBackground = $heroImagePath !== ''
                                     id="first_name"
                                     name="first_name"
                                     type="text"
+                                    placeholder="Jan"
                                     value="<?= htmlspecialchars($form['first_name'], ENT_QUOTES, 'UTF-8') ?>"
                                     required
                                 >
@@ -1648,6 +1655,7 @@ $heroBackground = $heroImagePath !== ''
                                     id="last_name"
                                     name="last_name"
                                     type="text"
+                                    placeholder="Kowalski"
                                     value="<?= htmlspecialchars($form['last_name'], ENT_QUOTES, 'UTF-8') ?>"
                                     required
                                 >
@@ -1664,6 +1672,7 @@ $heroBackground = $heroImagePath !== ''
                                     id="phone"
                                     name="phone"
                                     type="tel"
+                                    placeholder="+48 600 000 000"
                                     value="<?= htmlspecialchars($form['phone'], ENT_QUOTES, 'UTF-8') ?>"
                                     required
                                 >
@@ -1680,6 +1689,7 @@ $heroBackground = $heroImagePath !== ''
                                     id="email"
                                     name="email"
                                     type="email"
+                                    placeholder="jan.kowalski@example.com"
                                     value="<?= htmlspecialchars($form['email'], ENT_QUOTES, 'UTF-8') ?>"
                                 >
 
@@ -1782,12 +1792,13 @@ $heroBackground = $heroImagePath !== ''
                             </label>
 
                             <label class="public-label" for="city">
-                                Miejscowość
+                                Adres
                                 <input
                                     class="public-input"
                                     id="city"
                                     name="city"
                                     type="text"
+                                    placeholder="ul. Jeziorna 12, 16-500 Sejny"
                                     value="<?= htmlspecialchars($form['city'], ENT_QUOTES, 'UTF-8') ?>"
                                 >
                             </label>
@@ -1799,13 +1810,14 @@ $heroBackground = $heroImagePath !== ''
                                     id="country"
                                     name="country"
                                     type="text"
+                                    placeholder="Polska"
                                     value="<?= htmlspecialchars($form['country'], ENT_QUOTES, 'UTF-8') ?>"
                                 >
                             </label>
 
                             <label class="public-label public-label--full" for="notes">
                                 Wiadomość / dodatkowe informacje
-                                <textarea class="public-textarea" id="notes" name="notes"><?= htmlspecialchars($form['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                                <textarea class="public-textarea" id="notes" name="notes" placeholder="Np. godzina przyjazdu, pytania o domek, dodatkowe informacje"><?= htmlspecialchars($form['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
                             </label>
                         </div>
 
