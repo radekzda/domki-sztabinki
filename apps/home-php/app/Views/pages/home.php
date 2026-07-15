@@ -940,9 +940,44 @@ if (!is_string($inquiryAvailabilityJson)) {
         min-height: 30px;
     }
 
+    .inquiry-selected-date-summary {
+        display: none;
+        margin-top: 12px;
+        border: 1px solid #bbf7d0;
+        border-radius: 14px;
+        background: #f0fdf4;
+        color: #166534;
+        padding: 12px 14px;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.5;
+    }
+
+    .inquiry-selected-date-summary.is-visible {
+        display: block;
+    }
+
+    .inquiry-selected-date-summary span {
+        display: block;
+        margin-top: 2px;
+        color: #14532d;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
     @media (max-width: 900px) {
+        .inquiry-availability-picker {
+            padding: 12px;
+        }
+
         .inquiry-availability-picker__months {
             grid-template-columns: 1fr;
+        }
+
+        .inquiry-availability-day-name,
+        .inquiry-availability-day {
+            min-height: 38px;
+            font-size: 13px;
         }
     }
 
@@ -1985,6 +2020,14 @@ if (!is_string($inquiryAvailabilityJson)) {
                                     class="inquiry-availability-picker__months"
                                     id="inquiry-availability-months"
                                 ></div>
+
+                                <div
+                                    class="inquiry-selected-date-summary"
+                                    id="inquiry-selected-date-summary"
+                                >
+                                    Wybrany termin
+                                    <span id="inquiry-selected-date-summary-text"></span>
+                                </div>
                             </div>
 
 
@@ -2217,10 +2260,16 @@ if (!is_string($inquiryAvailabilityJson)) {
         const picker = document.getElementById('inquiry-availability-picker');
         const monthsContainer = document.getElementById('inquiry-availability-months');
         const statusBox = document.getElementById('inquiry-availability-status');
+        const selectedSummary = document.getElementById('inquiry-selected-date-summary');
+        const selectedSummaryText = document.getElementById('inquiry-selected-date-summary-text');
+        const firstNextField = document.querySelector('input[name="adults"], input[name="guests"], input[name="children"], textarea[name="notes"]');
 
-        if (!cabinSelect || !dateFromInput || !dateToInput || !picker || !monthsContainer || !statusBox) {
+        if (!cabinSelect || !dateFromInput || !dateToInput || !picker || !monthsContainer || !statusBox || !selectedSummary || !selectedSummaryText) {
             return;
         }
+
+        dateFromInput.readOnly = true;
+        dateToInput.readOnly = true;
 
         const inquiryForm = cabinSelect.closest('form');
         const cabinField = cabinSelect.closest('.public-form-field, .public-field, label, div');
@@ -2281,6 +2330,62 @@ if (!is_string($inquiryAvailabilityJson)) {
             const next = new Date(date);
             next.setDate(next.getDate() + days);
             return next;
+        }
+
+        function formatDateForGuest(value) {
+            const date = parseDate(value);
+
+            if (!date) {
+                return value;
+            }
+
+            return [
+                pad(date.getDate()),
+                pad(date.getMonth() + 1),
+                date.getFullYear()
+            ].join('.');
+        }
+
+        function countNights(startValue, endValue) {
+            const startDate = parseDate(startValue);
+            const endDate = parseDate(endValue);
+
+            if (!startDate || !endDate || endDate <= startDate) {
+                return 0;
+            }
+
+            return Math.round((endDate - startDate) / 86400000);
+        }
+
+        function updateSelectedSummary() {
+            if (!selectedStart || !selectedEnd) {
+                selectedSummary.classList.remove('is-visible');
+                selectedSummaryText.textContent = '';
+                return;
+            }
+
+            const nights = countNights(selectedStart, selectedEnd);
+            const nightsLabel = nights === 1 ? 'noc' : 'noce';
+
+            selectedSummaryText.textContent =
+                'Od ' + formatDateForGuest(selectedStart) +
+                ' do ' + formatDateForGuest(selectedEnd) +
+                ' — ' + nights + ' ' + nightsLabel + '.';
+
+            selectedSummary.classList.add('is-visible');
+        }
+
+        function scrollToNextFields() {
+            if (!firstNextField) {
+                return;
+            }
+
+            setTimeout(function () {
+                firstNextField.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 180);
         }
 
         function isDateBusy(cabinId, dateValue) {
@@ -2411,12 +2516,14 @@ if (!is_string($inquiryAvailabilityJson)) {
             }
 
             if (selectedStart && selectedEnd) {
-                statusBox.textContent = 'Wybrano: ' + selectedStart + ' → ' + selectedEnd;
+                statusBox.textContent = 'Wybrano: ' + formatDateForGuest(selectedStart) + ' → ' + formatDateForGuest(selectedEnd);
             } else if (selectedStart) {
-                statusBox.textContent = 'Data przyjazdu: ' + selectedStart + '. Teraz wybierz datę wyjazdu.';
+                statusBox.textContent = 'Data przyjazdu: ' + formatDateForGuest(selectedStart) + '. Teraz wybierz datę wyjazdu.';
             } else {
                 statusBox.textContent = 'Najpierw kliknij datę przyjazdu.';
             }
+
+            updateSelectedSummary();
         }
 
         function selectDate(cabinId, dateValue) {
@@ -2443,6 +2550,7 @@ if (!is_string($inquiryAvailabilityJson)) {
             dateFromInput.value = selectedStart;
             dateToInput.value = selectedEnd;
             renderCalendar();
+            scrollToNextFields();
         }
 
         cabinSelect.addEventListener('change', function () {
@@ -2450,6 +2558,7 @@ if (!is_string($inquiryAvailabilityJson)) {
             selectedEnd = '';
             dateFromInput.value = '';
             dateToInput.value = '';
+            updateSelectedSummary();
             renderCalendar();
         });
 
