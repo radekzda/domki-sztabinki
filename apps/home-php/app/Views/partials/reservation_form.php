@@ -52,6 +52,7 @@ if ($returnUrl === '' && isset($_POST['return_url']) && is_string($_POST['return
 $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
 ?>
 <form class="form form--wide" method="post" action="<?= htmlspecialchars($actionValue, ENT_QUOTES, 'UTF-8') ?>">
+    <?= csrfField() ?>
 <?php if ($canReturnToCalendar): ?>
         <input
             type="hidden"

@@ -197,6 +197,7 @@ $displayDateTime = static function (mixed $value): string {
 
                         <div class="reservation-action-grid">
                             <form method="post" action="/admin/rezerwacje/szybki-status">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="status" value="CONFIRMED">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
@@ -207,6 +208,7 @@ $displayDateTime = static function (mixed $value): string {
                             </form>
 
                             <form method="post" action="/admin/rezerwacje/szybki-status">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="status" value="CHECKED_IN">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
@@ -217,6 +219,7 @@ $displayDateTime = static function (mixed $value): string {
                             </form>
 
                             <form method="post" action="/admin/rezerwacje/szybki-status">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="status" value="CHECKED_OUT">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
@@ -227,6 +230,7 @@ $displayDateTime = static function (mixed $value): string {
                             </form>
 
                             <form method="post" action="/admin/rezerwacje/szybka-platnosc">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="payment_status" value="PAID">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
@@ -237,6 +241,7 @@ $displayDateTime = static function (mixed $value): string {
                             </form>
 
                             <form method="post" action="/admin/rezerwacje/status" class="reservation-action-inline">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 
@@ -257,6 +262,7 @@ $displayDateTime = static function (mixed $value): string {
                             </form>
 
                             <form method="post" action="/admin/rezerwacje/platnosc" class="reservation-action-inline">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 
@@ -277,6 +283,7 @@ $displayDateTime = static function (mixed $value): string {
                             </form>
 
                             <form method="post" action="/admin/rezerwacje/wplata" class="reservation-action-inline">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 
@@ -300,6 +307,7 @@ $displayDateTime = static function (mixed $value): string {
                                     action="/admin/rezerwacje/anuluj"
                                     onsubmit="return confirm('Czy na pewno anulować tę rezerwację?')"
                                 >
+                                <?= csrfField() ?>
                                     <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 
@@ -314,6 +322,7 @@ $displayDateTime = static function (mixed $value): string {
                                 action="/admin/rezerwacje/usun"
                                 onsubmit="return confirm('Czy na pewno trwale usunąć tę rezerwację? Tej operacji nie można cofnąć.')"
                             >
+                                <?= csrfField() ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
 

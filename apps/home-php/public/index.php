@@ -889,6 +889,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
     $returnUrl = reservationReturnUrlFromPost();
 
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $form = reservationFormFromPost();
     $errors = validateReservationForm($form);
@@ -1133,6 +1134,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
     $returnUrl = reservationReturnUrlFromPost();
 
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = reservationIdFromQuery();
 
@@ -1272,6 +1274,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
 
 $router->post('/admin/rezerwacje/szybki-status', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = reservationIdFromPost();
     $status = reservationStatusFromPost();
@@ -1330,6 +1333,7 @@ $router->post('/admin/rezerwacje/szybki-status', function (): void {
 
 $router->post('/admin/rezerwacje/szybka-platnosc', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = reservationIdFromPost();
     $paymentStatus = paymentStatusFromPost();
@@ -1370,6 +1374,7 @@ $router->post('/admin/rezerwacje/szybka-platnosc', function (): void {
 
 $router->post('/admin/rezerwacje/wplata', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = reservationIdFromPost();
     $amount = paymentAmountFromPost();
@@ -1406,6 +1411,7 @@ $router->post('/admin/rezerwacje/wplata', function (): void {
 
 $router->post('/admin/rezerwacje/status', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = reservationIdFromPost();
     $status = reservationStatusFromPost();
@@ -1471,6 +1477,7 @@ $router->post('/admin/rezerwacje/status', function (): void {
 
 $router->post('/admin/rezerwacje/platnosc', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = reservationIdFromPost();
     $paymentStatus = paymentStatusFromPost();
@@ -1507,6 +1514,7 @@ $router->post('/admin/rezerwacje/platnosc', function (): void {
 
 $router->post('/admin/rezerwacje/anuluj', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = reservationIdFromPost();
 
@@ -1542,6 +1550,7 @@ $router->post('/admin/rezerwacje/anuluj', function (): void {
 
 $router->post('/admin/rezerwacje/usun', function (): void {
     Auth::requireAdmin();
+    requireValidCsrf();
 
     $id = reservationIdFromPost();
 
