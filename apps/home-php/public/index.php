@@ -1094,6 +1094,8 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
 });
 
 $router->post('/admin/rezerwacje/edytuj', function (): void {
+    $returnUrl = reservationReturnUrlFromPost();
+
     Auth::requireAdmin();
 
     $id = reservationIdFromQuery();
@@ -1208,6 +1210,11 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
         );
 
         ReservationRepository::update($id, reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice, $guestId));
+
+        // M13.63 return to calendar after edit
+        if ($returnUrl !== '') {
+            Response::redirect($returnUrl);
+        }
 
         Response::redirect('/admin/rezerwacje?updated=1');
     } catch (Throwable $exception) {

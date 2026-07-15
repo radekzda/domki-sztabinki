@@ -31,6 +31,14 @@ declare(strict_types=1);
  * @var int|null $calculatedNights
  * @var int|null $calculatedTotalPrice
  */
+
+$returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
+
+if ($returnUrl === '' && isset($_POST['return_url']) && is_string($_POST['return_url'])) {
+    $returnUrl = $_POST['return_url'];
+}
+
+$canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
 ?>
 <section class="page-section">
     <div class="container">
@@ -52,6 +60,14 @@ declare(strict_types=1);
                         </div>
 
                         <div class="page-header__actions">
+                            <?php if ($canReturnToCalendar): ?>
+                                <a
+                                    class="button button--secondary"
+                                    href="<?= htmlspecialchars($returnUrl, ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                                    Wróć do kalendarza
+                                </a>
+                            <?php endif; ?>
                             <a
                                 class="button button--secondary"
                                 href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $id, ENT_QUOTES, 'UTF-8') ?>"

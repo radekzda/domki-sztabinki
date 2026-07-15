@@ -100,7 +100,7 @@ $displayDateTime = static function (mixed $value): string {
                             <?php endif; ?>
                             <a
                                 class="button button--primary"
-                                href="/admin/rezerwacje/edytuj?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                href="/admin/rezerwacje/edytuj?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?><?= $canReturnToCalendar ? '&return=' . urlencode($returnUrl) : '' ?>"
                             >
                                 Edytuj
                             </a>
