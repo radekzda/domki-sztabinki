@@ -68,6 +68,9 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 <?php foreach ($guests as $guest): ?>
                     <option
                         value="<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-name="<?= htmlspecialchars(trim($guest['first_name'] . ' ' . $guest['last_name']), ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-email="<?= htmlspecialchars($guest['email'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-phone="<?= htmlspecialchars($guest['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                         <?= $form['guest_id'] === (string) $guest['id'] ? 'selected' : '' ?>
                     >
                         <?= htmlspecialchars($guest['first_name'] . ' ' . $guest['last_name'] . ' — ' . $guest['email'], ENT_QUOTES, 'UTF-8') ?>
@@ -359,3 +362,40 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
         </a>
     </div>
 </form>
+
+
+<!-- M13.64 reservation guest autofill -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var guestSelect = document.getElementById('guest_id');
+
+        if (!guestSelect) {
+            return;
+        }
+
+        var guestNameInput = document.getElementById('guest_name');
+        var emailInput = document.getElementById('email');
+        var phoneInput = document.getElementById('phone');
+
+        guestSelect.addEventListener('change', function () {
+            var selectedOption = guestSelect.options[guestSelect.selectedIndex];
+
+            if (!selectedOption || selectedOption.value === '') {
+                return;
+            }
+
+            if (guestNameInput && selectedOption.dataset.guestName) {
+                guestNameInput.value = selectedOption.dataset.guestName;
+            }
+
+            if (emailInput && selectedOption.dataset.guestEmail) {
+                emailInput.value = selectedOption.dataset.guestEmail;
+            }
+
+            if (phoneInput && selectedOption.dataset.guestPhone) {
+                phoneInput.value = selectedOption.dataset.guestPhone;
+            }
+        });
+    });
+</script>
+

@@ -714,6 +714,30 @@ function paymentStatusFromPost(): ?string
     return $value;
 }
 
+
+function paymentAmountFromPost(): ?int
+{
+    $value = $_POST['amount'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $normalized = str_replace([' ', ','], ['', '.'], trim((string) $value));
+
+    if ($normalized === '' || !is_numeric($normalized)) {
+        return null;
+    }
+
+    $amount = (int) round((float) $normalized);
+
+    if ($amount <= 0) {
+        return null;
+    }
+
+    return $amount;
+}
+
 function reservationStatusBlocks(string $status): bool
 {
     return in_array($status, ['PENDING', 'CONFIRMED', 'CHECKED_IN'], true);

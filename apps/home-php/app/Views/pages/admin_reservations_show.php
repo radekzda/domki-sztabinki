@@ -48,6 +48,7 @@ $paymentStatus = $reservation['payment_status'] ?? '';
 
 $returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
 $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
+$quickActionReturnUrl = $canReturnToCalendar ? $returnUrl : '/admin/rezerwacje/pokaz?id=' . (string) $reservation['id'];
 
 $displayValue = static function (mixed $value): string {
     if ($value === null) {
@@ -237,7 +238,74 @@ $displayDateTime = static function (mixed $value): string {
                         </div>
                     <?php endif; ?>
 
-                    <div class="admin-actions">
+                    
+                      <!-- M13.64 quick reservation actions -->
+                      <div class="empty-state">
+                          <strong>Szybkie akcje</strong>
+
+                          <div class="admin-actions">
+                              <form method="post" action="/admin/rezerwacje/szybki-status">
+                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                  <input type="hidden" name="status" value="CONFIRMED">
+                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                  <button class="button button--primary" type="submit">
+                                      Oznacz jako potwierdzona
+                                  </button>
+                              </form>
+
+                              <form method="post" action="/admin/rezerwacje/szybki-status">
+                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                  <input type="hidden" name="status" value="CHECKED_IN">
+                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                  <button class="button button--primary" type="submit">
+                                      Oznacz jako zameldowany
+                                  </button>
+                              </form>
+
+                              <form method="post" action="/admin/rezerwacje/szybki-status">
+                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                  <input type="hidden" name="status" value="CHECKED_OUT">
+                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                  <button class="button button--secondary" type="submit">
+                                      Oznacz jako wymeldowany
+                                  </button>
+                              </form>
+
+                              <form method="post" action="/admin/rezerwacje/szybka-platnosc">
+                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                  <input type="hidden" name="payment_status" value="PAID">
+                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                  <button class="button button--primary" type="submit">
+                                      Oznacz jako opłacona
+                                  </button>
+                              </form>
+
+                              <form method="post" action="/admin/rezerwacje/wplata" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                  <input
+                                      name="amount"
+                                      type="number"
+                                      min="1"
+                                      step="1"
+                                      placeholder="Kwota wpłaty"
+                                      style="min-height: 44px; width: 150px; border: 1px solid var(--color-border); border-radius: 999px; padding: 0 14px;"
+                                      required
+                                  >
+
+                                  <button class="button button--primary" type="submit">
+                                      Dodaj wpłatę
+                                  </button>
+                              </form>
+                          </div>
+                      </div>
+
+<div class="admin-actions">
                         <form method="post" action="/admin/rezerwacje/status">
                             <input
                                 type="hidden"

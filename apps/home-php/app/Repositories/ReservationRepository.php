@@ -522,6 +522,45 @@ final class ReservationRepository
         ]);
     }
 
+
+    public static function addPayment(int $id, int $amount): void
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'UPDATE reservations
+             SET paid_amount = LEAST(COALESCE(total_price, 0), COALESCE(paid_amount, 0) + :amount),
+                 payment_status = CASE
+                     WHEN COALESCE(total_price, 0) <= 0 THEN payment_status
+                     WHEN COALESCE(paid_amount, 0) + :amount >= COALESCE(total_price, 0) THEN "PAID"
+                     ELSE "PARTIAL"
+                 END
+             WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+            'amount' => $amount,
+        ]);
+    }
+
+
+    public static function markPaid(int $id): void
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'UPDATE reservations
+             SET paid_amount = COALESCE(total_price, paid_amount, 0),
+                 payment_status = "PAID"
+             WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+        ]);
+    }
+
     public static function setPaymentStatus(int $id, string $paymentStatus): void
     {
         $connection = Database::connection();

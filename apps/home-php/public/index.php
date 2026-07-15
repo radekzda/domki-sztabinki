@@ -832,6 +832,26 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
 });
 
 
+
+function reservationActionReturnUrlFromPost(int $id): string
+{
+    $returnUrl = $_POST['return_url'] ?? '';
+
+    if (is_string($returnUrl)) {
+        $returnUrl = trim($returnUrl);
+
+        if (str_starts_with($returnUrl, '/admin/kalendarz')) {
+            return $returnUrl;
+        }
+
+        if (str_starts_with($returnUrl, '/admin/rezerwacje/pokaz?id=')) {
+            return $returnUrl;
+        }
+    }
+
+    return '/admin/rezerwacje/pokaz?id=' . $id;
+}
+
 function reservationReturnUrlFromPost(): string
 {
     $returnUrl = $_POST['return_url'] ?? '';
@@ -1229,6 +1249,141 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
+        ]), 500);
+    }
+});
+
+
+$router->post('/admin/rezerwacje/szybki-status', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromPost();
+    $status = reservationStatusFromPost();
+
+    if ($id === null || $status === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można zmienić statusu rezerwacji, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zmienić statusu rezerwacji.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        if (reservationStatusBlocks($status)) {
+            $reservation = ReservationRepository::find($id);
+
+            if ($reservation !== null) {
+                $hasOverlap = ReservationRepository::hasBlockingOverlap(
+                    (int) $reservation['cabin_id'],
+                    substr((string) $reservation['start_date'], 0, 10),
+                    substr((string) $reservation['end_date'], 0, 10),
+                    $id
+                );
+
+                if ($hasOverlap) {
+                    Response::html(View::render('pages/error', [
+                        'title' => 'Kolizja rezerwacji',
+                        'message' => 'Nie można ustawić statusu blokującego, ponieważ termin koliduje z inną rezerwacją.',
+                    ]), 422);
+
+                    return;
+                }
+            }
+        }
+
+        ReservationRepository::setStatus($id, $status);
+
+        Response::redirect(reservationActionReturnUrlFromPost($id));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się zmienić statusu',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/rezerwacje/szybka-platnosc', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromPost();
+    $paymentStatus = paymentStatusFromPost();
+
+    if ($id === null || $paymentStatus === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można zmienić płatności rezerwacji, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zmienić płatności rezerwacji.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        if ($paymentStatus === 'PAID') {
+            ReservationRepository::markPaid($id);
+        } else {
+            ReservationRepository::setPaymentStatus($id, $paymentStatus);
+        }
+
+        Response::redirect(reservationActionReturnUrlFromPost($id));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się zmienić płatności',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
+$router->post('/admin/rezerwacje/wplata', function (): void {
+    Auth::requireAdmin();
+
+    $id = reservationIdFromPost();
+    $amount = paymentAmountFromPost();
+
+    if ($id === null || $amount === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Podaj prawidłową kwotę wpłaty.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można dodać wpłaty.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        ReservationRepository::addPayment($id, $amount);
+
+        Response::redirect(reservationActionReturnUrlFromPost($id));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się dodać wpłaty',
+            'message' => $exception->getMessage(),
         ]), 500);
     }
 });
