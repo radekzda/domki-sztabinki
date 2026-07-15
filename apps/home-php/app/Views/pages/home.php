@@ -1334,7 +1334,7 @@ $heroBackground = $heroImagePath !== ''
                         Dni oznaczone jako zajęte wynikają z rezerwacji w panelu.
                     </p>
 
-                    <form class="public-availability-form" method="get" action="/">
+                    <form class="public-availability-form" method="get" action="/#dostepnosc">
                         <label class="public-label" for="availability_cabin_id">
                             Wybierz domek
                             <select class="public-select" id="availability_cabin_id" name="availability_cabin_id">
