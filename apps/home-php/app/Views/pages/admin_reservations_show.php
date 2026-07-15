@@ -72,6 +72,79 @@ $displayDateTime = static function (mixed $value): string {
     }
 };
 ?>
+
+<style>
+    .reservation-action-panel {
+        margin: 18px 0 22px;
+        border: 1px solid var(--color-border);
+        border-radius: 18px;
+        background: #ffffff;
+        padding: 16px;
+    }
+
+    .reservation-action-panel__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .reservation-action-panel__header strong {
+        display: block;
+        font-size: 17px;
+        font-weight: 900;
+    }
+
+    .reservation-action-panel__header span {
+        display: block;
+        margin-top: 3px;
+        color: var(--color-muted);
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .reservation-action-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .reservation-action-grid form {
+        margin: 0;
+    }
+
+    .reservation-action-inline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .reservation-action-inline select,
+    .reservation-action-inline input {
+        min-height: 44px;
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        background: #ffffff;
+        padding: 0 14px;
+    }
+
+    .reservation-action-inline input {
+        width: 150px;
+    }
+
+    .button--danger {
+        background: #dc2626;
+        color: #ffffff;
+    }
+
+    .button--danger:hover {
+        background: #991b1b;
+    }
+</style>
+
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
@@ -109,6 +182,141 @@ $displayDateTime = static function (mixed $value): string {
                             <a class="button button--secondary" href="/admin/rezerwacje">
                                 Wróć do listy
                             </a>
+                        </div>
+                    </div>
+
+
+                    <!-- M13.65 reservation action panel -->
+                    <div class="reservation-action-panel">
+                        <div class="reservation-action-panel__header">
+                            <div>
+                                <strong>Akcje rezerwacji</strong>
+                                <span>Szybka obsługa statusu, płatności, wpłaty, anulowania i usuwania.</span>
+                            </div>
+                        </div>
+
+                        <div class="reservation-action-grid">
+                            <form method="post" action="/admin/rezerwacje/szybki-status">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="status" value="CONFIRMED">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                <button class="button button--primary" type="submit">
+                                    Oznacz jako potwierdzona
+                                </button>
+                            </form>
+
+                            <form method="post" action="/admin/rezerwacje/szybki-status">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="status" value="CHECKED_IN">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                <button class="button button--primary" type="submit">
+                                    Oznacz jako zameldowany
+                                </button>
+                            </form>
+
+                            <form method="post" action="/admin/rezerwacje/szybki-status">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="status" value="CHECKED_OUT">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                <button class="button button--secondary" type="submit">
+                                    Oznacz jako wymeldowany
+                                </button>
+                            </form>
+
+                            <form method="post" action="/admin/rezerwacje/szybka-platnosc">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="payment_status" value="PAID">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                <button class="button button--primary" type="submit">
+                                    Oznacz jako opłacona
+                                </button>
+                            </form>
+
+                            <form method="post" action="/admin/rezerwacje/status" class="reservation-action-inline">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+
+                                <select name="status">
+                                    <?php foreach ($statusLabels as $statusValue => $statusLabel): ?>
+                                        <option
+                                            value="<?= htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8') ?>"
+                                            <?= $reservation['status'] === $statusValue ? 'selected' : '' ?>
+                                        >
+                                            <?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+
+                                <button class="button button--primary" type="submit">
+                                    Zmień status
+                                </button>
+                            </form>
+
+                            <form method="post" action="/admin/rezerwacje/platnosc" class="reservation-action-inline">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+
+                                <select name="payment_status">
+                                    <?php foreach ($paymentLabels as $paymentValue => $paymentLabel): ?>
+                                        <option
+                                            value="<?= htmlspecialchars($paymentValue, ENT_QUOTES, 'UTF-8') ?>"
+                                            <?= $reservation['payment_status'] === $paymentValue ? 'selected' : '' ?>
+                                        >
+                                            <?= htmlspecialchars($paymentLabel, ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+
+                                <button class="button button--primary" type="submit">
+                                    Zmień płatność
+                                </button>
+                            </form>
+
+                            <form method="post" action="/admin/rezerwacje/wplata" class="reservation-action-inline">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+                                <input
+                                    name="amount"
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    placeholder="Kwota wpłaty"
+                                    required
+                                >
+
+                                <button class="button button--primary" type="submit">
+                                    Dodaj wpłatę
+                                </button>
+                            </form>
+
+                            <?php if ($reservation['status'] !== 'CANCELLED'): ?>
+                                <form
+                                    method="post"
+                                    action="/admin/rezerwacje/anuluj"
+                                    onsubmit="return confirm('Czy na pewno anulować tę rezerwację?')"
+                                >
+                                    <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+
+                                    <button class="button button--danger" type="submit">
+                                        Anuluj rezerwację
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+
+                            <form
+                                method="post"
+                                action="/admin/rezerwacje/usun"
+                                onsubmit="return confirm('Czy na pewno trwale usunąć tę rezerwację? Tej operacji nie można cofnąć.')"
+                            >
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
+
+                                <button class="button button--danger" type="submit">
+                                    Usuń trwale
+                                </button>
+                            </form>
                         </div>
                     </div>
 
@@ -239,153 +447,7 @@ $displayDateTime = static function (mixed $value): string {
                     <?php endif; ?>
 
                     
-                      <!-- M13.64 quick reservation actions -->
-                      <div class="empty-state">
-                          <strong>Szybkie akcje</strong>
 
-                          <div class="admin-actions">
-                              <form method="post" action="/admin/rezerwacje/szybki-status">
-                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
-                                  <input type="hidden" name="status" value="CONFIRMED">
-                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
-
-                                  <button class="button button--primary" type="submit">
-                                      Oznacz jako potwierdzona
-                                  </button>
-                              </form>
-
-                              <form method="post" action="/admin/rezerwacje/szybki-status">
-                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
-                                  <input type="hidden" name="status" value="CHECKED_IN">
-                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
-
-                                  <button class="button button--primary" type="submit">
-                                      Oznacz jako zameldowany
-                                  </button>
-                              </form>
-
-                              <form method="post" action="/admin/rezerwacje/szybki-status">
-                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
-                                  <input type="hidden" name="status" value="CHECKED_OUT">
-                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
-
-                                  <button class="button button--secondary" type="submit">
-                                      Oznacz jako wymeldowany
-                                  </button>
-                              </form>
-
-                              <form method="post" action="/admin/rezerwacje/szybka-platnosc">
-                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
-                                  <input type="hidden" name="payment_status" value="PAID">
-                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
-
-                                  <button class="button button--primary" type="submit">
-                                      Oznacz jako opłacona
-                                  </button>
-                              </form>
-
-                              <form method="post" action="/admin/rezerwacje/wplata" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-                                  <input type="hidden" name="id" value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>">
-                                  <input type="hidden" name="return_url" value="<?= htmlspecialchars($quickActionReturnUrl, ENT_QUOTES, 'UTF-8') ?>">
-
-                                  <input
-                                      name="amount"
-                                      type="number"
-                                      min="1"
-                                      step="1"
-                                      placeholder="Kwota wpłaty"
-                                      style="min-height: 44px; width: 150px; border: 1px solid var(--color-border); border-radius: 999px; padding: 0 14px;"
-                                      required
-                                  >
-
-                                  <button class="button button--primary" type="submit">
-                                      Dodaj wpłatę
-                                  </button>
-                              </form>
-                          </div>
-                      </div>
-
-<div class="admin-actions">
-                        <form method="post" action="/admin/rezerwacje/status">
-                            <input
-                                type="hidden"
-                                name="id"
-                                value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                            >
-
-                            <select name="status">
-                                <?php foreach ($statusLabels as $statusValue => $statusLabel): ?>
-                                    <option
-                                        value="<?= htmlspecialchars($statusValue, ENT_QUOTES, 'UTF-8') ?>"
-                                        <?= $reservation['status'] === $statusValue ? 'selected' : '' ?>
-                                    >
-                                        <?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-
-                            <button class="button button--primary" type="submit">
-                                Zmień status
-                            </button>
-                        </form>
-
-                        <form method="post" action="/admin/rezerwacje/platnosc">
-                            <input
-                                type="hidden"
-                                name="id"
-                                value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                            >
-
-                            <select name="payment_status">
-                                <?php foreach ($paymentLabels as $paymentValue => $paymentLabel): ?>
-                                    <option
-                                        value="<?= htmlspecialchars($paymentValue, ENT_QUOTES, 'UTF-8') ?>"
-                                        <?= $reservation['payment_status'] === $paymentValue ? 'selected' : '' ?>
-                                    >
-                                        <?= htmlspecialchars($paymentLabel, ENT_QUOTES, 'UTF-8') ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-
-                            <button class="button button--primary" type="submit">
-                                Zmień płatność
-                            </button>
-                        </form>
-
-                        <?php if ($reservation['status'] !== 'CANCELLED'): ?>
-                            <form
-                                method="post"
-                                action="/admin/rezerwacje/anuluj"
-                                onsubmit="return confirm('Czy na pewno anulować tę rezerwację?')"
-                            >
-                                <input
-                                    type="hidden"
-                                    name="id"
-                                    value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                >
-
-                                <button class="button button--secondary" type="submit">
-                                    Anuluj rezerwację
-                                </button>
-                            </form>
-                        <?php endif; ?>
-
-                        <form
-                            method="post"
-                            action="/admin/rezerwacje/usun"
-                            onsubmit="return confirm('Czy na pewno trwale usunąć tę rezerwację? Tej operacji nie można cofnąć.')"
-                        >
-                            <input
-                                type="hidden"
-                                name="id"
-                                value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
-                            >
-
-                            <button class="button button--secondary" type="submit">
-                                Usuń trwale
-                            </button>
-                        </form>
-                    </div>
                 </div>
             </div>
         </div>
