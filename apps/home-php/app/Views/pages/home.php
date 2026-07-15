@@ -742,6 +742,43 @@ $heroBackground = $heroImagePath !== ''
         opacity: 1;
     }
 
+    .public-map-card {
+        display: block;
+        overflow: hidden;
+        border: 1px solid var(--public-border);
+        border-radius: 16px;
+        background: #ffffff;
+        text-decoration: none;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .public-map-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+    }
+
+    .public-map-card iframe {
+        display: block;
+        width: 100%;
+        min-height: 260px;
+        border: 0;
+        pointer-events: none;
+    }
+
+    .public-map-card__caption {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        color: var(--public-muted);
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .public-map-card__caption strong {
+        color: var(--public-text);
+    }
+
     .public-textarea {
         min-height: 120px;
         resize: vertical;
@@ -1798,7 +1835,7 @@ $heroBackground = $heroImagePath !== ''
                                     id="city"
                                     name="city"
                                     type="text"
-                                    placeholder="ul. Jeziorna 12, 16-500 Sejny"
+                                    placeholder="ul. Słoneczna 12, 53-000 Wrocław"
                                     value="<?= htmlspecialchars($form['city'], ENT_QUOTES, 'UTF-8') ?>"
                                 >
                             </label>
@@ -1833,6 +1870,27 @@ $heroBackground = $heroImagePath !== ''
                     <p class="public-kicker">Kontakt</p>
 
                     <h2>Dane kontaktowe</h2>
+
+                        <a
+                            class="public-map-card"
+                            href="https://www.google.com/maps/dir/?api=1&destination=Domki%20Sztabinki%20%C5%BBegary"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Otwórz dojazd do Domków Sztabinki w Google Maps"
+                        >
+                            <iframe
+                                src="https://www.google.com/maps?q=Domki%20Sztabinki%20%C5%BBegary&output=embed"
+                                loading="lazy"
+                                referrerpolicy="no-referrer-when-downgrade"
+                                title="Mapa dojazdu do Domków Sztabinki"
+                            ></iframe>
+
+                            <span class="public-map-card__caption">
+                                <strong>Domki Sztabinki</strong>
+                                <span>Kliknij mapę, aby otworzyć dojazd w Google Maps</span>
+                            </span>
+                        </a>
+
 
                     <div class="public-contact-list">
                         <div class="public-contact-row">
