@@ -1409,6 +1409,67 @@ if (!is_string($inquiryAvailabilityJson)) {
         color: #b54747 !important;
     }
 
+
+    /* M13.77-79 inquiry form refinements */
+    .inquiry-availability-message {
+        display: none;
+        margin-top: 12px;
+        border-radius: 14px;
+        padding: 12px 14px;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.5;
+    }
+
+    .inquiry-availability-message.is-visible {
+        display: block;
+    }
+
+    .inquiry-availability-message--success {
+        border: 1px solid #bbf7d0;
+        background: #f0fdf4;
+        color: #166534;
+    }
+
+    .inquiry-availability-message--warning {
+        border: 1px solid #fde68a;
+        background: #fffbeb;
+        color: #92400e;
+    }
+
+    .inquiry-availability-message--error {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+    }
+
+    .public-date-field--readonly .public-input {
+        background: #f8fafc;
+        color: #334155;
+        cursor: pointer;
+    }
+
+    .public-date-field--readonly .public-help {
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .public-inquiry-submit,
+    button[type="submit"].public-inquiry-submit {
+        min-height: 48px;
+        padding-inline: 28px;
+        font-size: 15px;
+    }
+
+    @media (max-width: 700px) {
+        .public-inquiry-submit,
+        button[type="submit"].public-inquiry-submit {
+            width: 100%;
+        }
+    }
+
 </style>
 
 <section class="public-page">
@@ -2028,6 +2089,11 @@ if (!is_string($inquiryAvailabilityJson)) {
                                     Wybrany termin
                                     <span id="inquiry-selected-date-summary-text"></span>
                                 </div>
+
+                                <div
+                                    class="inquiry-availability-message"
+                                    id="inquiry-availability-message"
+                                ></div>
                             </div>
 
 
@@ -2262,16 +2328,29 @@ if (!is_string($inquiryAvailabilityJson)) {
         const statusBox = document.getElementById('inquiry-availability-status');
         const selectedSummary = document.getElementById('inquiry-selected-date-summary');
         const selectedSummaryText = document.getElementById('inquiry-selected-date-summary-text');
+        const availabilityMessage = document.getElementById('inquiry-availability-message');
         const firstNextField = document.querySelector('input[name="adults"], input[name="guests"], input[name="children"], textarea[name="notes"]');
+        const inquiryForm = cabinSelect.closest('form');
+        const minimumNights = 4;
 
-        if (!cabinSelect || !dateFromInput || !dateToInput || !picker || !monthsContainer || !statusBox || !selectedSummary || !selectedSummaryText) {
+        if (!cabinSelect || !dateFromInput || !dateToInput || !picker || !monthsContainer || !statusBox || !selectedSummary || !selectedSummaryText || !availabilityMessage || !inquiryForm) {
             return;
         }
 
         dateFromInput.readOnly = true;
         dateToInput.readOnly = true;
 
-        const inquiryForm = cabinSelect.closest('form');
+        const dateFromField = dateFromInput.closest('.public-form-field, .public-field, label, div');
+        const dateToField = dateToInput.closest('.public-form-field, .public-field, label, div');
+
+        if (dateFromField) {
+            dateFromField.classList.add('public-date-field--readonly');
+        }
+
+        if (dateToField) {
+            dateToField.classList.add('public-date-field--readonly');
+        }
+
         const cabinField = cabinSelect.closest('.public-form-field, .public-field, label, div');
 
         if (inquiryForm && cabinField && picker.parentElement !== inquiryForm) {
@@ -2365,7 +2444,13 @@ if (!is_string($inquiryAvailabilityJson)) {
             }
 
             const nights = countNights(selectedStart, selectedEnd);
-            const nightsLabel = nights === 1 ? 'noc' : 'noce';
+            let nightsLabel = 'nocy';
+
+            if (nights === 1) {
+                nightsLabel = 'noc';
+            } else if (nights >= 2 && nights <= 4) {
+                nightsLabel = 'noce';
+            }
 
             selectedSummaryText.textContent =
                 'Od ' + formatDateForGuest(selectedStart) +
@@ -2386,6 +2471,52 @@ if (!is_string($inquiryAvailabilityJson)) {
                     block: 'center'
                 });
             }, 180);
+        }
+
+
+        function showAvailabilityMessage(type, message) {
+            availabilityMessage.className = 'inquiry-availability-message is-visible inquiry-availability-message--' + type;
+            availabilityMessage.textContent = message;
+        }
+
+        function hideAvailabilityMessage() {
+            availabilityMessage.className = 'inquiry-availability-message';
+            availabilityMessage.textContent = '';
+        }
+
+        function clearSelectedEndOnly(message) {
+            selectedEnd = '';
+            dateToInput.value = '';
+            selectedSummary.classList.remove('is-visible');
+            selectedSummaryText.textContent = '';
+
+            if (message) {
+                showAvailabilityMessage('warning', message);
+            }
+
+            renderCalendar();
+        }
+
+        function selectedRangeIsValid() {
+            if (!selectedStart || !selectedEnd) {
+                showAvailabilityMessage('warning', 'Wybierz datę przyjazdu i datę wyjazdu z kalendarza.');
+                return false;
+            }
+
+            const nights = countNights(selectedStart, selectedEnd);
+
+            if (nights < minimumNights) {
+                showAvailabilityMessage('warning', 'Minimalny pobyt to ' + minimumNights + ' noce. Wybierz dłuższy termin.');
+                return false;
+            }
+
+            if (rangeTouchesBusy(cabinSelect.value, selectedStart, selectedEnd)) {
+                showAvailabilityMessage('error', 'Ten termin jest niedostępny dla wybranego domku. Wybierz inny termin z kalendarza.');
+                return false;
+            }
+
+            hideAvailabilityMessage();
+            return true;
         }
 
         function isDateBusy(cabinId, dateValue) {
@@ -2532,17 +2663,22 @@ if (!is_string($inquiryAvailabilityJson)) {
                 selectedEnd = '';
                 dateFromInput.value = selectedStart;
                 dateToInput.value = '';
+                hideAvailabilityMessage();
                 renderCalendar();
                 return;
             }
 
+            const nights = countNights(selectedStart, dateValue);
+
+            if (nights < minimumNights) {
+                clearSelectedEndOnly('Minimalny pobyt to ' + minimumNights + ' noce. Wybierz dłuższy termin.');
+                statusBox.textContent = 'Minimalny pobyt to ' + minimumNights + ' noce.';
+                return;
+            }
+
             if (rangeTouchesBusy(cabinId, selectedStart, dateValue)) {
-                selectedStart = dateValue;
-                selectedEnd = '';
-                dateFromInput.value = selectedStart;
-                dateToInput.value = '';
-                renderCalendar();
-                statusBox.textContent = 'Wybrany zakres zahacza o zajęty termin. Wybierz datę wyjazdu ponownie.';
+                clearSelectedEndOnly('Ten termin jest niedostępny dla wybranego domku. Wybierz inny termin z kalendarza.');
+                statusBox.textContent = 'Wybrany zakres zahacza o zajęty termin.';
                 return;
             }
 
@@ -2550,6 +2686,7 @@ if (!is_string($inquiryAvailabilityJson)) {
             dateFromInput.value = selectedStart;
             dateToInput.value = selectedEnd;
             renderCalendar();
+            showAvailabilityMessage('success', 'Termin wygląda na dostępny. Uzupełnij dane i wyślij zapytanie.');
             scrollToNextFields();
         }
 
@@ -2559,6 +2696,7 @@ if (!is_string($inquiryAvailabilityJson)) {
             dateFromInput.value = '';
             dateToInput.value = '';
             updateSelectedSummary();
+            hideAvailabilityMessage();
             renderCalendar();
         });
 
@@ -2572,6 +2710,20 @@ if (!is_string($inquiryAvailabilityJson)) {
             selectedStart = dateFromInput.value;
             selectedEnd = dateToInput.value;
             renderCalendar();
+        });
+
+        inquiryForm.addEventListener('submit', function (event) {
+            selectedStart = dateFromInput.value;
+            selectedEnd = dateToInput.value;
+
+            if (!selectedRangeIsValid()) {
+                event.preventDefault();
+                picker.classList.add('is-visible');
+                picker.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
         });
 
         if (cabinSelect.value) {
