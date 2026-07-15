@@ -412,6 +412,19 @@ if (!is_string($inquiryAvailabilityJson)) {
     $inquiryAvailabilityJson = '{}';
 }
 
+// M13.80 public minimum nights from settings
+$publicMinimumNights = 4;
+
+if (isset($settings) && is_array($settings)) {
+    $settingsMinimumNights = $settings['minimum_nights'] ?? null;
+
+    if (is_string($settingsMinimumNights) && ctype_digit($settingsMinimumNights)) {
+        $publicMinimumNights = max(1, (int) $settingsMinimumNights);
+    } elseif (is_int($settingsMinimumNights)) {
+        $publicMinimumNights = max(1, $settingsMinimumNights);
+    }
+}
+
 ?>
 
 <style>
@@ -2331,7 +2344,7 @@ if (!is_string($inquiryAvailabilityJson)) {
         const availabilityMessage = document.getElementById('inquiry-availability-message');
         const firstNextField = document.querySelector('input[name="adults"], input[name="guests"], input[name="children"], textarea[name="notes"]');
         const inquiryForm = cabinSelect.closest('form');
-        const minimumNights = 4;
+        const minimumNights = <?= json_encode($publicMinimumNights, JSON_THROW_ON_ERROR) ?>;
 
         if (!cabinSelect || !dateFromInput || !dateToInput || !picker || !monthsContainer || !statusBox || !selectedSummary || !selectedSummaryText || !availabilityMessage || !inquiryForm) {
             return;
@@ -2436,6 +2449,18 @@ if (!is_string($inquiryAvailabilityJson)) {
             return Math.round((endDate - startDate) / 86400000);
         }
 
+        function formatNightsForGuest(nights) {
+            if (nights === 1) {
+                return '1 noc';
+            }
+
+            if (nights >= 2 && nights <= 4) {
+                return nights + ' noce';
+            }
+
+            return nights + ' nocy';
+        }
+
         function updateSelectedSummary() {
             if (!selectedStart || !selectedEnd) {
                 selectedSummary.classList.remove('is-visible');
@@ -2506,7 +2531,7 @@ if (!is_string($inquiryAvailabilityJson)) {
             const nights = countNights(selectedStart, selectedEnd);
 
             if (nights < minimumNights) {
-                showAvailabilityMessage('warning', 'Minimalny pobyt to ' + minimumNights + ' noce. Wybierz dłuższy termin.');
+                showAvailabilityMessage('warning', 'Minimalny pobyt to ' + formatNightsForGuest(minimumNights) + '. Wybierz dłuższy termin.');
                 return false;
             }
 
@@ -2671,8 +2696,8 @@ if (!is_string($inquiryAvailabilityJson)) {
             const nights = countNights(selectedStart, dateValue);
 
             if (nights < minimumNights) {
-                clearSelectedEndOnly('Minimalny pobyt to ' + minimumNights + ' noce. Wybierz dłuższy termin.');
-                statusBox.textContent = 'Minimalny pobyt to ' + minimumNights + ' noce.';
+                clearSelectedEndOnly('Minimalny pobyt to ' + formatNightsForGuest(minimumNights) + '. Wybierz dłuższy termin.');
+                statusBox.textContent = 'Minimalny pobyt to ' + formatNightsForGuest(minimumNights) + '.';
                 return;
             }
 
