@@ -26,7 +26,31 @@ declare(strict_types=1);
  * @var string|null $databaseMessage
  * @var string|null $successMessage
  */
+
+// M13.70 cabin delete messages
+if (isset($_GET['deleted'])) {
+    $successMessage = 'Domek został usunięty.';
+}
+
+if (isset($_GET['delete_blocked'])) {
+    $successMessage = 'Nie można usunąć domku, ponieważ ma rezerwacje. Możesz go ukryć.';
+}
+
 ?>
+
+<style>
+    /* M13.70 cabin delete button */
+    .button--danger {
+        background: #dc2626;
+        color: #ffffff;
+    }
+
+    .button--danger:hover {
+        background: #991b1b;
+    }
+</style>
+
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
@@ -212,6 +236,24 @@ declare(strict_types=1);
                                                                 Aktywuj
                                                             </button>
                                                         <?php endif; ?>
+                                                    </form>
+
+                                                    <form
+                                                        method="post"
+                                                        action="/admin/domki/usun"
+                                                        onsubmit="return confirm('Czy na pewno usunąć ten domek? Tej operacji nie można cofnąć.')"
+                                                    >
+                                                        <?= csrfField() ?>
+
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <button class="button button--danger button--small" type="submit" style="width: 100%;">
+                                                            Usuń
+                                                        </button>
                                                     </form>
                                                 </div>
                                             </td>

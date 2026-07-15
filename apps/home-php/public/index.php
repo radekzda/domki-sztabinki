@@ -304,6 +304,47 @@ $router->post('/admin/domki/status', function (): void {
     }
 });
 
+
+$router->post('/admin/domki/usun', function (): void {
+    Auth::requireAdmin();
+    requireValidCsrf();
+
+    $id = cabinIdFromPost();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można usunąć domku, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można usunąć domku.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        if (CabinRepository::hasReservations($id)) {
+            Response::redirect('/admin/domki?delete_blocked=1');
+        }
+
+        CabinRepository::delete($id);
+
+        Response::redirect('/admin/domki?deleted=1');
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się usunąć domku',
+            'message' => $exception->getMessage(),
+        ]), 500);
+    }
+});
+
 $router->get('/admin/domki/edytuj', function (): void {
     Auth::requireAdmin();
 

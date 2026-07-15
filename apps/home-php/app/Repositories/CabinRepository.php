@@ -319,6 +319,44 @@ final class CabinRepository
         ]);
     }
 
+    public static function hasReservations(int $id): bool
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT COUNT(*) AS total
+             FROM reservations
+             WHERE cabin_id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+        ]);
+
+        $row = $statement->fetch();
+
+        if (!is_array($row)) {
+            return false;
+        }
+
+        return (int) ($row['total'] ?? 0) > 0;
+    }
+
+    public static function delete(int $id): void
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'DELETE FROM cabins
+             WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+        ]);
+    }
+
+
     public static function setActive(int $id, bool $isActive): void
     {
         $connection = Database::connection();
