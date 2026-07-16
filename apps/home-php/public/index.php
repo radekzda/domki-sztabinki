@@ -16,6 +16,7 @@ require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
+require dirname(__DIR__) . '/app/Support/PublicFormGuard.php';
 require dirname(__DIR__) . '/app/Support/ImageUploader.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/CabinImageRepository.php';
@@ -42,6 +43,8 @@ $router->get('/', function (): void {
 });
 
 $router->post('/zapytanie', function (): void {
+    requireValidCsrf();
+    PublicFormGuard::validate($_POST);
     $form = publicInquiryFormFromPost();
     $settings = defaultSettingsForm();
     $errors = [];

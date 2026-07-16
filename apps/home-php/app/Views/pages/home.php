@@ -1581,6 +1581,18 @@ if (isset($settings) && is_array($settings)) {
         margin-top: 0;
     }
 
+
+    .public-honeypot {
+        position: absolute !important;
+        left: -10000px !important;
+        top: auto !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
 </style>
 
 <section class="public-page">
@@ -2106,6 +2118,18 @@ if (isset($settings) && is_array($settings)) {
                     <?php endif; ?>
 
                     <form method="post" action="/zapytanie#zapytanie">
+                        <div class="public-honeypot" aria-hidden="true">
+                            <label>
+                                Strona internetowa
+                                <input
+                                    type="text"
+                                    name="website"
+                                    value=""
+                                    tabindex="-1"
+                                    autocomplete="off"
+                                >
+                            </label>
+                        </div>
     <?= csrfField() ?>
                         <div class="public-form-grid">
                             <label class="public-label" for="first_name">
