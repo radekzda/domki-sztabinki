@@ -2358,15 +2358,6 @@ if (isset($settings) && is_array($settings)) {
                             <span>E-mail</span>
                             <strong><?= htmlspecialchars($settings['contact_email'] !== '' ? $settings['contact_email'] : 'radekzdancewicz@gmail.com', ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
-
-                        <div class="public-contact-row">
-                            <span></span>
-                            <strong>
-                                <?= htmlspecialchars($settings['address_line'], ENT_QUOTES, 'UTF-8') ?><br>
-                                <?= htmlspecialchars($settings['postal_code'], ENT_QUOTES, 'UTF-8') ?>
-                                <?= htmlspecialchars($settings['city'], ENT_QUOTES, 'UTF-8') ?>
-                            </strong>
-                        </div>
                     </div>
                 </aside>
             </div>
