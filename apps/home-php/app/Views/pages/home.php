@@ -29,7 +29,7 @@ $inquiryMessage = isset($publicDatabaseMessage) && is_string($publicDatabaseMess
     : null;
 
 $successMessage = isset($_GET['inquiry_sent'])
-    ? 'Dziękujemy. Zapytanie zostało wysłane. Odpowiemy najszybciej jak to możliwe.'
+    ? 'Dziękujemy.  zostało wysłane. Odpowiemy najszybciej jak to możliwe.'
     : null;
 
 $requestedAvailabilityMonth = isset($_GET['availability_month'])
@@ -1498,7 +1498,7 @@ if (isset($settings) && is_array($settings)) {
                 <a href="#dostepnosc">Dostępność</a>
                 <a href="#atrakcje">Atrakcje</a>
                 <a href="#galeria">Galeria</a>
-                <a href="#cennik">Cennik</a>
+                <a href="#cennik"></a>
                 <a href="#kontakt">Kontakt</a>
             </div>
 
@@ -1517,7 +1517,7 @@ if (isset($settings) && is_array($settings)) {
 
                 <p>
                     Komfortowe domki w spokojnej okolicy, blisko natury i wody.
-                    Idealne miejsce na rodzinny wypoczynek, weekend z przyjaciółmi
+                    Idealne miejsce na rodzinny wypoczynek, tydzień z przyjaciółmi
                     i spokojny odpoczynek z dala od zgiełku.
                 </p>
 
@@ -1592,13 +1592,13 @@ if (isset($settings) && is_array($settings)) {
         <div class="public-wrap">
             <div class="public-section__head">
                 <div>
-                    <p class="public-kicker">Oferta</p>
+                    
 
                     <h2>Nasze domki</h2>
 
                     <p>
                         Wybierz domek, sprawdź dostępność i wyślij zapytanie.
-                        Układ jest przygotowany pod cztery domki.
+                        
                     </p>
                 </div>
 
@@ -1626,11 +1626,6 @@ if (isset($settings) && is_array($settings)) {
                         $cabinId = $cabinInt($offerCabin, 'id', 0);
                         $cabinName = $cabinString($offerCabin, 'name', 'Domek');
                         $cabinShortName = $cabinString($offerCabin, 'short_name', 'Domek');
-                        $cabinDescription = $cabinString(
-                            $offerCabin,
-                            'description',
-                            'Komfortowy domek letniskowy nad jeziorem w spokojnej okolicy.'
-                        );
                         $image = $cabinImages[$cabinId] ?? null;
                         ?>
 
@@ -1651,14 +1646,37 @@ if (isset($settings) && is_array($settings)) {
                             <div class="public-cabin-card__body">
                                 <h3><?= htmlspecialchars($cabinName, ENT_QUOTES, 'UTF-8') ?></h3>
 
-                                <p>
-                                    <?= htmlspecialchars($cabinDescription, ENT_QUOTES, 'UTF-8') ?>
-                                </p>
-
                                 <div class="public-cabin-meta">
                                     <span><?= htmlspecialchars((string) $cabinInt($offerCabin, 'max_guests', 6), ENT_QUOTES, 'UTF-8') ?> osób</span>
                                     <span><?= htmlspecialchars((string) $cabinInt($offerCabin, 'bedrooms', 2), ENT_QUOTES, 'UTF-8') ?> sypialnie</span>
                                     <span>Wi-Fi</span>
+                                </div>
+
+                                <div class="public-cabin-details">
+                                    <button
+                                        class="public-cabin-details__toggle"
+                                        type="button"
+                                        data-cabin-details-toggle
+                                        aria-expanded="false"
+                                    >
+                                        Opis domku
+                                    </button>
+
+                                    <div class="public-cabin-details__content">
+                                        <p>
+                                            Domek ma około 48 m² i jest przygotowany dla maksymalnie 6 osób.
+                                        </p>
+
+                                        <ul>
+                                            <li>Salon z aneksem kuchennym i sofą.</li>
+                                            <li>Sypialnia z łóżkiem podwójnym.</li>
+                                            <li>Druga sypialnia z dwoma łóżkami pojedynczymi.</li>
+                                            <li>Łazienka z prysznicem.</li>
+                                            <li>Wi-Fi, Smart TV, klimatyzacja, ogrzewanie.</li>
+                                            <li>Lodówka, indukcja, mikrofalówka, zmywarka, ekspres do kawy.</li>
+                                            <li>Taras, altana, grill i sprzęt wodny.</li>
+                                        </ul>
+                                    </div>
                                 </div>
 
                                 <div class="public-cabin-actions">
@@ -1677,7 +1695,8 @@ if (isset($settings) && is_array($settings)) {
                                     </a>
                                 </div>
                             </div>
-                        </article>
+
+</article>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
@@ -1688,13 +1707,12 @@ if (isset($settings) && is_array($settings)) {
         <div class="public-wrap">
             <div class="public-availability">
                 <div>
-                    <p class="public-kicker">Dostępność</p>
+                    <p class="public-kicker"><h2>Sprawdź dostępność</h2></p>
 
-                    <h2>Sprawdź dostępność</h2>
+                    
 
                     <p>
-                        Wybierz domek i zobacz najbliższe 3 miesiące.
-                        Dni oznaczone jako zajęte wynikają z rezerwacji w panelu.
+                        Wybierz domek i zobacz dostępność na najbliższe 3 miesiące.
                     </p>
 
                     <form class="public-availability-form" method="get" action="/#dostepnosc">
@@ -1870,10 +1888,10 @@ if (isset($settings) && is_array($settings)) {
                     <div>
                         <p class="public-kicker">Galeria</p>
 
-                        <h2>Zdjęcia z Domków Sztabinki</h2>
+                        <h2></h2>
 
                         <p>
-                            Zobacz otoczenie, domki, jezioro i miejsca przygotowane do wypoczynku.
+                            
                         </p>
                     </div>
 
@@ -1906,7 +1924,7 @@ if (isset($settings) && is_array($settings)) {
         <div class="public-wrap">
             <div class="public-section__head">
                 <div>
-                    <p class="public-kicker">Cennik</p>
+                    
 
                     <h2>Przejrzyste ceny</h2>
 
@@ -1959,13 +1977,12 @@ if (isset($settings) && is_array($settings)) {
         <div class="public-wrap">
             <div class="public-bottom-grid">
                 <div class="public-form-card">
-                    <p class="public-kicker">Zapytanie</p>
+                    
 
                     <h2>Zapytaj o termin</h2>
 
                     <p style="color: var(--public-muted); line-height: 1.7;">
-                        Wypełnij formularz. Zapytanie trafi do panelu administratora,
-                        a my odpowiemy z potwierdzeniem dostępności i ceny.
+                        Wypełnij i wyślij formularz, a my odpowiemy z potwierdzeniem dostępności i ceny.
                     </p>
 
                     <?php if (isset($successMessage) && is_string($successMessage) && $successMessage !== ''): ?>
@@ -2047,7 +2064,7 @@ if (isset($settings) && is_array($settings)) {
                                     id="email"
                                     name="email"
                                     type="email"
-                                    placeholder="jan.kowalski@example.com"
+                                    placeholder="radekzdancewicz@gmail.com"
                                     value="<?= htmlspecialchars($form['email'], ENT_QUOTES, 'UTF-8') ?>"
                                 >
 
@@ -2185,7 +2202,7 @@ if (isset($settings) && is_array($settings)) {
                             </label>
 
                             <label class="public-label" for="city">
-                                Adres
+                                
                                 <input
                                     class="public-input"
                                     id="city"
@@ -2225,7 +2242,7 @@ if (isset($settings) && is_array($settings)) {
                 <aside class="public-contact-card" id="kontakt">
                     <p class="public-kicker">Kontakt</p>
 
-                    <h2>Dane kontaktowe</h2>
+                    <h2></h2>
 
                         <a
                             class="public-map-card"
@@ -2265,7 +2282,7 @@ if (isset($settings) && is_array($settings)) {
                         </div>
 
                         <div class="public-contact-row">
-                            <span>Adres</span>
+                            <span></span>
                             <strong>
                                 <?= htmlspecialchars($settings['address_line'], ENT_QUOTES, 'UTF-8') ?><br>
                                 <?= htmlspecialchars($settings['postal_code'], ENT_QUOTES, 'UTF-8') ?>
@@ -2760,3 +2777,25 @@ if (isset($settings) && is_array($settings)) {
     });
 </script>
 
+<style>
+.cabin-description-tooltip {
+    display:none;
+}
+.cabin-description-tooltip.is-open {
+    display:block;
+}
+</style>
+
+<script>
+document.addEventListener('click', function(event) {
+    const button = event.target.closest('[data-description-toggle]');
+    if (!button) {
+        return;
+    }
+
+    const box = button.nextElementSibling;
+    if (box) {
+        box.classList.toggle('is-open');
+    }
+});
+</script>
