@@ -73,7 +73,7 @@ final class CabinImportController
             Response::html(View::render('pages/admin_cabins_import', [
                 'title' => 'Import domków',
                 'result' => null,
-                'errorMessage' => 'Import przerwany: ' . $exception->getMessage(),
+                'errorMessage' => 'Import przerwany: ' . AppErrorHandler::safeMessage($exception),
             ]));
         }
     }
@@ -185,7 +185,7 @@ final class CabinImportController
             $pdo->rollBack();
             fclose($handle);
 
-            throw new RuntimeException('Błąd w okolicy wiersza ' . $rowNumber . ': ' . $exception->getMessage());
+            throw new RuntimeException('Błąd w okolicy wiersza ' . $rowNumber . ': ' . AppErrorHandler::safeMessage($exception));
         }
 
         fclose($handle);

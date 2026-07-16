@@ -139,7 +139,7 @@ final class Database
             $checks[] = [
                 'label' => 'Połączenie z MySQL',
                 'status' => 'danger',
-                'value' => $exception->getMessage(),
+                'value' => AppErrorHandler::safeMessage($exception),
             ];
         }
 

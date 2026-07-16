@@ -96,7 +96,7 @@ if (!Database::canAttemptConnection()) {
 
         $reservations = ReservationRepository::all();
     } catch (Throwable $exception) {
-        $databaseMessage = 'Nie udało się pobrać danych kalendarza: ' . $exception->getMessage();
+        $databaseMessage = 'Nie udało się pobrać danych kalendarza: ' . AppErrorHandler::safeMessage($exception);
         $cabins = [];
         $reservations = [];
     }

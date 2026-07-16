@@ -21,7 +21,7 @@ final class MediaController
             $databaseMessage = null;
         } catch (Throwable $exception) {
             $images = [];
-            $databaseMessage = 'Nie udało się pobrać zdjęć strony: ' . $exception->getMessage();
+            $databaseMessage = 'Nie udało się pobrać zdjęć strony: ' . AppErrorHandler::safeMessage($exception);
         }
 
         Response::html(View::render('pages/admin_media', [
@@ -56,7 +56,7 @@ final class MediaController
 
             throw new RuntimeException('Nieznana akcja.');
         } catch (Throwable $exception) {
-            self::renderError($exception->getMessage());
+            self::renderError(AppErrorHandler::safeMessage($exception));
         }
     }
 
@@ -113,7 +113,7 @@ final class MediaController
                 'site-' . strtolower($imageType)
             );
         } catch (RuntimeException $exception) {
-            self::renderWithError($exception->getMessage());
+            self::renderWithError(AppErrorHandler::safeMessage($exception));
 
             return;
         }
@@ -144,7 +144,7 @@ final class MediaController
             $databaseMessage = null;
         } catch (Throwable $databaseException) {
             $images = [];
-            $databaseMessage = 'Nie udało się pobrać zdjęć strony: ' . $databaseException->getMessage();
+            $databaseMessage = 'Nie udało się pobrać zdjęć strony: ' . AppErrorHandler::safeMessage($databaseException);
         }
 
         Response::html(View::render('pages/admin_media', [

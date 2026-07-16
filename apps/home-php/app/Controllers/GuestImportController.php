@@ -73,7 +73,7 @@ final class GuestImportController
             Response::html(View::render('pages/admin_guests_import', [
                 'title' => 'Import gości',
                 'result' => null,
-                'errorMessage' => 'Import przerwany: ' . $exception->getMessage(),
+                'errorMessage' => 'Import przerwany: ' . AppErrorHandler::safeMessage($exception),
             ]));
         }
     }
@@ -144,7 +144,7 @@ final class GuestImportController
             $pdo->rollBack();
             fclose($handle);
 
-            throw new RuntimeException('Błąd w okolicy wiersza ' . $rowNumber . ': ' . $exception->getMessage());
+            throw new RuntimeException('Błąd w okolicy wiersza ' . $rowNumber . ': ' . AppErrorHandler::safeMessage($exception));
         }
 
         fclose($handle);

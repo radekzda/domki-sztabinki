@@ -12,6 +12,9 @@ date_default_timezone_set($config['timezone'] ?? 'Europe/Warsaw');
 
 require dirname(__DIR__) . '/app/Core/Response.php';
 require dirname(__DIR__) . '/app/Core/View.php';
+require dirname(__DIR__) . '/app/Core/AppErrorHandler.php';
+
+AppErrorHandler::register($config, dirname(__DIR__));
 require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
@@ -67,7 +70,7 @@ $router->post('/zapytanie', function (): void {
     try {
         $settings = SettingsRepository::all();
     } catch (Throwable $exception) {
-        $databaseMessage = 'Nie udało się pobrać ustawień: ' . $exception->getMessage();
+        $databaseMessage = 'Nie udało się pobrać ustawień: ' . AppErrorHandler::safeMessage($exception);
     }
 
     $errors = validatePublicInquiryForm($form, $settings);
@@ -111,7 +114,7 @@ $router->post('/zapytanie', function (): void {
             'inquiryErrors' => [
                 'date_from' => 'Nie udało się zapisać zapytania.',
             ],
-            'publicDatabaseMessage' => 'Nie udało się zapisać zapytania: ' . $exception->getMessage(),
+            'publicDatabaseMessage' => 'Nie udało się zapisać zapytania: ' . AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -199,7 +202,7 @@ $router->get('/admin/domki', function (): void {
         try {
             $cabins = CabinRepository::all();
         } catch (Throwable $exception) {
-            $databaseMessage = 'Nie udało się pobrać listy domków z bazy: ' . $exception->getMessage();
+            $databaseMessage = 'Nie udało się pobrać listy domków z bazy: ' . AppErrorHandler::safeMessage($exception);
         }
     }
 
@@ -274,7 +277,7 @@ $router->post('/admin/domki/nowy', function (): void {
             'title' => 'Dodaj domek',
             'form' => $form,
             'errors' => [],
-            'databaseMessage' => 'Nie udało się zapisać domku: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się zapisać domku: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => true,
         ]), 500);
     }
@@ -312,7 +315,7 @@ $router->post('/admin/domki/status', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić statusu',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -353,7 +356,7 @@ $router->post('/admin/domki/usun', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się usunąć domku',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -411,7 +414,7 @@ $router->get('/admin/domki/edytuj', function (): void {
             'id' => $id,
             'form' => defaultCabinForm(),
             'errors' => [],
-            'databaseMessage' => 'Nie udało się pobrać danych domku: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się pobrać danych domku: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => false,
         ]), 500);
     }
@@ -471,7 +474,7 @@ $router->post('/admin/domki/edytuj', function (): void {
             'id' => $id,
             'form' => $form,
             'errors' => [],
-            'databaseMessage' => 'Nie udało się zapisać zmian: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się zapisać zmian: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => true,
         ]), 500);
     }
@@ -538,7 +541,7 @@ $router->get('/admin/domki/zdjecia', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się pobrać zdjęć',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -611,7 +614,7 @@ $router->post('/admin/domki/zdjecia/dodaj', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Błąd uploadu',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 422);
     }
 });
@@ -648,7 +651,7 @@ $router->post('/admin/domki/zdjecia/glowne', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się ustawić zdjęcia głównego',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -695,7 +698,7 @@ $router->post('/admin/domki/zdjecia/usun', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się usunąć zdjęcia',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -737,7 +740,7 @@ $router->get('/admin/rezerwacje', function (): void {
         try {
             $reservations = ReservationRepository::all();
         } catch (Throwable $exception) {
-            $databaseMessage = 'Nie udało się pobrać listy rezerwacji z bazy: ' . $exception->getMessage();
+            $databaseMessage = 'Nie udało się pobrać listy rezerwacji z bazy: ' . AppErrorHandler::safeMessage($exception);
         }
     }
 
@@ -785,7 +788,7 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
                 }
             }
         } catch (Throwable $exception) {
-            $databaseMessage = 'Nie udało się pobrać danych do formularza: ' . $exception->getMessage();
+            $databaseMessage = 'Nie udało się pobrać danych do formularza: ' . AppErrorHandler::safeMessage($exception);
         }
     }
 
@@ -896,7 +899,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'errors' => $errors,
             'cabins' => [],
             'guests' => [],
-            'databaseMessage' => 'Nie udało się pobrać danych do formularza: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się pobrać danych do formularza: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
@@ -972,7 +975,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'errors' => [],
             'cabins' => $cabins,
             'guests' => $guests,
-            'databaseMessage' => 'Nie udało się zapisać rezerwacji: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się zapisać rezerwacji: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
@@ -1022,7 +1025,7 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się pobrać rezerwacji',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1093,7 +1096,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
             'errors' => [],
             'cabins' => [],
             'guests' => [],
-            'databaseMessage' => 'Nie udało się pobrać rezerwacji: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się pobrać rezerwacji: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
@@ -1154,7 +1157,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'errors' => $errors,
             'cabins' => [],
             'guests' => [],
-            'databaseMessage' => 'Nie udało się pobrać danych do formularza: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się pobrać danych do formularza: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
@@ -1234,7 +1237,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'errors' => [],
             'cabins' => $cabins,
             'guests' => $guests,
-            'databaseMessage' => 'Nie udało się zapisać rezerwacji: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się zapisać rezerwacji: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
@@ -1297,7 +1300,7 @@ $router->post('/admin/rezerwacje/szybki-status', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić statusu',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1338,7 +1341,7 @@ $router->post('/admin/rezerwacje/szybka-platnosc', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić płatności',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1375,7 +1378,7 @@ $router->post('/admin/rezerwacje/wplata', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się dodać wpłaty',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1441,7 +1444,7 @@ $router->post('/admin/rezerwacje/status', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić statusu',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1478,7 +1481,7 @@ $router->post('/admin/rezerwacje/platnosc', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić płatności',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1514,7 +1517,7 @@ $router->post('/admin/rezerwacje/anuluj', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się anulować rezerwacji',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1550,7 +1553,7 @@ $router->post('/admin/rezerwacje/usun', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się usunąć rezerwacji',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1584,7 +1587,7 @@ $router->get('/admin/goscie', function (): void {
         try {
             $guests = GuestRepository::all();
         } catch (Throwable $exception) {
-            $databaseMessage = 'Nie udało się pobrać listy gości z bazy: ' . $exception->getMessage();
+            $databaseMessage = 'Nie udało się pobrać listy gości z bazy: ' . AppErrorHandler::safeMessage($exception);
         }
     }
 
@@ -1659,7 +1662,7 @@ $router->post('/admin/goscie/nowy', function (): void {
             'title' => 'Dodaj gościa',
             'form' => $form,
             'errors' => [],
-            'databaseMessage' => 'Nie udało się zapisać gościa: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się zapisać gościa: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => true,
         ]), 500);
     }
@@ -1710,7 +1713,7 @@ $router->get('/admin/goscie/pokaz', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się pobrać gościa',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1768,7 +1771,7 @@ $router->get('/admin/goscie/edytuj', function (): void {
             'id' => $id,
             'form' => defaultGuestForm(),
             'errors' => [],
-            'databaseMessage' => 'Nie udało się pobrać gościa: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się pobrać gościa: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => false,
         ]), 500);
     }
@@ -1828,7 +1831,7 @@ $router->post('/admin/goscie/edytuj', function (): void {
             'id' => $id,
             'form' => $form,
             'errors' => [],
-            'databaseMessage' => 'Nie udało się zapisać gościa: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się zapisać gościa: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => true,
         ]), 500);
     }
@@ -1866,7 +1869,7 @@ $router->post('/admin/goscie/vip', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić VIP',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1902,7 +1905,7 @@ $router->post('/admin/goscie/usun', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się usunąć gościa',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -1928,7 +1931,7 @@ $router->get('/admin/zapytania', function (): void {
         try {
             $inquiries = InquiryRepository::all();
         } catch (Throwable $exception) {
-            $databaseMessage = 'Nie udało się pobrać listy zapytań z bazy: ' . $exception->getMessage();
+            $databaseMessage = 'Nie udało się pobrać listy zapytań z bazy: ' . AppErrorHandler::safeMessage($exception);
         }
     }
 
@@ -1982,7 +1985,7 @@ $router->get('/admin/zapytania/pokaz', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się pobrać zapytania',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -2019,7 +2022,7 @@ $router->post('/admin/zapytania/status', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się zmienić statusu zapytania',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -2055,7 +2058,7 @@ $router->post('/admin/zapytania/usun', function (): void {
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
             'title' => 'Nie udało się usunąć zapytania',
-            'message' => $exception->getMessage(),
+            'message' => AppErrorHandler::safeMessage($exception),
         ]), 500);
     }
 });
@@ -2094,7 +2097,7 @@ $router->get('/admin/ustawienia', function (): void {
         try {
             $form = SettingsRepository::all();
         } catch (Throwable $exception) {
-            $databaseMessage = 'Nie udało się pobrać ustawień: ' . $exception->getMessage();
+            $databaseMessage = 'Nie udało się pobrać ustawień: ' . AppErrorHandler::safeMessage($exception);
         }
     }
 
@@ -2150,7 +2153,7 @@ $router->post('/admin/ustawienia', function (): void {
             'title' => 'Ustawienia',
             'form' => $form,
             'errors' => [],
-            'databaseMessage' => 'Nie udało się zapisać ustawień: ' . $exception->getMessage(),
+            'databaseMessage' => 'Nie udało się zapisać ustawień: ' . AppErrorHandler::safeMessage($exception),
             'successMessage' => null,
             'canSave' => true,
         ]), 500);
@@ -2221,7 +2224,7 @@ $router->post('/admin/system/database/install', function (): void {
         $message = 'Instalator zakończył pracę poprawnie. Wykonano poleceń SQL: ' . $executedStatements . '.';
         $messageType = 'success';
     } catch (Throwable $exception) {
-        $message = 'Nie udało się uruchomić instalatora: ' . $exception->getMessage();
+        $message = 'Nie udało się uruchomić instalatora: ' . AppErrorHandler::safeMessage($exception);
         $messageType = 'danger';
     }
 
@@ -2260,7 +2263,7 @@ $router->post('/admin/system/database/seed', function (): void {
         $message = 'Dane startowe zostały wgrane poprawnie. Wykonano poleceń SQL: ' . $executedStatements . '.';
         $messageType = 'success';
     } catch (Throwable $exception) {
-        $message = 'Nie udało się wgrać danych startowych: ' . $exception->getMessage();
+        $message = 'Nie udało się wgrać danych startowych: ' . AppErrorHandler::safeMessage($exception);
         $messageType = 'danger';
     }
 

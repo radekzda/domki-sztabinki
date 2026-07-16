@@ -41,7 +41,7 @@ final class ImportAuditController
         } catch (Throwable $exception) {
             Response::html(View::render('pages/admin_import_audit', [
                 'title' => 'Kontrola importu',
-                'databaseMessage' => 'Nie udało się wykonać kontroli importu: ' . $exception->getMessage(),
+                'databaseMessage' => 'Nie udało się wykonać kontroli importu: ' . AppErrorHandler::safeMessage($exception),
                 'summary' => [],
                 'reservationStatuses' => [],
                 'paymentStatuses' => [],

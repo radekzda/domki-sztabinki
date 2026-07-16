@@ -115,7 +115,7 @@ if (!Database::canAttemptConnection()) {
     try {
         $settings = SettingsRepository::all();
     } catch (Throwable $exception) {
-        $databaseMessage = 'Nie udało się pobrać ustawień publicznych z bazy: ' . $exception->getMessage();
+        $databaseMessage = 'Nie udało się pobrać ustawień publicznych z bazy: ' . AppErrorHandler::safeMessage($exception);
     }
 
     try {
@@ -129,7 +129,7 @@ if (!Database::canAttemptConnection()) {
             $cabins[] = $loadedCabin;
         }
     } catch (Throwable $exception) {
-        $databaseMessage = 'Nie udało się pobrać domków publicznych z bazy: ' . $exception->getMessage();
+        $databaseMessage = 'Nie udało się pobrać domków publicznych z bazy: ' . AppErrorHandler::safeMessage($exception);
     }
 
     foreach ($cabins as $loadedCabin) {
