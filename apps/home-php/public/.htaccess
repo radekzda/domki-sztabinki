@@ -1,9 +1,31 @@
+# Domki Sztabinki PMS
+# Public web root security and routing.
+
 Options -Indexes
 
-RewriteEngine On
+# Block accidental exposure of sensitive files copied to public/.
+<FilesMatch "(^\.env|\.ini$|\.log$|\.sql$|\.sqlite$|\.sqlite3$|\.bak$|\.backup$|\.old$|\.orig$|\.save$|\.swp$|\.tmp$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
 
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+    <IfModule !mod_authz_core.c>
+        Deny from all
+    </IfModule>
+</FilesMatch>
 
-RewriteRule ^ index.php [L]
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    RewriteRule ^ index.php [L]
+</IfModule>

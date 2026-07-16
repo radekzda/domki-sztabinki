@@ -1,0 +1,30 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Runtime logs
+storage/logs/*
+!storage/logs/.gitignore
+
+# Temporary import files and personal data
+storage/imports/*
+!storage/imports/.gitignore
+!storage/imports/.gitkeep
+
+# Local/private uploads
+storage/uploads/*
+!storage/uploads/.gitkeep
+
+# Temporary and backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+*.swp
+*.tmp
+
+# OS / editor
+.DS_Store
+Thumbs.db
