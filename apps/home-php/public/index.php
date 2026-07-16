@@ -16,6 +16,7 @@ require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
+require dirname(__DIR__) . '/app/Support/ImageUploader.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/CabinImageRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
@@ -535,13 +536,12 @@ $router->post('/admin/domki/zdjecia/dodaj', function (): void {
     Auth::requireAdmin();
     requireValidCsrf();
 
-    $cabinIdValue = $_POST['cabin_id'] ?? null;
-    $cabinId = filter_var($cabinIdValue, FILTER_VALIDATE_INT);
+    $cabinId = filter_var($_POST['cabin_id'] ?? null, FILTER_VALIDATE_INT);
 
     if (!is_int($cabinId) || $cabinId < 1) {
         Response::html(View::render('pages/error', [
             'title' => 'Nieprawidłowe dane',
-            'message' => 'Brakuje prawidłowego identyfikatora domku.',
+            'message' => 'Nie można dodać zdjęcia, ponieważ identyfikator domku jest nieprawidłowy.',
         ]), 400);
 
         return;
@@ -562,136 +562,46 @@ $router->post('/admin/domki/zdjecia/dodaj', function (): void {
         if ($cabin === null) {
             Response::html(View::render('pages/error', [
                 'title' => 'Nie znaleziono domku',
-                'message' => 'Domek o podanym identyfikatorze nie istnieje.',
+                'message' => 'Nie można dodać zdjęcia do nieistniejącego domku.',
             ]), 404);
 
             return;
         }
 
         if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
-            Response::html(View::render('pages/error', [
-                'title' => 'Brak pliku',
-                'message' => 'Nie wybrano zdjęcia do wysłania.',
-            ]), 422);
-
-            return;
-        }
-
-        $uploadedFile = $_FILES['image'];
-        $uploadError = (int) ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE);
-
-        if ($uploadError !== UPLOAD_ERR_OK) {
-            Response::html(View::render('pages/error', [
-                'title' => 'Błąd uploadu',
-                'message' => 'Nie udało się wysłać pliku. Kod błędu: ' . $uploadError . '.',
-            ]), 422);
-
-            return;
-        }
-
-        $tmpName = isset($uploadedFile['tmp_name']) && is_string($uploadedFile['tmp_name'])
-            ? $uploadedFile['tmp_name']
-            : '';
-
-        if ($tmpName === '' || !is_uploaded_file($tmpName)) {
-            Response::html(View::render('pages/error', [
-                'title' => 'Nieprawidłowy plik',
-                'message' => 'Wysłany plik jest nieprawidłowy.',
-            ]), 422);
-
-            return;
-        }
-
-        $size = (int) ($uploadedFile['size'] ?? 0);
-        $maxSize = 5 * 1024 * 1024;
-
-        if ($size < 1 || $size > $maxSize) {
-            Response::html(View::render('pages/error', [
-                'title' => 'Nieprawidłowy rozmiar',
-                'message' => 'Zdjęcie musi mieć maksymalnie 5 MB.',
-            ]), 422);
-
-            return;
-        }
-
-        $imageInfo = getimagesize($tmpName);
-
-        if ($imageInfo === false || !isset($imageInfo['mime'])) {
-            Response::html(View::render('pages/error', [
-                'title' => 'Nieprawidłowy format',
-                'message' => 'Plik nie wygląda na prawidłowe zdjęcie.',
-            ]), 422);
-
-            return;
-        }
-
-        $mime = (string) $imageInfo['mime'];
-        $extensions = [
-            'image/jpeg' => 'jpg',
-            'image/jfif' => 'jfif',
-            'image/png' => 'png',
-            'image/webp' => 'webp',
-            'image/gif' => 'gif',
-        ];
-
-        if (!array_key_exists($mime, $extensions)) {
-            Response::html(View::render('pages/error', [
-                'title' => 'Nieobsługiwany format',
-                'message' => 'Dozwolone formaty: JPG, PNG, WEBP, GIF.',
-            ]), 422);
-
-            return;
+            throw new RuntimeException('Nie wybrano pliku zdjęcia.');
         }
 
         $uploadDirectory = dirname(__DIR__) . '/public/uploads/cabins';
 
-        if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0775, true) && !is_dir($uploadDirectory)) {
-            Response::html(View::render('pages/error', [
-                'title' => 'Brak katalogu uploadu',
-                'message' => 'Nie udało się utworzyć katalogu public/uploads/cabins.',
-            ]), 500);
+        $uploadedImage = \App\Support\ImageUploader::upload(
+            $_FILES['image'],
+            $uploadDirectory,
+            '/uploads/cabins',
+            'cabin-' . $cabinId
+        );
 
-            return;
+        $altText = trim((string) ($_POST['alt_text'] ?? ''));
+
+        if ($altText === '') {
+            $altText = (string) ($cabin['name'] ?? 'Zdjęcie domku');
         }
 
-        $extension = $extensions[$mime];
-        $fileName = 'cabin-' . $cabinId . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
-        $targetPath = $uploadDirectory . '/' . $fileName;
-        $publicPath = '/uploads/cabins/' . $fileName;
-
-        if (!move_uploaded_file($tmpName, $targetPath)) {
-            Response::html(View::render('pages/error', [
-                'title' => 'Błąd zapisu pliku',
-                'message' => 'Nie udało się zapisać zdjęcia na serwerze.',
-            ]), 500);
-
-            return;
-        }
-
-        $altText = isset($_POST['alt_text']) && is_string($_POST['alt_text'])
-            ? trim($_POST['alt_text'])
-            : '';
-
-        $isMainValue = isset($_POST['is_main']) && is_string($_POST['is_main'])
-            ? $_POST['is_main']
-            : '0';
-
-        $hasImages = CabinImageRepository::countForCabin($cabinId) > 0;
-        $isMain = $isMainValue === '1' || !$hasImages ? 1 : 0;
+        $isMain = (int) ($_POST['is_main'] ?? 0) === 1;
 
         CabinImageRepository::create([
             'cabin_id' => $cabinId,
-            'image_path' => $publicPath,
-            'alt_text' => $altText !== '' ? $altText : $cabin['name'],
-            'is_main' => $isMain,
+            'image_path' => $uploadedImage['public_path'],
+            'alt_text' => $altText,
+            'is_main' => $isMain ? 1 : 0,
         ]);
 
         Response::redirect('/admin/domki/zdjecia?id=' . $cabinId . '&uploaded=1');
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
-            'title' => 'Nie udało się dodać zdjęcia',
+            'title' => 'Błąd uploadu',
             'message' => $exception->getMessage(),
-        ]), 500);
+        ]), 422);
     }
 });
 

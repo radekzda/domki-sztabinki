@@ -97,89 +97,41 @@ final class MediaController
     private static function upload(): void
     {
         if (!isset($_FILES['image_file']) || !is_array($_FILES['image_file'])) {
-            throw new RuntimeException('Nie wybrano pliku zdjęcia.');
-        }
+            self::renderWithError('Nie wybrano pliku zdjęcia.');
 
-        $file = $_FILES['image_file'];
-
-        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            throw new RuntimeException('Nie udało się przesłać zdjęcia.');
-        }
-
-        $temporaryPath = isset($file['tmp_name']) ? (string) $file['tmp_name'] : '';
-
-        if ($temporaryPath === '' || !is_uploaded_file($temporaryPath)) {
-            throw new RuntimeException('Nieprawidłowy plik tymczasowy.');
-        }
-
-        $fileSize = isset($file['size']) ? (int) $file['size'] : 0;
-
-        if ($fileSize < 1) {
-            throw new RuntimeException('Plik jest pusty.');
-        }
-
-        if ($fileSize > 8 * 1024 * 1024) {
-            throw new RuntimeException('Zdjęcie jest za duże. Maksymalny rozmiar to 8 MB.');
-        }
-
-        $originalName = isset($file['name']) ? (string) $file['name'] : '';
-        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-
-        if ($extension === 'jpeg') {
-            $extension = 'jpg';
-        }
-
-        if (!in_array($extension, ['jpg', 'jfif', 'png', 'webp'], true)) {
-            throw new RuntimeException('Nieobsługiwany format zdjęcia. Użyj JPG, PNG albo WEBP.');
-        }
-
-        $imageSize = @getimagesize($temporaryPath);
-
-        if ($imageSize === false) {
-            throw new RuntimeException('Wybrany plik nie wygląda na poprawne zdjęcie.');
-        }
-
-        $detectedMime = isset($imageSize['mime']) ? (string) $imageSize['mime'] : '';
-
-        $extensionFromImage = match ($detectedMime) {
-            'image/jpeg' => 'jpg',
-            'image/jfif' => 'jfif',
-            'image/png' => 'png',
-            'image/webp' => 'webp',
-            default => '',
-        };
-
-        if ($extensionFromImage === '') {
-            throw new RuntimeException('Nieobsługiwany format zdjęcia. Użyj JPG, PNG albo WEBP.');
-        }
-
-        $extension = $extensionFromImage;
-
-        $uploadDirectory = dirname(__DIR__) . '/../public/uploads/site';
-
-        if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0775, true) && !is_dir($uploadDirectory)) {
-            throw new RuntimeException('Nie udało się utworzyć katalogu uploadu.');
+            return;
         }
 
         $imageType = SiteImageRepository::normalizeType(isset($_POST['image_type']) ? (string) $_POST['image_type'] : 'GALLERY');
-        $sortOrder = isset($_POST['sort_order']) && is_numeric($_POST['sort_order']) ? (int) $_POST['sort_order'] : 0;
-        $altText = isset($_POST['alt_text']) ? trim((string) $_POST['alt_text']) : '';
-        $isMain = isset($_POST['is_main']) && (string) $_POST['is_main'] === '1' ? 1 : 0;
+        $uploadDirectory = dirname(__DIR__) . '/../public/uploads/site';
 
-        $fileName = 'site-' . strtolower($imageType) . '-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
-        $targetPath = $uploadDirectory . '/' . $fileName;
-        $publicPath = '/uploads/site/' . $fileName;
+        try {
+            $uploadedImage = \App\Support\ImageUploader::upload(
+                $_FILES['image_file'],
+                $uploadDirectory,
+                '/uploads/site',
+                'site-' . strtolower($imageType)
+            );
+        } catch (RuntimeException $exception) {
+            self::renderWithError($exception->getMessage());
 
-        if (!move_uploaded_file($temporaryPath, $targetPath)) {
-            throw new RuntimeException('Nie udało się zapisać zdjęcia na serwerze.');
+            return;
+        }
+
+        $altText = trim((string) ($_POST['alt_text'] ?? ''));
+        $isMain = (int) ($_POST['is_main'] ?? 0) === 1;
+        $sortOrder = filter_var($_POST['sort_order'] ?? 0, FILTER_VALIDATE_INT);
+
+        if (!is_int($sortOrder)) {
+            $sortOrder = 0;
         }
 
         SiteImageRepository::create([
-            'image_url' => $publicPath,
-            'alt_text' => $altText !== '' ? $altText : null,
+            'image_url' => $uploadedImage['public_path'],
+            'alt_text' => $altText,
             'image_type' => $imageType,
+            'is_main' => $isMain ? 1 : 0,
             'sort_order' => $sortOrder,
-            'is_main' => $isMain,
         ]);
 
         Response::redirect('/admin/media?uploaded=1');
