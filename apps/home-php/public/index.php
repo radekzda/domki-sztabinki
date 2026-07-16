@@ -215,10 +215,12 @@ $router->get('/admin/domki', function (): void {
 });
 
 $router->get('/admin/domki/import', function (): void {
+    Auth::requireAdmin();
     CabinImportController::show();
 });
 
 $router->post('/admin/domki/import', function (): void {
+    Auth::requireAdmin();
     requireValidCsrf();
     CabinImportController::store();
 });
@@ -753,10 +755,12 @@ $router->get('/admin/rezerwacje', function (): void {
 });
 
 $router->get('/admin/rezerwacje/import', function (): void {
+    Auth::requireAdmin();
     ReservationImportController::show();
 });
 
 $router->post('/admin/rezerwacje/import', function (): void {
+    Auth::requireAdmin();
     requireValidCsrf();
     ReservationImportController::store();
 });
@@ -1600,10 +1604,12 @@ $router->get('/admin/goscie', function (): void {
 });
 
 $router->get('/admin/goscie/import', function (): void {
+    Auth::requireAdmin();
     GuestImportController::show();
 });
 
 $router->post('/admin/goscie/import', function (): void {
+    Auth::requireAdmin();
     requireValidCsrf();
     GuestImportController::store();
 });
@@ -2072,10 +2078,12 @@ $router->get('/admin/kalendarz', function (): void {
 });
 
 $router->get('/admin/media', function (): void {
+    Auth::requireAdmin();
     MediaController::index();
 });
 
 $router->post('/admin/media', function (): void {
+    Auth::requireAdmin();
     requireValidCsrf();
     MediaController::handle();
 });
@@ -2277,6 +2285,7 @@ $router->post('/admin/system/database/seed', function (): void {
 });
 
 $router->get('/admin/system/importy', function (): void {
+    Auth::requireAdmin();
     ImportAuditController::show();
 });
 
