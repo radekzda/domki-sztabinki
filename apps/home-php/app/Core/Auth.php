@@ -5,6 +5,11 @@ declare(strict_types=1);
 final class Auth
 {
     private const SESSION_KEY = 'domki_sztabinki_admin_logged_in';
+    private const LOGIN_ATTEMPTS_KEY = 'domki_sztabinki_login_attempts';
+    private const LOGIN_BLOCKED_UNTIL_KEY = 'domki_sztabinki_login_blocked_until';
+
+    private const MAX_LOGIN_ATTEMPTS = 5;
+    private const LOGIN_BLOCK_SECONDS = 900;
 
     public static function startSession(): void
     {
@@ -29,7 +34,8 @@ final class Auth
     {
         self::startSession();
 
-        return isset($_SESSION[self::SESSION_KEY]) && $_SESSION[self::SESSION_KEY] === true;
+        return isset($_SESSION[self::SESSION_KEY])
+            && $_SESSION[self::SESSION_KEY] === true;
     }
 
     public static function requireAdmin(): void
@@ -42,6 +48,10 @@ final class Auth
     public static function attempt(string $email, string $password): bool
     {
         self::startSession();
+
+        if (self::isLoginBlocked()) {
+            return false;
+        }
 
         if (!self::isConfigured()) {
             return false;
@@ -58,8 +68,12 @@ final class Auth
         $passwordMatches = hash_equals($configuredPassword, $password);
 
         if (!$emailMatches || !$passwordMatches) {
+            self::recordFailedLogin();
+
             return false;
         }
+
+        self::clearLoginAttempts();
 
         session_regenerate_id(true);
 
@@ -67,6 +81,38 @@ final class Auth
         $_SESSION['admin_email'] = $configuredEmail;
 
         return true;
+    }
+
+    public static function isLoginBlocked(): bool
+    {
+        self::startSession();
+
+        $blockedUntil = $_SESSION[self::LOGIN_BLOCKED_UNTIL_KEY] ?? null;
+
+        if (!is_int($blockedUntil)) {
+            return false;
+        }
+
+        if ($blockedUntil <= time()) {
+            self::clearLoginAttempts();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    public static function loginBlockedSecondsRemaining(): int
+    {
+        self::startSession();
+
+        $blockedUntil = $_SESSION[self::LOGIN_BLOCKED_UNTIL_KEY] ?? null;
+
+        if (!is_int($blockedUntil)) {
+            return 0;
+        }
+
+        return max(0, $blockedUntil - time());
     }
 
     public static function logout(): void
@@ -121,11 +167,42 @@ final class Auth
             return false;
         }
 
-        if ($email === 'admin@example.com' || $password === 'CHANGE_ME_STRONG_PASSWORD') {
+        if (
+            $email === 'admin@example.com'
+            || $password === 'CHANGE_ME_STRONG_PASSWORD'
+        ) {
             return false;
         }
 
         return true;
+    }
+
+    private static function recordFailedLogin(): void
+    {
+        self::startSession();
+
+        $attempts = $_SESSION[self::LOGIN_ATTEMPTS_KEY] ?? 0;
+
+        if (!is_int($attempts)) {
+            $attempts = 0;
+        }
+
+        $attempts++;
+
+        $_SESSION[self::LOGIN_ATTEMPTS_KEY] = $attempts;
+
+        if ($attempts >= self::MAX_LOGIN_ATTEMPTS) {
+            $_SESSION[self::LOGIN_BLOCKED_UNTIL_KEY] =
+                time() + self::LOGIN_BLOCK_SECONDS;
+        }
+    }
+
+    private static function clearLoginAttempts(): void
+    {
+        unset(
+            $_SESSION[self::LOGIN_ATTEMPTS_KEY],
+            $_SESSION[self::LOGIN_BLOCKED_UNTIL_KEY]
+        );
     }
 
     private static function isHttps(): bool
@@ -138,6 +215,7 @@ final class Auth
 
         $forwardedProto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
 
-        return is_string($forwardedProto) && strtolower($forwardedProto) === 'https';
+        return is_string($forwardedProto)
+            && strtolower($forwardedProto) === 'https';
     }
 }

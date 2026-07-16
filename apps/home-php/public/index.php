@@ -130,6 +130,8 @@ $router->get('/logowanie', function (): void {
 });
 
 $router->post('/logowanie', function (): void {
+    Auth::startSession();
+    requireValidCsrf();
     $email = isset($_POST['email']) && is_string($_POST['email'])
         ? trim($_POST['email'])
         : '';
@@ -145,14 +147,20 @@ $router->post('/logowanie', function (): void {
     Response::html(View::render('pages/login', [
         'title' => 'Logowanie',
         'email' => $email,
-        'error' => Auth::isConfigured()
-            ? 'Nieprawidłowy adres e-mail lub hasło.'
-            : 'Logowanie nie jest skonfigurowane w pliku .env.',
+        'error' => Auth::isLoginBlocked()
+            ? 'Zbyt wiele nieudanych prób logowania. Logowanie zostało zablokowane na 15 minut.'
+            : (
+                Auth::isConfigured()
+                    ? 'Nieprawidłowy adres e-mail lub hasło.'
+                    : 'Logowanie nie jest skonfigurowane w pliku .env.'
+            ),
         'isAuthConfigured' => Auth::isConfigured(),
     ]), 422);
 });
 
 $router->post('/wyloguj', function (): void {
+    Auth::startSession();
+    requireValidCsrf();
     Auth::logout();
 
     Response::redirect('/logowanie');
