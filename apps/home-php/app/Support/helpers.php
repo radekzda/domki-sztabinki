@@ -654,6 +654,52 @@ function getReservationNightPrice(int $nights, array $cabin): int
 }
 
 /**
+ * @param array<string, string> $settings
+ */
+function getReservationNightPriceFromSettings(
+    int $nights,
+    array $settings
+): int {
+    $defaults = [
+        'price_one_night' => 800,
+        'price_two_nights' => 440,
+        'price_three_nights' => 430,
+        'price_four_nights' => 420,
+        'price_five_nights' => 410,
+        'price_six_nights' => 400,
+        'price_seven_plus_nights' => 350,
+    ];
+
+    if ($nights <= 1) {
+        $key = 'price_one_night';
+    } elseif ($nights === 2) {
+        $key = 'price_two_nights';
+    } elseif ($nights === 3) {
+        $key = 'price_three_nights';
+    } elseif ($nights === 4) {
+        $key = 'price_four_nights';
+    } elseif ($nights === 5) {
+        $key = 'price_five_nights';
+    } elseif ($nights === 6) {
+        $key = 'price_six_nights';
+    } else {
+        $key = 'price_seven_plus_nights';
+    }
+
+    $value = $settings[$key] ?? null;
+
+    if (
+        !is_string($value)
+        || !ctype_digit($value)
+        || (int) $value < 1
+    ) {
+        return $defaults[$key];
+    }
+
+    return (int) $value;
+}
+
+/**
  * @param array<string, string> $form
  * @return array{
  *     cabin_id: int,

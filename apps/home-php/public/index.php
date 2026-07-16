@@ -873,6 +873,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
     $errors = validateReservationForm($form);
     $cabins = [];
     $guests = [];
+    $settings = defaultSettingsForm();
     $databaseMessage = null;
     $calculatedNights = null;
     $calculatedTotalPrice = null;
@@ -896,6 +897,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
     try {
         $cabins = CabinRepository::all();
         $guests = GuestRepository::all();
+        $settings = SettingsRepository::all();
     } catch (Throwable $exception) {
         Response::html(View::render('pages/admin_reservations_new', [
             'title' => 'Dodaj rezerwację',
@@ -933,7 +935,11 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
                 }
             }
 
-            $calculatedTotalPrice = $calculatedNights * getReservationNightPrice($calculatedNights, $selectedCabin);
+            $calculatedTotalPrice = $calculatedNights
+                * getReservationNightPriceFromSettings(
+                    $calculatedNights,
+                    $settings
+                );
         }
     }
 
@@ -1129,6 +1135,8 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
     $errors = validateReservationForm($form);
     $cabins = [];
     $guests = [];
+    $settings = defaultSettingsForm();
+    $existingReservation = null;
     $databaseMessage = null;
     $calculatedNights = null;
     $calculatedTotalPrice = null;
@@ -1153,6 +1161,8 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
     try {
         $cabins = CabinRepository::all();
         $guests = GuestRepository::all();
+        $settings = SettingsRepository::all();
+        $existingReservation = ReservationRepository::find($id);
     } catch (Throwable $exception) {
         Response::html(View::render('pages/admin_reservations_edit', [
             'title' => 'Edytuj rezerwację',
@@ -1192,7 +1202,48 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
                 }
             }
 
-            $calculatedTotalPrice = $calculatedNights * getReservationNightPrice($calculatedNights, $selectedCabin);
+            $existingCabinId = $existingReservation !== null
+                ? (int) ($existingReservation['cabin_id'] ?? 0)
+                : 0;
+
+            $existingStartDate = $existingReservation !== null
+                ? substr(
+                    (string) ($existingReservation['start_date'] ?? ''),
+                    0,
+                    10
+                )
+                : '';
+
+            $existingEndDate = $existingReservation !== null
+                ? substr(
+                    (string) ($existingReservation['end_date'] ?? ''),
+                    0,
+                    10
+                )
+                : '';
+
+            $hasPricingChange =
+                $existingCabinId !== (int) $form['cabin_id']
+                || $existingStartDate !== $form['start_date']
+                || $existingEndDate !== $form['end_date'];
+
+            $existingTotalPrice =
+                $existingReservation['total_price'] ?? null;
+
+            if (
+                !$hasPricingChange
+                && $existingTotalPrice !== null
+                && is_numeric($existingTotalPrice)
+            ) {
+                $calculatedTotalPrice =
+                    (int) round((float) $existingTotalPrice);
+            } else {
+                $calculatedTotalPrice = $calculatedNights
+                    * getReservationNightPriceFromSettings(
+                        $calculatedNights,
+                        $settings
+                    );
+            }
         }
     }
 
