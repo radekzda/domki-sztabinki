@@ -129,7 +129,7 @@ final class MediaController
             $extension = 'jpg';
         }
 
-        if (!in_array($extension, ['jpg', 'png', 'webp'], true)) {
+        if (!in_array($extension, ['jpg', 'jfif', 'png', 'webp'], true)) {
             throw new RuntimeException('Nieobsługiwany format zdjęcia. Użyj JPG, PNG albo WEBP.');
         }
 
@@ -143,6 +143,7 @@ final class MediaController
 
         $extensionFromImage = match ($detectedMime) {
             'image/jpeg' => 'jpg',
+            'image/jfif' => 'jfif',
             'image/png' => 'png',
             'image/webp' => 'webp',
             default => '',

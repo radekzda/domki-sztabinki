@@ -135,7 +135,7 @@ foreach ($images as $image) {
                             id="image_file"
                             name="image_file"
                             type="file"
-                            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                            accept=".jpg,.jpeg,.jfif,.png,.webp,image/jpeg,image/jfif,image/png,image/webp"
                             required
                         >
                     </div>

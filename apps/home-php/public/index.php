@@ -628,6 +628,7 @@ $router->post('/admin/domki/zdjecia/dodaj', function (): void {
         $mime = (string) $imageInfo['mime'];
         $extensions = [
             'image/jpeg' => 'jpg',
+            'image/jfif' => 'jfif',
             'image/png' => 'png',
             'image/webp' => 'webp',
             'image/gif' => 'gif',

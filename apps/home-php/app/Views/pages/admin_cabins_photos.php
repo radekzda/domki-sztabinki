@@ -102,7 +102,7 @@ declare(strict_types=1);
                                     id="image"
                                     name="image"
                                     type="file"
-                                    accept="image/jpeg,image/png,image/webp,image/gif"
+                                    accept="image/jpeg,image/jfif,image/png,image/webp,image/gif"
                                     required
                                 >
                             </div>
