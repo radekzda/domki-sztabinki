@@ -1483,6 +1483,59 @@ if (isset($settings) && is_array($settings)) {
         }
     }
 
+
+    /* M13.85.1 — popup opisu domku */
+    .public-cabin-card {
+        position: relative;
+        overflow: visible;
+    }
+
+    .public-cabin-details {
+        position: relative;
+        margin-top: 10px;
+    }
+
+    .public-cabin-details__content {
+        display: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: calc(100% + 8px);
+        z-index: 100;
+        max-height: 360px;
+        overflow-y: auto;
+        padding: 16px 18px;
+        border: 1px solid var(--public-border);
+        border-radius: 14px;
+        background: #ffffff;
+        color: var(--public-text);
+        box-shadow: 0 18px 45px rgba(23, 35, 29, 0.2);
+    }
+
+    .public-cabin-details.is-open .public-cabin-details__content {
+        display: block;
+    }
+
+    .public-cabin-details__content p {
+        min-height: 0;
+        margin: 0 0 10px;
+        color: var(--public-muted);
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .public-cabin-details__content ul {
+        margin: 0;
+        padding-left: 20px;
+        color: var(--public-text);
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .public-cabin-details__content li + li {
+        margin-top: 4px;
+    }
+
 </style>
 
 <section class="public-page">
@@ -1651,10 +1704,27 @@ if (isset($settings) && is_array($settings)) {
                                     <span><?= htmlspecialchars((string) $cabinInt($offerCabin, 'bedrooms', 2), ENT_QUOTES, 'UTF-8') ?> sypialnie</span>
                                     <span>Wi-Fi</span>
                                 </div>
+<div class="public-cabin-actions">
+                                    <a
+                                        class="public-button public-button--wide"
+                                        href="/?availability_cabin_id=<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>#dostepnosc"
+                                    >
+                                        Sprawdź dostępność
+                                    </a>
+
+                                    <a
+                                        class="public-button public-button--light public-button--wide"
+                                        href="/?inquiry_cabin_id=<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>#zapytanie"
+                                    >
+                                        Zapytaj o ten domek
+                                    </a>
+                                </div>
+
+
 
                                 <div class="public-cabin-details">
                                     <button
-                                        class="public-cabin-details__toggle"
+                                        class="public-button public-button--light public-button--wide public-cabin-details__toggle"
                                         type="button"
                                         data-cabin-details-toggle
                                         aria-expanded="false"
@@ -1677,22 +1747,6 @@ if (isset($settings) && is_array($settings)) {
                                             <li>Taras, altana, grill i sprzęt wodny.</li>
                                         </ul>
                                     </div>
-                                </div>
-
-                                <div class="public-cabin-actions">
-                                    <a
-                                        class="public-button public-button--wide"
-                                        href="/?availability_cabin_id=<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>#dostepnosc"
-                                    >
-                                        Sprawdź dostępność
-                                    </a>
-
-                                    <a
-                                        class="public-button public-button--light public-button--wide"
-                                        href="/?inquiry_cabin_id=<?= htmlspecialchars((string) $cabinId, ENT_QUOTES, 'UTF-8') ?>#zapytanie"
-                                    >
-                                        Zapytaj o ten domek
-                                    </a>
                                 </div>
                             </div>
 
@@ -2777,25 +2831,60 @@ if (isset($settings) && is_array($settings)) {
     });
 </script>
 
-<style>
-.cabin-description-tooltip {
-    display:none;
-}
-.cabin-description-tooltip.is-open {
-    display:block;
-}
-</style>
-
 <script>
-document.addEventListener('click', function(event) {
-    const button = event.target.closest('[data-description-toggle]');
-    if (!button) {
+document.addEventListener('click', function (event) {
+    if (!(event.target instanceof Element)) {
         return;
     }
 
-    const box = button.nextElementSibling;
-    if (box) {
-        box.classList.toggle('is-open');
+    const button = event.target.closest('[data-cabin-details-toggle]');
+
+    if (button) {
+        const currentDetails = button.closest('.public-cabin-details');
+
+        document.querySelectorAll('.public-cabin-details.is-open').forEach(function (details) {
+            if (details !== currentDetails) {
+                details.classList.remove('is-open');
+
+                const otherButton = details.querySelector('[data-cabin-details-toggle]');
+                if (otherButton) {
+                    otherButton.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+
+        if (currentDetails) {
+            const isOpen = currentDetails.classList.toggle('is-open');
+            button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+
+        return;
     }
+
+    if (!event.target.closest('.public-cabin-details')) {
+        document.querySelectorAll('.public-cabin-details.is-open').forEach(function (details) {
+            details.classList.remove('is-open');
+
+            const detailsButton = details.querySelector('[data-cabin-details-toggle]');
+            if (detailsButton) {
+                detailsButton.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+});
+
+document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') {
+        return;
+    }
+
+    document.querySelectorAll('.public-cabin-details.is-open').forEach(function (details) {
+        details.classList.remove('is-open');
+
+        const button = details.querySelector('[data-cabin-details-toggle]');
+        if (button) {
+            button.setAttribute('aria-expanded', 'false');
+        }
+    });
 });
 </script>
