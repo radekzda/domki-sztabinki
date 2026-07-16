@@ -1094,6 +1094,13 @@ function defaultSettingsForm(): array
         'check_out_time' => '11:00',
         'minimum_nights' => '4',
         'currency' => 'PLN',
+        'price_one_night' => '800',
+        'price_two_nights' => '440',
+        'price_three_nights' => '430',
+        'price_four_nights' => '420',
+        'price_five_nights' => '410',
+        'price_six_nights' => '400',
+        'price_seven_plus_nights' => '350',
         'fishing_price' => '30',
         'hot_tub_price' => '200',
         'public_short_description' => 'Domki letniskowe nad jeziorem w spokojnej okolicy.',
@@ -1149,6 +1156,22 @@ function validateSettingsForm(array $form): array
 
     if ($form['currency'] === '' || preg_match('/^[A-Z]{3}$/', $form['currency']) !== 1) {
         $errors['currency'] = 'Waluta musi mieć format trzyliterowy, np. PLN.';
+    }
+
+    $priceFields = [
+        'price_one_night' => 'Cena za 1 noc',
+        'price_two_nights' => 'Cena za 2 noce',
+        'price_three_nights' => 'Cena za 3 noce',
+        'price_four_nights' => 'Cena za 4 noce',
+        'price_five_nights' => 'Cena za 5 nocy',
+        'price_six_nights' => 'Cena za 6 nocy',
+        'price_seven_plus_nights' => 'Cena za 7+ nocy',
+    ];
+
+    foreach ($priceFields as $field => $label) {
+        if (!ctype_digit($form[$field]) || (int) $form[$field] < 1) {
+            $errors[$field] = $label . ' musi być dodatnią liczbą całkowitą.';
+        }
     }
 
     if (!ctype_digit($form['fishing_price'])) {

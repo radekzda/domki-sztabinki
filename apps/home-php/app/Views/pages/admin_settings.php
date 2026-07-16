@@ -200,6 +200,56 @@ declare(strict_types=1);
                                 <?php endif; ?>
                             </div>
 
+                            <div class="form-field form-field--full">
+                                <h2>Cennik podstawowy</h2>
+                                <p>
+                                    Cena za jedną noc zależnie od całkowitej długości pobytu.
+                                    Ceny dotyczą całego domku za dobę.
+                                </p>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="price_one_night">Pobyt 1 noc — cena za noc</label>
+                                <input id="price_one_night" name="price_one_night" type="number" min="1" step="1"
+                                    value="<?= htmlspecialchars($form['price_one_night'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="price_two_nights">Pobyt 2 noce — cena za noc</label>
+                                <input id="price_two_nights" name="price_two_nights" type="number" min="1" step="1"
+                                    value="<?= htmlspecialchars($form['price_two_nights'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="price_three_nights">Pobyt 3 noce — cena za noc</label>
+                                <input id="price_three_nights" name="price_three_nights" type="number" min="1" step="1"
+                                    value="<?= htmlspecialchars($form['price_three_nights'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="price_four_nights">Pobyt 4 noce — cena za noc</label>
+                                <input id="price_four_nights" name="price_four_nights" type="number" min="1" step="1"
+                                    value="<?= htmlspecialchars($form['price_four_nights'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="price_five_nights">Pobyt 5 nocy — cena za noc</label>
+                                <input id="price_five_nights" name="price_five_nights" type="number" min="1" step="1"
+                                    value="<?= htmlspecialchars($form['price_five_nights'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="price_six_nights">Pobyt 6 nocy — cena za noc</label>
+                                <input id="price_six_nights" name="price_six_nights" type="number" min="1" step="1"
+                                    value="<?= htmlspecialchars($form['price_six_nights'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="price_seven_plus_nights">Pobyt 7+ nocy — cena za noc</label>
+                                <input id="price_seven_plus_nights" name="price_seven_plus_nights" type="number" min="1" step="1"
+                                    value="<?= htmlspecialchars($form['price_seven_plus_nights'], ENT_QUOTES, 'UTF-8') ?>" required>
+                            </div>
+
                             <div class="form-field">
                                 <label for="fishing_price">Łowienie w jeziorze / dzień</label>
                                 <input
