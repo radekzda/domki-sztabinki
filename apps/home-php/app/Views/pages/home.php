@@ -1932,7 +1932,7 @@ if (isset($settings) && is_array($settings)) {
                         <div class="public-benefit__icon">≈</div>
                         <strong>Blisko jeziora</strong>
                     </div>
-                    <p>Czysta woda, pomost, piękne widoki i możliwość wypoczynku nad brzegiem.</p>
+                    <p>Czysta woda,  pomost, taras przy domku i piękne widoki na jezioro. Idealne miejsce na poranną kawę, kąpiel, wędkowanie i spokojny odpoczynek blisko natury.
                 </div>
 
                 <div class="public-benefit">
@@ -1940,7 +1940,7 @@ if (isset($settings) && is_array($settings)) {
                         <div class="public-benefit__icon">⚓</div>
                         <strong>Sprzęt wodny</strong>
                     </div>
-                    <p>Łódka, kajak i rowerki wodne dostępne dla gości w cenie pobytu.</p>
+                    <p>Łódka, kajak i rowerki wodne są dostępne dla naszych gości w cenie pobytu. Możesz aktywnie spędzić dzień na wodzie albo spokojnie odkrywać uroki jeziora.</p>
                 </div>
 
                 <div class="public-benefit">
@@ -1948,7 +1948,7 @@ if (isset($settings) && is_array($settings)) {
                         <div class="public-benefit__icon">♨</div>
                         <strong>Grill i altana</strong>
                     </div>
-                    <p>Przy każdym domku miejsce do odpoczynku, grillowania i spotkań.</p>
+                    <p>Przy każdym domku znajduje się prywatna altana i grill. To wygodne miejsce na wspólne posiłki, wieczorne rozmowy i odpoczynek na świeżym powietrzu.</p>
                 </div>
 
                 <div class="public-benefit">
@@ -1956,7 +1956,7 @@ if (isset($settings) && is_array($settings)) {
                         <div class="public-benefit__icon">♧</div>
                         <strong>Cisza i natura</strong>
                     </div>
-                    <p>Okolica sprzyjająca relaksowi, spacerom i spokojnemu wypoczynkowi.</p>
+                    <p>Z dala od miejskiego zgiełku, wśród zieleni i spokojnej okolicy. To miejsce stworzone do rodzinnego wypoczynku, spacerów i prawdziwego resetu od codzienności.</p>
                 </div>
             </div>
 
