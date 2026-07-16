@@ -949,6 +949,10 @@ if (isset($settings) && is_array($settings)) {
         color: #166534;
     }
 
+    .inquiry-availability-day.is-today {
+        box-shadow: inset 0 0 0 2px #111111 !important;
+    }
+
     .inquiry-availability-empty {
         min-height: 30px;
     }
@@ -1087,6 +1091,15 @@ if (isset($settings) && is_array($settings)) {
     .public-calendar__busy {
         background: var(--public-red-bg);
         color: var(--public-red);
+    }
+
+    .public-calendar__past {
+        background: var(--public-red-bg);
+        color: var(--public-red);
+    }
+
+    .public-calendar__today {
+        box-shadow: inset 0 0 0 2px #111111;
     }
 
     .public-benefits {
@@ -1894,9 +1907,20 @@ if (isset($settings) && is_array($settings)) {
                                                         $dayNumber = (string) (int) substr((string) $calendarDate, 8, 2);
                                                         $dayStatus = $selectedBusyDates[(string) $calendarDate] ?? null;
                                                         $isBusy = is_string($dayStatus);
+                                                        $todayDate = date('Y-m-d');
+                                                        $isPast = (string) $calendarDate < $todayDate;
+                                                        $isToday = (string) $calendarDate === $todayDate;
+
+                                                        $dayClass = $isPast
+                                                            ? 'public-calendar__past'
+                                                            : ($isBusy ? 'public-calendar__busy' : 'public-calendar__free');
+
+                                                        if ($isToday) {
+                                                            $dayClass .= ' public-calendar__today';
+                                                        }
                                                         ?>
 
-                                                        <td class="<?= $isBusy ? 'public-calendar__busy' : 'public-calendar__free' ?>">
+                                                        <td class="<?= $dayClass ?>">
                                                             <?= htmlspecialchars($dayNumber, ENT_QUOTES, 'UTF-8') ?>
                                                         </td>
                                                     <?php endif; ?>
@@ -2701,13 +2725,21 @@ if (isset($settings) && is_array($settings)) {
                 button.textContent = String(day);
                 button.dataset.date = dateValue;
 
-                if (dateValue <= todayValue()) {
+                const currentToday = todayValue();
+
+                if (dateValue < currentToday) {
                     button.disabled = true;
                     button.title = 'Termin niedostępny';
                     button.classList.add('is-past');
-                } else if (isDateBusy(cabinId, dateValue)) {
-                    button.disabled = true;
-                    button.title = 'Termin zajęty';
+                } else {
+                    if (dateValue === currentToday) {
+                        button.classList.add('is-today');
+                    }
+
+                    if (isDateBusy(cabinId, dateValue)) {
+                        button.disabled = true;
+                        button.title = 'Termin zajęty';
+                    }
                 }
 
                 if (dateValue === selectedStart || dateValue === selectedEnd) {
