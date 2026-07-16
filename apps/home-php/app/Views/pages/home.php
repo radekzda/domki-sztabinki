@@ -2067,13 +2067,13 @@ if (isset($settings) && is_array($settings)) {
                         <tbody>
                             <tr>
                                 <td>Cena za noc</td>
-                                <td><?= htmlspecialchars($formatPublicPrice(800, $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($formatPublicPrice(440, $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($formatPublicPrice(430, $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($formatPublicPrice(420, $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($formatPublicPrice(410, $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($formatPublicPrice(400, $currency), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($formatPublicPrice(350, $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice((int) ($settings['price_one_night'] ?? 800), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice((int) ($settings['price_two_nights'] ?? 440), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice((int) ($settings['price_three_nights'] ?? 430), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice((int) ($settings['price_four_nights'] ?? 420), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice((int) ($settings['price_five_nights'] ?? 410), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice((int) ($settings['price_six_nights'] ?? 400), $currency), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><?= htmlspecialchars($formatPublicPrice((int) ($settings['price_seven_plus_nights'] ?? 350), $currency), ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
                         </tbody>
                     </table>
