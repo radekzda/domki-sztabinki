@@ -1536,6 +1536,38 @@ if (isset($settings) && is_array($settings)) {
         margin-top: 4px;
     }
 
+
+    /* M13.85.2 — poprawki strony publicznej */
+    .public-availability-form .public-hero__actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        width: 100%;
+    }
+
+    .public-availability-form .public-hero__actions .public-button {
+        width: 100%;
+        min-width: 0;
+        padding-inline: 10px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .public-benefit__heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .public-benefit__heading .public-benefit__icon {
+        flex: 0 0 auto;
+        line-height: 1;
+    }
+
+    .public-benefit__heading strong {
+        margin-top: 0;
+    }
+
 </style>
 
 <section class="public-page">
@@ -1896,26 +1928,34 @@ if (isset($settings) && is_array($settings)) {
                 </div>
 
                 <div class="public-benefit">
-                    <div class="public-benefit__icon">≈</div>
-                    <strong>Blisko jeziora</strong>
+                    <div class="public-benefit__heading">
+                        <div class="public-benefit__icon">≈</div>
+                        <strong>Blisko jeziora</strong>
+                    </div>
                     <p>Czysta woda, pomost, piękne widoki i możliwość wypoczynku nad brzegiem.</p>
                 </div>
 
                 <div class="public-benefit">
-                    <div class="public-benefit__icon">⚓</div>
-                    <strong>Sprzęt wodny</strong>
+                    <div class="public-benefit__heading">
+                        <div class="public-benefit__icon">⚓</div>
+                        <strong>Sprzęt wodny</strong>
+                    </div>
                     <p>Łódka, kajak i rowerki wodne dostępne dla gości w cenie pobytu.</p>
                 </div>
 
                 <div class="public-benefit">
-                    <div class="public-benefit__icon">♨</div>
-                    <strong>Grill i altana</strong>
+                    <div class="public-benefit__heading">
+                        <div class="public-benefit__icon">♨</div>
+                        <strong>Grill i altana</strong>
+                    </div>
                     <p>Przy każdym domku miejsce do odpoczynku, grillowania i spotkań.</p>
                 </div>
 
                 <div class="public-benefit">
-                    <div class="public-benefit__icon">♧</div>
-                    <strong>Cisza i natura</strong>
+                    <div class="public-benefit__heading">
+                        <div class="public-benefit__icon">♧</div>
+                        <strong>Cisza i natura</strong>
+                    </div>
                     <p>Okolica sprzyjająca relaksowi, spacerom i spokojnemu wypoczynkowi.</p>
                 </div>
             </div>
@@ -1941,17 +1981,7 @@ if (isset($settings) && is_array($settings)) {
                 <div class="public-section__head">
                     <div>
                         <p class="public-kicker">Galeria</p>
-
-                        <h2></h2>
-
-                        <p>
-                            
-                        </p>
                     </div>
-
-                    <a class="public-button public-button--light" href="#zapytanie">
-                        Zapytaj o termin
-                    </a>
                 </div>
 
                 <div class="public-media-grid">
@@ -1961,12 +1991,6 @@ if (isset($settings) && is_array($settings)) {
                                 src="<?= htmlspecialchars((string) $galleryImage['image_url'], ENT_QUOTES, 'UTF-8') ?>"
                                 alt="<?= htmlspecialchars((string) ($galleryImage['alt_text'] ?? 'Domki Sztabinki - galeria'), ENT_QUOTES, 'UTF-8') ?>"
                             >
-
-                            <div class="public-media-card__body">
-                                <strong>
-                                    <?= htmlspecialchars((string) ($galleryImage['alt_text'] ?? 'Domki Sztabinki'), ENT_QUOTES, 'UTF-8') ?>
-                                </strong>
-                            </div>
                         </article>
                     <?php endforeach; ?>
                 </div>
@@ -2343,12 +2367,6 @@ if (isset($settings) && is_array($settings)) {
                                 <?= htmlspecialchars($settings['city'], ENT_QUOTES, 'UTF-8') ?>
                             </strong>
                         </div>
-                    </div>
-
-                    <div style="margin-top: 24px;">
-                        <a class="public-button public-button--wide" href="/logowanie">
-                            Panel administratora
-                        </a>
                     </div>
                 </aside>
             </div>
