@@ -955,15 +955,37 @@ final class ReservationRepository
 
     public static function delete(int $id): void
     {
+        if ($id < 1) {
+            return;
+        }
+
+        ReservationHistoryRepository::ensureTable();
+
         $connection = Database::connection();
 
-        $statement = $connection->prepare(
-            'DELETE FROM reservations
-            WHERE id = :id'
-        );
+        $connection->beginTransaction();
 
-        $statement->execute([
-            'id' => $id,
-        ]);
+        try {
+            ReservationHistoryRepository::deleteForReservation(
+                $id
+            );
+
+            $statement = $connection->prepare(
+                'DELETE FROM reservations
+                WHERE id = :id'
+            );
+
+            $statement->execute([
+                'id' => $id,
+            ]);
+
+            $connection->commit();
+        } catch (Throwable $exception) {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+
+            throw $exception;
+        }
     }
 }

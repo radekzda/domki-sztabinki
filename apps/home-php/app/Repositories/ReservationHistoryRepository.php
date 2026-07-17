@@ -149,6 +149,25 @@ final class ReservationHistoryRepository
         return (int) $connection->lastInsertId();
     }
 
+    public static function deleteForReservation(
+        int $reservationId
+    ): void {
+        if ($reservationId < 1) {
+            return;
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'DELETE FROM reservation_history
+            WHERE reservation_id = :reservation_id'
+        );
+
+        $statement->execute([
+            'reservation_id' => $reservationId,
+        ]);
+    }
+
     public static function ensureTable(): void
     {
         $connection = Database::connection();
