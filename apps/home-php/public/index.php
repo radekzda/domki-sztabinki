@@ -2095,13 +2095,29 @@ $router->get('/admin/zapytania/pokaz', function (): void {
 
         $settings = SettingsRepository::all();
 
+        $inquiryMessageTemplates = [];
+
+        foreach (
+            MessageTemplateRepository::activeForContext(
+                'INQUIRY'
+            )
+            as $messageTemplate
+        ) {
+            $messageTemplate[
+                'rendered_content'
+            ] = MessageTemplateRenderer::forInquiry(
+                (string) $messageTemplate['content'],
+                $inquiry,
+                $settings
+            );
+
+            $inquiryMessageTemplates[] = $messageTemplate;
+        }
+
         Response::html(View::render('pages/admin_inquiries_show', [
             'title' => 'Szczegóły zapytania',
             'inquiry' => $inquiry,
-            'availabilityReplyTemplate' => GuestMessageTemplates::availabilityReply(
-                $inquiry,
-                $settings
-            ),
+            'inquiryMessageTemplates' => $inquiryMessageTemplates,
         ]));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [

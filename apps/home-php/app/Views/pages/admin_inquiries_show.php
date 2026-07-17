@@ -26,7 +26,7 @@ declare(strict_types=1);
  *     source: string,
  *     created_at: string
  * } $inquiry
- * @var string $availabilityReplyTemplate
+ * @var array<int, array<string, mixed>> $inquiryMessageTemplates
  */
 
 $statusLabels = [
@@ -151,30 +151,100 @@ $cabinName = $inquiry['linked_cabin_name']
                     <?php endif; ?>
 
                     <div class="empty-state">
-                        <strong>Gotowa odpowiedź na zapytanie</strong>
+                        <strong>Wiadomości do gościa</strong>
 
                         <p>
-                            Wiadomość została przygotowana automatycznie na podstawie danych zapytania i aktualnego cennika systemowego.
+                            Wiadomości są przygotowane na podstawie aktywnych szablonów.
+                            Możesz zmienić treść poniżej przed skopiowaniem.
+                            Zmiana wykonana tutaj nie zmienia globalnego szablonu.
                         </p>
-
-                        <div class="form-field">
-                            <textarea
-                                id="availability-reply-template"
-                                rows="14"
-                                readonly
-                            ><?= htmlspecialchars($availabilityReplyTemplate, ENT_QUOTES, 'UTF-8') ?></textarea>
-                        </div>
-
-                        <div class="form-actions">
-                            <button
-                                class="button button--primary"
-                                id="copy-availability-reply"
-                                type="button"
-                            >
-                                Kopiuj wiadomość
-                            </button>
-                        </div>
                     </div>
+
+                    <?php if ($inquiryMessageTemplates === []): ?>
+                        <div class="empty-state">
+                            <strong>Brak aktywnych szablonów</strong>
+
+                            <p>
+                                Aktywne szablony dla zapytań możesz dodać
+                                lub włączyć w sekcji Szablony.
+                            </p>
+
+                            <a
+                                class="button button--secondary"
+                                href="/admin/szablony"
+                            >
+                                Przejdź do szablonów
+                            </a>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php foreach ($inquiryMessageTemplates as $messageTemplate): ?>
+                        <?php
+                        $messageTemplateId = (int) (
+                            $messageTemplate['id']
+                            ?? 0
+                        );
+
+                        $messageTemplateName = (string) (
+                            $messageTemplate['name']
+                            ?? 'Szablon wiadomości'
+                        );
+
+                        $renderedContent = (string) (
+                            $messageTemplate['rendered_content']
+                            ?? ''
+                        );
+
+                        $textareaId = 'inquiry-message-template-'
+                            . $messageTemplateId;
+                        ?>
+
+                        <div class="empty-state">
+                            <strong>
+                                <?= htmlspecialchars(
+                                    $messageTemplateName,
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </strong>
+
+                            <div class="form-field">
+                                <textarea
+                                    id="<?= htmlspecialchars(
+                                        $textareaId,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>"
+                                    rows="18"
+                                ><?= htmlspecialchars(
+                                    $renderedContent,
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button
+                                    class="button button--primary js-copy-inquiry-template"
+                                    data-copy-target="<?= htmlspecialchars(
+                                        $textareaId,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>"
+                                    type="button"
+                                >
+                                    Kopiuj wiadomość
+                                </button>
+
+                                <a
+                                    class="button button--secondary"
+                                    href="/admin/szablony"
+                                >
+                                    Edytuj szablony
+                                </a>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
 
                     <div class="admin-actions">
                         <form method="post" action="/admin/zapytania/status">
@@ -233,44 +303,67 @@ $cabinName = $inquiry['linked_cabin_name']
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const copyButton = document.getElementById(
-        'copy-availability-reply'
+    const copyButtons = document.querySelectorAll(
+        '.js-copy-inquiry-template'
     );
 
-    const textarea = document.getElementById(
-        'availability-reply-template'
-    );
+    copyButtons.forEach(function (copyButton) {
+        copyButton.addEventListener(
+            'click',
+            async function () {
+                const targetId = copyButton.getAttribute(
+                    'data-copy-target'
+                );
 
-    if (!copyButton || !textarea) {
-        return;
-    }
+                if (!targetId) {
+                    return;
+                }
 
-    copyButton.addEventListener('click', async function () {
-        const message = textarea.value;
+                const textarea = document.getElementById(
+                    targetId
+                );
 
-        try {
-            if (
-                navigator.clipboard
-                && window.isSecureContext
-            ) {
-                await navigator.clipboard.writeText(message);
-            } else {
-                textarea.focus();
-                textarea.select();
-                document.execCommand('copy');
+                if (!textarea) {
+                    return;
+                }
+
+                const message = textarea.value;
+
+                try {
+                    if (
+                        navigator.clipboard
+                        && window.isSecureContext
+                    ) {
+                        await navigator.clipboard.writeText(
+                            message
+                        );
+                    } else {
+                        textarea.focus();
+                        textarea.select();
+                        document.execCommand(
+                            'copy'
+                        );
+                    }
+
+                    const originalText =
+                        copyButton.textContent;
+
+                    copyButton.textContent =
+                        'Skopiowano';
+
+                    window.setTimeout(
+                        function () {
+                            copyButton.textContent =
+                                originalText;
+                        },
+                        1500
+                    );
+                } catch (error) {
+                    textarea.focus();
+                    textarea.select();
+                }
             }
-
-            const originalText = copyButton.textContent;
-
-            copyButton.textContent = 'Skopiowano';
-
-            window.setTimeout(function () {
-                copyButton.textContent = originalText;
-            }, 1500);
-        } catch (error) {
-            textarea.focus();
-            textarea.select();
-        }
+        );
     });
 });
 </script>

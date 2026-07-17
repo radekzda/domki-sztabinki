@@ -148,9 +148,22 @@ final class MessageTemplateRenderer
         array $inquiry,
         array $settings
     ): string {
+        $fullName = trim(
+            (string) ($inquiry['full_name'] ?? '')
+        );
+
         $firstName = trim(
             (string) ($inquiry['first_name'] ?? '')
         );
+
+        if (
+            $firstName === ''
+            && $fullName !== ''
+        ) {
+            $firstName = self::firstName(
+                $fullName
+            );
+        }
 
         $lastName = trim(
             (string) ($inquiry['last_name'] ?? '')
@@ -159,6 +172,10 @@ final class MessageTemplateRenderer
         $guestName = trim(
             $firstName . ' ' . $lastName
         );
+
+        if ($guestName === '') {
+            $guestName = $fullName;
+        }
 
         $dateFrom = (string) (
             $inquiry['date_from'] ?? ''
@@ -196,7 +213,8 @@ final class MessageTemplateRenderer
                 'first_name' => $firstName,
                 'cabin_name' => trim(
                     (string) (
-                        $inquiry['cabin_name']
+                        $inquiry['linked_cabin_name']
+                        ?? $inquiry['cabin_name']
                         ?? ''
                     )
                 ),
