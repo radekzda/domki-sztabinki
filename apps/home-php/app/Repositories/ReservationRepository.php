@@ -429,7 +429,47 @@ final class ReservationRepository
             'notes' => $data['notes'],
         ]);
 
-        return (int) $connection->lastInsertId();
+        $reservationId = (int) $connection->lastInsertId();
+
+        try {
+            $details = [
+                'Termin: '
+                    . $data['start_date']
+                    . ' — '
+                    . $data['end_date'],
+                'Źródło: '
+                    . $data['source'],
+                'Cena pobytu: '
+                    . number_format(
+                        (float) $data['total_price'],
+                        0,
+                        ',',
+                        ' '
+                    )
+                    . ' zł',
+            ];
+
+            ReservationHistoryRepository::add(
+                $reservationId,
+                'CREATE',
+                'Utworzono rezerwację',
+                implode(
+                    "\n",
+                    $details
+                ),
+                null,
+                (string) $data['status']
+            );
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się zapisać historii utworzenia rezerwacji #'
+                . $reservationId
+                . ': '
+                . $exception->getMessage()
+            );
+        }
+
+        return $reservationId;
     }
 
     /**
