@@ -508,6 +508,8 @@ final class ReservationRepository
 
     public static function setStatus(int $id, string $status): void
     {
+        $reservationBefore = self::find($id);
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -520,11 +522,52 @@ final class ReservationRepository
             'id' => $id,
             'status' => $status,
         ]);
+
+        $oldStatus = $reservationBefore !== null
+            ? (string) (
+                $reservationBefore['status']
+                ?? ''
+            )
+            : '';
+
+        if ($oldStatus === $status) {
+            return;
+        }
+
+        $title = match ($status) {
+            'CONFIRMED' => 'Rezerwacja została potwierdzona',
+            'CHECKED_IN' => 'Gość został zameldowany',
+            'CHECKED_OUT' => 'Gość został wymeldowany',
+            'CANCELLED' => 'Rezerwacja została anulowana',
+            default => 'Zmieniono status rezerwacji',
+        };
+
+        try {
+            ReservationHistoryRepository::add(
+                $id,
+                'STATUS',
+                $title,
+                null,
+                $oldStatus !== ''
+                    ? $oldStatus
+                    : null,
+                $status
+            );
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się zapisać historii statusu rezerwacji #'
+                . $id
+                . ': '
+                . $exception->getMessage()
+            );
+        }
     }
 
 
     public static function addPayment(int $id, int $amount): void
     {
+        $reservationBefore = self::find($id);
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -543,11 +586,72 @@ final class ReservationRepository
             'amount_for_paid_amount' => $amount,
             'amount_for_status' => $amount,
         ]);
+
+        $reservationAfter = self::find($id);
+
+        $oldPaidAmount = $reservationBefore !== null
+            ? (float) (
+                $reservationBefore['paid_amount']
+                ?? 0
+            )
+            : 0;
+
+        $newPaidAmount = $reservationAfter !== null
+            ? (float) (
+                $reservationAfter['paid_amount']
+                ?? 0
+            )
+            : $oldPaidAmount + $amount;
+
+        try {
+            ReservationHistoryRepository::add(
+                $id,
+                'PAYMENT',
+                'Dodano wpłatę',
+                'Zarejestrowano wpłatę '
+                    . number_format(
+                        $amount,
+                        0,
+                        ',',
+                        ' '
+                    )
+                    . ' zł. Łącznie wpłacono: '
+                    . number_format(
+                        $newPaidAmount,
+                        0,
+                        ',',
+                        ' '
+                    )
+                    . ' zł.',
+                number_format(
+                    $oldPaidAmount,
+                    2,
+                    '.',
+                    ''
+                ),
+                number_format(
+                    $newPaidAmount,
+                    2,
+                    '.',
+                    ''
+                ),
+                (float) $amount
+            );
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się zapisać historii wpłaty rezerwacji #'
+                . $id
+                . ': '
+                . $exception->getMessage()
+            );
+        }
     }
 
 
     public static function markPaid(int $id): void
     {
+        $reservationBefore = self::find($id);
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -560,10 +664,43 @@ final class ReservationRepository
         $statement->execute([
             'id' => $id,
         ]);
+
+        $oldPaymentStatus = $reservationBefore !== null
+            ? (string) (
+                $reservationBefore['payment_status']
+                ?? ''
+            )
+            : '';
+
+        if ($oldPaymentStatus === 'PAID') {
+            return;
+        }
+
+        try {
+            ReservationHistoryRepository::add(
+                $id,
+                'PAYMENT_STATUS',
+                'Rezerwacja została oznaczona jako opłacona',
+                null,
+                $oldPaymentStatus !== ''
+                    ? $oldPaymentStatus
+                    : null,
+                'PAID'
+            );
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się zapisać historii płatności rezerwacji #'
+                . $id
+                . ': '
+                . $exception->getMessage()
+            );
+        }
     }
 
     public static function setPaymentStatus(int $id, string $paymentStatus): void
     {
+        $reservationBefore = self::find($id);
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -576,6 +713,37 @@ final class ReservationRepository
             'id' => $id,
             'payment_status' => $paymentStatus,
         ]);
+
+        $oldPaymentStatus = $reservationBefore !== null
+            ? (string) (
+                $reservationBefore['payment_status']
+                ?? ''
+            )
+            : '';
+
+        if ($oldPaymentStatus === $paymentStatus) {
+            return;
+        }
+
+        try {
+            ReservationHistoryRepository::add(
+                $id,
+                'PAYMENT_STATUS',
+                'Zmieniono status płatności',
+                null,
+                $oldPaymentStatus !== ''
+                    ? $oldPaymentStatus
+                    : null,
+                $paymentStatus
+            );
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się zapisać historii statusu płatności rezerwacji #'
+                . $id
+                . ': '
+                . $exception->getMessage()
+            );
+        }
     }
 
     public static function cancel(int $id): void
