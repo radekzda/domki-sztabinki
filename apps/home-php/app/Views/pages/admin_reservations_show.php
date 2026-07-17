@@ -28,6 +28,7 @@ declare(strict_types=1);
  *     created_at: string
  * } $reservation
  * @var string $reservationConfirmationTemplate
+ * @var string $preArrivalTemplate
  */
 
 $statusLabels = [
@@ -476,6 +477,32 @@ $displayDateTime = static function (mixed $value): string {
                         </div>
                     </div>
 
+                    <div class="empty-state">
+                        <strong>Wiadomość przed przyjazdem</strong>
+
+                        <p>
+                            Gotowa wiadomość z terminem pobytu, godzinami zameldowania i danymi kontaktowymi.
+                        </p>
+
+                        <div class="form-field">
+                            <textarea
+                                id="pre-arrival-template"
+                                rows="18"
+                                readonly
+                            ><?= htmlspecialchars($preArrivalTemplate, ENT_QUOTES, 'UTF-8') ?></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button
+                                class="button button--primary"
+                                id="copy-pre-arrival"
+                                type="button"
+                            >
+                                Kopiuj wiadomość
+                            </button>
+                        </div>
+                    </div>
+
                     <?php if ($reservation['notes'] !== null && $reservation['notes'] !== ''): ?>
                         <div class="empty-state">
                             <strong>Notatki</strong>
@@ -502,6 +529,50 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const textarea = document.getElementById(
         'reservation-confirmation-template'
+    );
+
+    if (!copyButton || !textarea) {
+        return;
+    }
+
+    copyButton.addEventListener('click', async function () {
+        const message = textarea.value;
+
+        try {
+            if (
+                navigator.clipboard
+                && window.isSecureContext
+            ) {
+                await navigator.clipboard.writeText(message);
+            } else {
+                textarea.focus();
+                textarea.select();
+                document.execCommand('copy');
+            }
+
+            const originalText = copyButton.textContent;
+
+            copyButton.textContent = 'Skopiowano';
+
+            window.setTimeout(function () {
+                copyButton.textContent = originalText;
+            }, 1500);
+        } catch (error) {
+            textarea.focus();
+            textarea.select();
+        }
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const copyButton = document.getElementById(
+        'copy-pre-arrival'
+    );
+
+    const textarea = document.getElementById(
+        'pre-arrival-template'
     );
 
     if (!copyButton || !textarea) {

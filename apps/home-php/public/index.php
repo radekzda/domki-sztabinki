@@ -1059,6 +1059,10 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
                 $reservation,
                 $settings
             ),
+            'preArrivalTemplate' => GuestMessageTemplates::preArrivalMessage(
+                $reservation,
+                $settings
+            ),
         ]));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [

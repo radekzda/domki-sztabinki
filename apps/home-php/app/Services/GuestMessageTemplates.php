@@ -189,6 +189,128 @@ final class GuestMessageTemplates
         return implode("\n", $lines);
     }
 
+    /**
+     * @param array<string, mixed> $reservation
+     * @param array<string, string> $settings
+     */
+    public static function preArrivalMessage(
+        array $reservation,
+        array $settings
+    ): string {
+        $guestName = trim(
+            (string) ($reservation['guest_name'] ?? '')
+        );
+
+        $greeting = $guestName !== ''
+            ? 'Dzień dobry ' . $guestName . ','
+            : 'Dzień dobry,';
+
+        $propertyName = trim(
+            (string) (
+                $settings['property_name']
+                ?? 'Domki Sztabinki'
+            )
+        );
+
+        if ($propertyName === '') {
+            $propertyName = 'Domki Sztabinki';
+        }
+
+        $cabinName = trim(
+            (string) ($reservation['cabin_name'] ?? '')
+        );
+
+        if ($cabinName === '') {
+            $cabinName = 'Domek';
+        }
+
+        $startDate = self::formatDate(
+            (string) ($reservation['start_date'] ?? '')
+        );
+
+        $endDate = self::formatDate(
+            (string) ($reservation['end_date'] ?? '')
+        );
+
+        $checkInTime = trim(
+            (string) (
+                $settings['check_in_time']
+                ?? '15:00'
+            )
+        );
+
+        $checkOutTime = trim(
+            (string) (
+                $settings['check_out_time']
+                ?? '11:00'
+            )
+        );
+
+        $contactPhone = trim(
+            (string) (
+                $settings['contact_phone']
+                ?? ''
+            )
+        );
+
+        $addressParts = array_filter(
+            [
+                trim(
+                    (string) (
+                        $settings['address_line']
+                        ?? ''
+                    )
+                ),
+                trim(
+                    (string) (
+                        $settings['postal_code']
+                        ?? ''
+                    )
+                ),
+                trim(
+                    (string) (
+                        $settings['city']
+                        ?? ''
+                    )
+                ),
+            ],
+            static fn (string $value): bool => $value !== ''
+        );
+
+        $location = implode(', ', $addressParts);
+
+        $lines = [
+            $greeting,
+            '',
+            'przypominamy o zbliżającym się pobycie.',
+            '',
+            'Szczegóły pobytu:',
+            'Domek: ' . $cabinName,
+            'Termin: ' . $startDate . ' — ' . $endDate,
+            'Zameldowanie od godz. ' . $checkInTime . '.',
+            'Wymeldowanie do godz. ' . $checkOutTime . '.',
+        ];
+
+        if ($location !== '') {
+            $lines[] = 'Lokalizacja: ' . $location;
+        }
+
+        $lines[] = '';
+        $lines[] = 'Prosimy o kontakt około 30 minut przed przyjazdem.';
+
+        if ($contactPhone !== '') {
+            $lines[] = 'Telefon kontaktowy: ' . $contactPhone;
+        }
+
+        $lines[] = '';
+        $lines[] = 'Życzymy spokojnej podróży i do zobaczenia!';
+        $lines[] = '';
+        $lines[] = 'Pozdrawiamy serdecznie';
+        $lines[] = $propertyName;
+
+        return implode("\n", $lines);
+    }
+
     private static function formatDate(string $date): string
     {
         if ($date === '') {
