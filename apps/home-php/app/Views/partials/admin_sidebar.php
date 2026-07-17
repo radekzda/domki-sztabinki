@@ -15,6 +15,11 @@ $items = [
         'active' => 'dashboard',
     ],
     [
+        'href' => '/admin/kalendarz',
+        'label' => 'Kalendarz',
+        'active' => 'calendar',
+    ],
+    [
         'href' => '/admin/domki',
         'label' => 'Domki',
         'active' => 'cabins',
@@ -33,11 +38,6 @@ $items = [
         'href' => '/admin/zapytania',
         'label' => 'Zapytania',
         'active' => 'inquiries',
-    ],
-    [
-        'href' => '/admin/kalendarz',
-        'label' => 'Kalendarz',
-        'active' => 'calendar',
     ],
     [
         'href' => '/admin/media',
