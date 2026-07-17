@@ -94,6 +94,86 @@ final class InquiryMailer
     }
 
     /**
+     * @param array<string, string> $form
+     * @param array<string, mixed>|null $selectedCabin
+     * @param array<string, string> $settings
+     */
+    public static function sendGuestConfirmation(
+        int $inquiryId,
+        array $form,
+        ?array $selectedCabin,
+        array $settings
+    ): bool {
+        $guestEmail = trim($form['email'] ?? '');
+
+        if (
+            filter_var(
+                $guestEmail,
+                FILTER_VALIDATE_EMAIL
+            ) === false
+        ) {
+            return false;
+        }
+
+        $propertyName = trim(
+            (string) ($settings['property_name'] ?? 'Domki Sztabinki')
+        );
+
+        if ($propertyName === '') {
+            $propertyName = 'Domki Sztabinki';
+        }
+
+        $firstName = trim($form['first_name'] ?? '');
+
+        $greeting = $firstName !== ''
+            ? 'Dzień dobry ' . $firstName . ','
+            : 'Dzień dobry,';
+
+        $cabinName = self::cabinName($selectedCabin);
+
+        $subject = 'Potwierdzenie otrzymania zapytania - ' . $propertyName;
+
+        $bodyLines = [
+            $greeting,
+            '',
+            'dziękujemy za przesłanie zapytania.',
+            'Otrzymaliśmy je poprawnie i odpowiemy po sprawdzeniu dostępności oraz ceny pobytu.',
+            '',
+            'SZCZEGÓŁY ZAPYTANIA',
+            'Numer zapytania: #' . $inquiryId,
+            'Domek: ' . $cabinName,
+            'Przyjazd: ' . self::valueOrDash($form['date_from'] ?? ''),
+            'Wyjazd: ' . self::valueOrDash($form['date_to'] ?? ''),
+            'Dorośli: ' . self::valueOrDash($form['adults'] ?? ''),
+            'Dzieci: ' . self::valueOrDash($form['children'] ?? ''),
+            '',
+            'To jest automatyczne potwierdzenie otrzymania zapytania.',
+            'Samo wysłanie zapytania nie oznacza jeszcze potwierdzenia rezerwacji.',
+            '',
+            'Pozdrawiamy serdecznie',
+            $propertyName,
+        ];
+
+        $contactEmail = trim(
+            (string) ($settings['contact_email'] ?? '')
+        );
+
+        $replyTo = filter_var(
+            $contactEmail,
+            FILTER_VALIDATE_EMAIL
+        ) !== false
+            ? $contactEmail
+            : null;
+
+        return Mailer::sendSafely(
+            $guestEmail,
+            $subject,
+            implode("\n", $bodyLines),
+            $replyTo
+        );
+    }
+
+    /**
      * @param array<string, string> $settings
      */
     private static function adminRecipient(array $settings): ?string

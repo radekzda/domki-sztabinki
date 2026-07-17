@@ -120,6 +120,13 @@ $router->post('/zapytanie', function (): void {
             $settings
         );
 
+        InquiryMailer::sendGuestConfirmation(
+            $inquiryId,
+            $form,
+            $selectedCabin,
+            $settings
+        );
+
         Response::redirect('/?inquiry_sent=1#zapytanie');
     } catch (Throwable $exception) {
         Response::html(View::render('pages/home', [
