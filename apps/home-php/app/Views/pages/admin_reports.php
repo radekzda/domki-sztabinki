@@ -80,6 +80,27 @@ $formatMonth = static function (
         . $year;
 };
 
+$formatSource = static function (
+    string $source
+): string {
+    $normalized = strtoupper(
+        trim($source)
+    );
+
+    return match ($normalized) {
+        'WWW' => 'WWW',
+        'BOOKING',
+        'BOOKING.COM' => 'Booking.com',
+        'AIRBNB' => 'Airbnb',
+        'MANUAL' => 'Ręcznie',
+        'PHONE' => 'Telefon',
+        'EMAIL' => 'E-mail',
+        'UNKNOWN',
+        '' => 'Nieznane',
+        default => $source,
+    };
+};
+
 $summaryCards = [
     [
         'label' => 'Rezerwacje',
@@ -540,6 +561,119 @@ $summaryCards = [
                             </div>
                         <?php endforeach; ?>
                     </div>
+
+                    <div class="reports-section-header">
+                        <h2>
+                            Wyniki według źródła
+                        </h2>
+
+                        <p>
+                            Porównanie rezerwacji według kanału,
+                            z którego zostały pozyskane.
+                        </p>
+                    </div>
+
+                    <?php if ($sourceRows === []): ?>
+                        <div class="alert alert--warning">
+                            Brak danych o źródłach rezerwacji
+                            w wybranym okresie.
+                        </div>
+                    <?php else: ?>
+                        <div class="reports-table-wrapper">
+                            <table class="reports-table">
+                                <thead>
+                                    <tr>
+                                        <th>Źródło</th>
+                                        <th>Rezerwacje</th>
+                                        <th>Noclegi</th>
+                                        <th>Osoby</th>
+                                        <th>Wartość</th>
+                                        <th>Wpłacono</th>
+                                        <th>Do zapłaty</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <?php foreach (
+                                        $sourceRows
+                                        as $row
+                                    ): ?>
+                                        <tr>
+                                            <td class="reports-table__name">
+                                                <?= htmlspecialchars(
+                                                    $formatSource(
+                                                        (string) $row['source_key']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['reservations_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['nights_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['guests_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td class="reports-table__money">
+                                                <?= htmlspecialchars(
+                                                    $formatMoney(
+                                                        (float) $row['total_value']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td class="reports-table__money reports-table__paid">
+                                                <?= htmlspecialchars(
+                                                    $formatMoney(
+                                                        (float) $row['paid_value']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td class="reports-table__money reports-table__remaining">
+                                                <?= htmlspecialchars(
+                                                    $formatMoney(
+                                                        (float) $row['remaining_value']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="reports-section-header">
                         <h2>

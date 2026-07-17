@@ -3022,6 +3022,7 @@ $router->get('/admin/raporty', function (): void {
     }
 
     $summary = ReportRepository::emptySummary();
+    $sourceRows = [];
     $monthRows = [];
     $cabinRows = [];
     $databaseMessage = null;
@@ -3033,6 +3034,11 @@ $router->get('/admin/raporty', function (): void {
     } else {
         try {
             $summary = ReportRepository::summary(
+                $dateFrom,
+                $dateTo
+            );
+
+            $sourceRows = ReportRepository::bySource(
                 $dateFrom,
                 $dateTo
             );
@@ -3063,6 +3069,7 @@ $router->get('/admin/raporty', function (): void {
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
                 'summary' => $summary,
+                'sourceRows' => $sourceRows,
                 'monthRows' => $monthRows,
                 'cabinRows' => $cabinRows,
                 'databaseMessage' =>

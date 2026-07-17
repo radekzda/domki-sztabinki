@@ -120,6 +120,118 @@ final class ReportRepository
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * Zestawienie wyników według źródła rezerwacji.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function bySource(
+        string $dateFrom,
+        string $dateTo
+    ): array {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                COALESCE(
+                    NULLIF(
+                        TRIM(source),
+                        ""
+                    ),
+                    "UNKNOWN"
+                ) AS source_key,
+                COUNT(*) AS reservations_count,
+                COALESCE(
+                    SUM(COALESCE(nights, 0)),
+                    0
+                ) AS nights_count,
+                COALESCE(
+                    SUM(COALESCE(guests, 0)),
+                    0
+                ) AS guests_count,
+                COALESCE(
+                    SUM(COALESCE(total_price, 0)),
+                    0
+                ) AS total_value,
+                COALESCE(
+                    SUM(COALESCE(paid_amount, 0)),
+                    0
+                ) AS paid_value,
+                COALESCE(
+                    SUM(
+                        GREATEST(
+                            COALESCE(total_price, 0)
+                            - COALESCE(paid_amount, 0),
+                            0
+                        )
+                    ),
+                    0
+                ) AS remaining_value
+            FROM reservations
+            WHERE start_date >= :date_from
+            AND start_date <= :date_to
+            AND status <> "CANCELLED"
+            GROUP BY
+                COALESCE(
+                    NULLIF(
+                        TRIM(source),
+                        ""
+                    ),
+                    "UNKNOWN"
+                )
+            ORDER BY
+                reservations_count DESC,
+                source_key ASC'
+        );
+
+        $statement->execute([
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        return array_map(
+            static function (array $row): array {
+                return [
+                    'source_key' => (string) (
+                        $row['source_key']
+                        ?? 'UNKNOWN'
+                    ),
+                    'reservations_count' => (int) (
+                        $row['reservations_count']
+                        ?? 0
+                    ),
+                    'nights_count' => (int) (
+                        $row['nights_count']
+                        ?? 0
+                    ),
+                    'guests_count' => (int) (
+                        $row['guests_count']
+                        ?? 0
+                    ),
+                    'total_value' => (float) (
+                        $row['total_value']
+                        ?? 0
+                    ),
+                    'paid_value' => (float) (
+                        $row['paid_value']
+                        ?? 0
+                    ),
+                    'remaining_value' => (float) (
+                        $row['remaining_value']
+                        ?? 0
+                    ),
+                ];
+            },
+            $rows
+        );
+    }
+
     public static function byMonth(
         string $dateFrom,
         string $dateTo
