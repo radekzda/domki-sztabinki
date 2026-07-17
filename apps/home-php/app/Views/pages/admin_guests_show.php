@@ -24,6 +24,13 @@ $paymentLabels = [
     'REFUNDED' => 'Zwrócona',
 ];
 
+$preferredContactLabels = [
+    'PHONE' => 'Telefon',
+    'EMAIL' => 'E-mail',
+    'SMS' => 'SMS',
+    'WHATSAPP' => 'WhatsApp',
+];
+
 $displayValue = static function (mixed $value): string {
     if ($value === null) {
         return '—';
@@ -349,6 +356,26 @@ $displayDate = static function (mixed $value): string {
                         </div>
 
                         <div class="status-row">
+                            <span>Preferowany kontakt</span>
+
+                            <strong>
+                                <?= htmlspecialchars(
+                                    $preferredContactLabels[
+                                        (string) (
+                                            $guest[
+                                                'preferred_contact'
+                                            ]
+                                            ?? ''
+                                        )
+                                    ]
+                                    ?? '—',
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </strong>
+                        </div>
+
+                        <div class="status-row">
                             <span>Miejscowość</span>
                             <strong><?= htmlspecialchars($displayValue($guest['city'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
@@ -379,6 +406,23 @@ $displayDate = static function (mixed $value): string {
                         </div>
 
                         <div class="status-row">
+                            <span>Narodowość</span>
+
+                            <strong>
+                                <?= htmlspecialchars(
+                                    $displayValue(
+                                        $guest[
+                                            'nationality'
+                                        ]
+                                        ?? null
+                                    ),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </strong>
+                        </div>
+
+                        <div class="status-row">
                             <span>VIP</span>
                             <strong><?= (int) $guest['is_vip'] === 1 ? 'Tak' : 'Nie' ?></strong>
                         </div>
@@ -398,6 +442,52 @@ $displayDate = static function (mixed $value): string {
                             <strong><?= htmlspecialchars(formatDateForDisplay((string) $guest['created_at']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
                     </div>
+
+                    <?php if (
+                        ($guest['important_notes'] ?? null) !== null
+                        && trim(
+                            (string) $guest['important_notes']
+                        ) !== ''
+                    ): ?>
+                        <div class="alert alert--warning">
+                            <strong>Ważne informacje o gościu</strong>
+
+                            <br><br>
+
+                            <?= nl2br(
+                                htmlspecialchars(
+                                    (string) $guest[
+                                        'important_notes'
+                                    ],
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                )
+                            ) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (
+                        ($guest['preferences'] ?? null) !== null
+                        && trim(
+                            (string) $guest['preferences']
+                        ) !== ''
+                    ): ?>
+                        <div class="empty-state">
+                            <strong>Preferencje pobytu</strong>
+
+                            <p>
+                                <?= nl2br(
+                                    htmlspecialchars(
+                                        (string) $guest[
+                                            'preferences'
+                                        ],
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    )
+                                ) ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
 
                     <?php if (($guest['notes'] ?? null) !== null && (string) $guest['notes'] !== ''): ?>
                         <div class="empty-state">

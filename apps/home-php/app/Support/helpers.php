@@ -304,6 +304,9 @@ function defaultReservationForm(): array
         'payment_status' => 'PENDING',
         'paid_amount' => '0',
         'source' => 'MANUAL',
+        'preferred_contact' => '',
+        'preferences' => '',
+        'important_notes' => '',
         'notes' => '',
     ];
 }
@@ -863,6 +866,9 @@ function defaultGuestForm(): array
         'birth_date' => '',
         'is_vip' => '0',
         'source' => 'MANUAL',
+        'preferred_contact' => '',
+        'preferences' => '',
+        'important_notes' => '',
         'notes' => '',
     ];
 }
@@ -916,6 +922,9 @@ function guestFormFromGuest(array $guest): array
         'birth_date' => isset($guest['birth_date']) ? (string) $guest['birth_date'] : '',
         'is_vip' => (string) ((int) ($guest['is_vip'] ?? 0)),
         'source' => (string) ($guest['source'] ?? 'MANUAL'),
+        'preferred_contact' => isset($guest['preferred_contact']) ? (string) $guest['preferred_contact'] : '',
+        'preferences' => isset($guest['preferences']) ? (string) $guest['preferences'] : '',
+        'important_notes' => isset($guest['important_notes']) ? (string) $guest['important_notes'] : '',
         'notes' => isset($guest['notes']) ? (string) $guest['notes'] : '',
     ];
 }
@@ -944,6 +953,25 @@ function validateGuestForm(array $form): array
 
     if (!in_array((string) $form['is_vip'], ['0', '1'], true)) {
         $errors['is_vip'] = 'Nieprawidłowa wartość VIP.';
+    }
+
+    $allowedContactMethods = [
+        '',
+        'PHONE',
+        'EMAIL',
+        'SMS',
+        'WHATSAPP',
+    ];
+
+    if (
+        !in_array(
+            (string) ($form['preferred_contact'] ?? ''),
+            $allowedContactMethods,
+            true
+        )
+    ) {
+        $errors['preferred_contact'] =
+            'Nieprawidłowy preferowany sposób kontaktu.';
     }
 
     $allowedSources = [
@@ -1001,6 +1029,9 @@ function guestDataFromForm(array $form): array
         'birth_date' => trim((string) $form['birth_date']) !== '' ? (new DateTimeImmutable((string) $form['birth_date']))->format('Y-m-d') : null,
         'is_vip' => (int) $form['is_vip'],
         'source' => (string) $form['source'],
+        'preferred_contact' => trim((string) ($form['preferred_contact'] ?? '')) !== '' ? trim((string) ($form['preferred_contact'] ?? '')) : null,
+        'preferences' => trim((string) ($form['preferences'] ?? '')) !== '' ? trim((string) ($form['preferences'] ?? '')) : null,
+        'important_notes' => trim((string) ($form['important_notes'] ?? '')) !== '' ? trim((string) ($form['important_notes'] ?? '')) : null,
         'notes' => trim((string) $form['notes']) !== '' ? trim((string) $form['notes']) : null,
     ];
 }

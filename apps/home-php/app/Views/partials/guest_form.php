@@ -72,6 +72,66 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
         </div>
 
         <div class="form-field">
+            <label for="preferred_contact">
+                Preferowany kontakt
+            </label>
+
+            <select
+                id="preferred_contact"
+                name="preferred_contact"
+            >
+                <option
+                    value=""
+                    <?= $form['preferred_contact'] === '' ? 'selected' : '' ?>
+                >
+                    Brak preferencji
+                </option>
+
+                <option
+                    value="PHONE"
+                    <?= $form['preferred_contact'] === 'PHONE' ? 'selected' : '' ?>
+                >
+                    Telefon
+                </option>
+
+                <option
+                    value="EMAIL"
+                    <?= $form['preferred_contact'] === 'EMAIL' ? 'selected' : '' ?>
+                >
+                    E-mail
+                </option>
+
+                <option
+                    value="SMS"
+                    <?= $form['preferred_contact'] === 'SMS' ? 'selected' : '' ?>
+                >
+                    SMS
+                </option>
+
+                <option
+                    value="WHATSAPP"
+                    <?= $form['preferred_contact'] === 'WHATSAPP' ? 'selected' : '' ?>
+                >
+                    WhatsApp
+                </option>
+            </select>
+
+            <?php if (
+                isset(
+                    $errors['preferred_contact']
+                )
+            ): ?>
+                <span class="form-error">
+                    <?= htmlspecialchars(
+                        $errors['preferred_contact'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field">
             <label for="city">Miejscowość</label>
             <input
                 id="city"
@@ -136,6 +196,21 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
         </div>
 
         <div class="form-field">
+            <label for="nationality">Narodowość</label>
+
+            <input
+                id="nationality"
+                name="nationality"
+                type="text"
+                value="<?= htmlspecialchars(
+                    $form['nationality'],
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+            >
+        </div>
+
+        <div class="form-field">
             <label for="is_vip">VIP</label>
             <select id="is_vip" name="is_vip">
                 <option value="0" <?= $form['is_vip'] === '0' ? 'selected' : '' ?>>
@@ -194,7 +269,45 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
         </div>
 
         <div class="form-field form-field--full">
-            <label for="notes">Notatki</label>
+            <label for="preferences">
+                Preferencje pobytu
+            </label>
+
+            <textarea
+                id="preferences"
+                name="preferences"
+                rows="4"
+                placeholder="Np. preferowany domek, późniejszy przyjazd, łóżeczko dla dziecka, sposób przygotowania pobytu."
+            ><?= htmlspecialchars(
+                $form['preferences'],
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?></textarea>
+        </div>
+
+        <div class="form-field form-field--full">
+            <label for="important_notes">
+                Ważne informacje
+            </label>
+
+            <textarea
+                id="important_notes"
+                name="important_notes"
+                rows="4"
+                placeholder="Np. szczególne wymagania, ważne ustalenia, informacje wymagające uwagi przed kolejnym pobytem."
+            ><?= htmlspecialchars(
+                $form['important_notes'],
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?></textarea>
+
+            <small>
+                Informacje widoczne tylko w panelu administratora.
+            </small>
+        </div>
+
+        <div class="form-field form-field--full">
+            <label for="notes">Notatki wewnętrzne</label>
             <textarea
                 id="notes"
                 name="notes"

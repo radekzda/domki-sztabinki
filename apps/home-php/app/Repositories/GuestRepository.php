@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 final class GuestRepository
 {
+    private static bool $profileColumnsEnsured = false;
+
     public static function all(): array
     {
+        self::ensureProfileColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->query(
@@ -45,6 +49,8 @@ final class GuestRepository
 
     public static function find(int $id): ?array
     {
+        self::ensureProfileColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -65,6 +71,9 @@ final class GuestRepository
                 is_vip,
                 source,
                 notes,
+                preferred_contact,
+                preferences,
+                important_notes,
                 created_at
             FROM guests
             WHERE id = :id
@@ -86,6 +95,8 @@ final class GuestRepository
 
     public static function findByEmail(string $email): ?array
     {
+        self::ensureProfileColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -106,6 +117,9 @@ final class GuestRepository
                 is_vip,
                 source,
                 notes,
+                preferred_contact,
+                preferences,
+                important_notes,
                 created_at
             FROM guests
             WHERE LOWER(email) = LOWER(:email)
@@ -127,6 +141,8 @@ final class GuestRepository
 
     public static function create(array $data): int
     {
+        self::ensureProfileColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -145,7 +161,10 @@ final class GuestRepository
                 birth_date,
                 is_vip,
                 source,
-                notes
+                notes,
+                preferred_contact,
+                preferences,
+                important_notes
             ) VALUES (
                 :external_id,
                 :first_name,
@@ -161,7 +180,10 @@ final class GuestRepository
                 :birth_date,
                 :is_vip,
                 :source,
-                :notes
+                :notes,
+                :preferred_contact,
+                :preferences,
+                :important_notes
             )'
         );
 
@@ -181,6 +203,9 @@ final class GuestRepository
             'is_vip' => $data['is_vip'],
             'source' => $data['source'],
             'notes' => $data['notes'],
+            'preferred_contact' => $data['preferred_contact'] ?? null,
+            'preferences' => $data['preferences'] ?? null,
+            'important_notes' => $data['important_notes'] ?? null,
         ]);
 
         return (int) $connection->lastInsertId();
@@ -188,6 +213,8 @@ final class GuestRepository
 
     public static function update(int $id, array $data): void
     {
+        self::ensureProfileColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -207,7 +234,10 @@ final class GuestRepository
                 birth_date = :birth_date,
                 is_vip = :is_vip,
                 source = :source,
-                notes = :notes
+                notes = :notes,
+                preferred_contact = :preferred_contact,
+                preferences = :preferences,
+                important_notes = :important_notes
             WHERE id = :id'
         );
 
@@ -228,6 +258,9 @@ final class GuestRepository
             'is_vip' => $data['is_vip'],
             'source' => $data['source'],
             'notes' => $data['notes'],
+            'preferred_contact' => $data['preferred_contact'] ?? null,
+            'preferences' => $data['preferences'] ?? null,
+            'important_notes' => $data['important_notes'] ?? null,
         ]);
     }
 
@@ -344,6 +377,84 @@ final class GuestRepository
         ]);
     }
 
+    private static function ensureProfileColumns(): void
+    {
+        if (self::$profileColumnsEnsured) {
+            return;
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->query(
+            'SHOW COLUMNS FROM guests'
+        );
+
+        $columns = [];
+
+        if ($statement !== false) {
+            $rows = $statement->fetchAll();
+
+            if (is_array($rows)) {
+                foreach ($rows as $row) {
+                    if (
+                        is_array($row)
+                        && isset($row['Field'])
+                    ) {
+                        $columns[] = (string) $row['Field'];
+                    }
+                }
+            }
+        }
+
+        if (
+            !in_array(
+                'preferred_contact',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE guests
+                ADD COLUMN preferred_contact VARCHAR(30) NULL
+                AFTER notes'
+            );
+
+            $columns[] = 'preferred_contact';
+        }
+
+        if (
+            !in_array(
+                'preferences',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE guests
+                ADD COLUMN preferences TEXT NULL
+                AFTER preferred_contact'
+            );
+
+            $columns[] = 'preferences';
+        }
+
+        if (
+            !in_array(
+                'important_notes',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE guests
+                ADD COLUMN important_notes TEXT NULL
+                AFTER preferences'
+            );
+        }
+
+        self::$profileColumnsEnsured = true;
+    }
+
     private static function mapGuestRow(array $row): array
     {
         return [
@@ -363,6 +474,9 @@ final class GuestRepository
             'is_vip' => (int) ($row['is_vip'] ?? 0),
             'source' => (string) ($row['source'] ?? 'MANUAL'),
             'notes' => isset($row['notes']) ? (string) $row['notes'] : null,
+            'preferred_contact' => isset($row['preferred_contact']) ? (string) $row['preferred_contact'] : null,
+            'preferences' => isset($row['preferences']) ? (string) $row['preferences'] : null,
+            'important_notes' => isset($row['important_notes']) ? (string) $row['important_notes'] : null,
             'created_at' => (string) ($row['created_at'] ?? ''),
         ];
     }
