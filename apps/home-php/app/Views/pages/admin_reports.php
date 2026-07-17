@@ -80,6 +80,21 @@ $formatMonth = static function (
         . $year;
 };
 
+$formatReportStatus = static function (
+    string $status
+): string {
+    return match ($status) {
+        'PENDING' => 'Oczekuje',
+        'CONFIRMED' => 'Potwierdzona',
+        'CHECKED_IN' => 'Zameldowany',
+        'CHECKED_OUT' => 'Wymeldowany',
+        'CANCELLED' => 'Anulowana',
+        default => $status !== ''
+            ? $status
+            : 'Nieznany',
+    };
+};
+
 $formatSource = static function (
     string $source
 ): string {
@@ -561,6 +576,104 @@ $summaryCards = [
                             </div>
                         <?php endforeach; ?>
                     </div>
+
+                    <div class="reports-section-header">
+                        <h2>
+                            Wyniki według statusu
+                        </h2>
+
+                        <p>
+                            Liczba i wartość rezerwacji według aktualnego statusu.
+                            Zestawienie obejmuje również rezerwacje anulowane.
+                        </p>
+                    </div>
+
+                    <?php if ($statusRows === []): ?>
+                        <div class="alert alert--warning">
+                            Brak rezerwacji w wybranym okresie.
+                        </div>
+                    <?php else: ?>
+                        <div class="reports-table-wrapper">
+                            <table class="reports-table">
+                                <thead>
+                                    <tr>
+                                        <th>Status</th>
+                                        <th>Rezerwacje</th>
+                                        <th>Noclegi</th>
+                                        <th>Osoby</th>
+                                        <th>Wartość</th>
+                                        <th>Wpłacono</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <?php foreach ($statusRows as $row): ?>
+                                        <tr>
+                                            <td class="reports-table__name">
+                                                <?= htmlspecialchars(
+                                                    $formatReportStatus(
+                                                        (string) $row['status_key']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['reservations_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['nights_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['guests_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td class="reports-table__money">
+                                                <?= htmlspecialchars(
+                                                    $formatMoney(
+                                                        (float) $row['total_value']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td class="reports-table__money reports-table__paid">
+                                                <?= htmlspecialchars(
+                                                    $formatMoney(
+                                                        (float) $row['paid_value']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="reports-section-header">
                         <h2>

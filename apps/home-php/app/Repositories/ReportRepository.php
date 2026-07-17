@@ -125,6 +125,99 @@ final class ReportRepository
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * Zestawienie wyników według statusu rezerwacji.
+     *
+     * Ta metoda obejmuje również rezerwacje anulowane.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function byStatus(
+        string $dateFrom,
+        string $dateTo
+    ): array {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                status AS status_key,
+                COUNT(*) AS reservations_count,
+                COALESCE(
+                    SUM(COALESCE(nights, 0)),
+                    0
+                ) AS nights_count,
+                COALESCE(
+                    SUM(COALESCE(guests, 0)),
+                    0
+                ) AS guests_count,
+                COALESCE(
+                    SUM(COALESCE(total_price, 0)),
+                    0
+                ) AS total_value,
+                COALESCE(
+                    SUM(COALESCE(paid_amount, 0)),
+                    0
+                ) AS paid_value
+            FROM reservations
+            WHERE start_date >= :date_from
+            AND start_date <= :date_to
+            GROUP BY status
+            ORDER BY
+                FIELD(
+                    status,
+                    "PENDING",
+                    "CONFIRMED",
+                    "CHECKED_IN",
+                    "CHECKED_OUT",
+                    "CANCELLED"
+                ),
+                status ASC'
+        );
+
+        $statement->execute([
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        return array_map(
+            static function (array $row): array {
+                return [
+                    'status_key' => (string) (
+                        $row['status_key']
+                        ?? ''
+                    ),
+                    'reservations_count' => (int) (
+                        $row['reservations_count']
+                        ?? 0
+                    ),
+                    'nights_count' => (int) (
+                        $row['nights_count']
+                        ?? 0
+                    ),
+                    'guests_count' => (int) (
+                        $row['guests_count']
+                        ?? 0
+                    ),
+                    'total_value' => (float) (
+                        $row['total_value']
+                        ?? 0
+                    ),
+                    'paid_value' => (float) (
+                        $row['paid_value']
+                        ?? 0
+                    ),
+                ];
+            },
+            $rows
+        );
+    }
+
     public static function bySource(
         string $dateFrom,
         string $dateTo
