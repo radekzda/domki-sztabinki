@@ -19,6 +19,7 @@ require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Core/Mailer.php';
+require dirname(__DIR__) . '/app/Services/InquiryMailer.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Support/PublicFormGuard.php';
 require dirname(__DIR__) . '/app/Support/ImageUploader.php';
@@ -105,7 +106,19 @@ $router->post('/zapytanie', function (): void {
     }
 
     try {
-        InquiryRepository::create(publicInquiryDataFromForm($form, $selectedCabin));
+        $inquiryId = InquiryRepository::create(
+            publicInquiryDataFromForm(
+                $form,
+                $selectedCabin
+            )
+        );
+
+        InquiryMailer::sendAdminNotification(
+            $inquiryId,
+            $form,
+            $selectedCabin,
+            $settings
+        );
 
         Response::redirect('/?inquiry_sent=1#zapytanie');
     } catch (Throwable $exception) {
