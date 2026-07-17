@@ -18,6 +18,7 @@ AppErrorHandler::register($config, dirname(__DIR__));
 require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
+require dirname(__DIR__) . '/app/Core/Mailer.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Support/PublicFormGuard.php';
 require dirname(__DIR__) . '/app/Support/ImageUploader.php';
