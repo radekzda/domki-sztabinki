@@ -7,13 +7,15 @@ declare(strict_types=1);
  * @var array<string, string> $checks
  */
 ?>
+<?php View::partial('partials/admin_system_styles'); ?>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
             <?php View::partial('partials/admin_sidebar', ['active' => 'system']); ?>
 
             <div class="admin-content">
-                <div class="panel">
+                <div class="panel system-panel">
                     <p class="eyebrow">System</p>
 
                     <h1>Status środowiska</h1>
@@ -23,7 +25,7 @@ declare(strict_types=1);
                         Nie pokazuje haseł ani sekretów.
                     </p>
 
-                    <div class="status-list">
+                    <div class="status-list system-status-list">
                         <?php foreach ($checks as $label => $value): ?>
                             <div class="status-row">
                                 <span><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></span>
@@ -32,7 +34,7 @@ declare(strict_types=1);
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="admin-actions">
+                    <div class="admin-actions system-actions">
                         <a class="button button--secondary" href="/admin/system/database">
                             Sprawdź bazę MySQL
                         </a>

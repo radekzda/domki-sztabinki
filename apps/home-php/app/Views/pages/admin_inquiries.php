@@ -45,13 +45,345 @@ $getStatusClass = static function (string $status): string {
     return 'status-pill status-pill--muted';
 };
 ?>
+<style>
+    .inquiries-panel {
+        padding: 28px;
+    }
+
+    .inquiries-panel .page-header {
+        margin-bottom: 22px;
+        align-items: flex-start;
+    }
+
+    .inquiries-panel .page-header h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+        line-height: 1.1;
+    }
+
+    .inquiries-panel .page-header p {
+        max-width: 760px;
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #6b7280;
+    }
+
+    .inquiries-panel .page-header__actions .button {
+        min-height: 38px;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+    }
+
+    /*
+     * Statystyki
+     */
+    .inquiries-stats {
+        display: grid;
+        grid-template-columns: repeat(
+            4,
+            minmax(0, 1fr)
+        );
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .inquiries-stats .stat-card {
+        min-width: 0;
+        min-height: 68px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 6px 16px rgba(15, 23, 42, 0.03);
+    }
+
+    .inquiries-stats .stat-card span {
+        min-width: 0;
+        font-size: 13px;
+        line-height: 1.25;
+        font-weight: 600;
+        color: #6b7280;
+    }
+
+    .inquiries-stats .stat-card strong {
+        flex-shrink: 0;
+        font-size: 24px;
+        line-height: 1;
+        color: #111827;
+    }
+
+    /*
+     * Tabela
+     */
+    .inquiries-table-wrapper {
+        overflow-x: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 8px 20px rgba(15, 23, 42, 0.035);
+    }
+
+    .inquiries-table {
+        width: 100%;
+        min-width: 1180px;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .inquiries-table thead {
+        background: #f8fafc;
+    }
+
+    .inquiries-table th {
+        padding: 13px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 11px;
+        line-height: 1.15;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-align: left;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .inquiries-table td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #edf0f2;
+        vertical-align: middle;
+        font-size: 13px;
+        line-height: 1.35;
+        color: #374151;
+    }
+
+    .inquiries-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .inquiries-table tbody tr:hover {
+        background: #fafbfc;
+    }
+
+    /*
+     * Dane
+     */
+    .inquiry-date {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .inquiry-guest {
+        display: grid;
+        gap: 3px;
+    }
+
+    .inquiry-guest strong {
+        font-size: 14px;
+        line-height: 1.3;
+        color: #111827;
+    }
+
+    .inquiry-guest span {
+        font-size: 12px;
+        line-height: 1.3;
+        color: #6b7280;
+    }
+
+    .inquiry-contact {
+        display: grid;
+        gap: 3px;
+    }
+
+    .inquiry-contact span {
+        font-size: 12px;
+        line-height: 1.35;
+        color: #6b7280;
+        overflow-wrap: anywhere;
+    }
+
+    .inquiry-term {
+        font-size: 13px;
+        line-height: 1.3;
+        color: #111827;
+    }
+
+    .inquiry-guests {
+        display: grid;
+        gap: 3px;
+    }
+
+    .inquiry-guests strong {
+        font-size: 13px;
+        color: #111827;
+    }
+
+    .inquiry-guests span {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .inquiry-source {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    /*
+     * Status
+     */
+    .inquiries-table .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 26px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 700;
+    }
+
+    /*
+     * Akcje
+     */
+    .inquiry-actions {
+        min-width: 210px;
+        display: grid;
+        grid-template-columns: repeat(
+            2,
+            minmax(0, 1fr)
+        );
+        gap: 7px;
+    }
+
+    .inquiry-actions > a,
+    .inquiry-actions > form {
+        min-width: 0;
+        margin: 0;
+    }
+
+    .inquiry-actions .button {
+        width: 100%;
+        min-height: 34px;
+        padding: 7px 9px;
+        border-radius: 8px;
+        font-size: 12px;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .inquiry-status-form {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            auto;
+        gap: 7px;
+        align-items: center;
+        padding: 7px;
+        border: 1px solid #e5e7eb;
+        border-radius: 9px;
+        background: #f8fafc;
+    }
+
+    .inquiry-status-form select {
+        width: 100%;
+        min-width: 0;
+        height: 34px;
+        padding: 5px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 7px;
+        background: #ffffff;
+        font-size: 12px;
+        color: #374151;
+    }
+
+    .inquiry-status-form .button {
+        width: auto;
+        min-width: 68px;
+    }
+
+    .inquiry-delete-form {
+        grid-column: 1 / -1;
+    }
+
+    .inquiry-delete-button {
+        background: #ef4444;
+        border-color: #ef4444;
+        color: #ffffff;
+    }
+
+    .inquiry-delete-button:hover {
+        background: #dc2626;
+        border-color: #dc2626;
+    }
+
+    /*
+     * Notatka
+     */
+    .inquiry-note-row td {
+        padding: 10px 14px;
+        background: #fffbeb;
+        border-bottom: 1px solid #fde68a;
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .inquiry-note-row strong {
+        color: #92400e;
+    }
+
+    /*
+     * Responsive
+     */
+    @media (max-width: 1100px) {
+        .inquiries-panel {
+            padding: 22px;
+        }
+
+        .inquiries-stats {
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            );
+        }
+    }
+
+    @media (max-width: 700px) {
+        .inquiries-panel {
+            padding: 16px;
+        }
+
+        .inquiries-panel .page-header {
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .inquiries-panel .page-header h1 {
+            font-size: 27px;
+        }
+
+        .inquiries-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
             <?php View::partial('partials/admin_sidebar', ['active' => 'inquiries']); ?>
 
             <div class="admin-content">
-                <div class="panel">
+                <div class="panel inquiries-panel">
                     <div class="page-header">
                         <div>
                             <p class="eyebrow">Zapytania</p>
@@ -92,7 +424,7 @@ $getStatusClass = static function (string $status): string {
                             </p>
                         </div>
                     <?php else: ?>
-                        <div class="dashboard-grid">
+                        <div class="inquiries-stats">
                             <div class="stat-card">
                                 <span>Wszystkie zapytania</span>
                                 <strong><?= htmlspecialchars((string) count($inquiries), ENT_QUOTES, 'UTF-8') ?></strong>
@@ -120,19 +452,19 @@ $getStatusClass = static function (string $status): string {
                             </div>
                         </div>
 
-                        <div class="table-wrapper">
-                            <table class="data-table">
+                        <div class="table-wrapper inquiries-table-wrapper">
+                            <table class="data-table inquiries-table">
                                 <thead>
                                     <tr>
-                                        <th>Data zapytania</th>
-                                        <th>Gość</th>
-                                        <th>Kontakt</th>
-                                        <th>Termin</th>
-                                        <th>Domek</th>
-                                        <th>Osoby</th>
-                                        <th>Status</th>
-                                        <th>Źródło</th>
-                                        <th>Akcje</th>
+                                        <th style="width: 10%;">Data zapytania</th>
+                                        <th style="width: 15%;">Gość</th>
+                                        <th style="width: 15%;">Kontakt</th>
+                                        <th style="width: 12%;">Termin</th>
+                                        <th style="width: 8%;">Domek</th>
+                                        <th style="width: 9%;">Osoby</th>
+                                        <th style="width: 8%;">Status</th>
+                                        <th style="width: 7%;">Źródło</th>
+                                        <th style="width: 16%;">Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -147,47 +479,47 @@ $getStatusClass = static function (string $status): string {
 
                                         <tr>
                                             <td>
-                                                <?= htmlspecialchars(formatDateForDisplay($inquiry['created_at']), ENT_QUOTES, 'UTF-8') ?>
+                                                <span class="inquiry-date">
+                                                    <?= htmlspecialchars(formatDateForDisplay($inquiry['created_at']), ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
                                             </td>
 
                                             <td>
-                                                <strong>
-                                                    <?= htmlspecialchars($inquiry['full_name'], ENT_QUOTES, 'UTF-8') ?>
-                                                </strong>
+                                                <div class="inquiry-guest">
+                                                    <strong>
+                                                        <?= htmlspecialchars($inquiry['full_name'], ENT_QUOTES, 'UTF-8') ?>
+                                                    </strong>
 
                                                 <?php if ($inquiry['city'] !== null && $inquiry['city'] !== ''): ?>
-                                                    <br>
-
                                                     <span>
                                                         <?= htmlspecialchars($inquiry['city'], ENT_QUOTES, 'UTF-8') ?>
                                                     </span>
                                                 <?php endif; ?>
 
                                                 <?php if ($inquiry['country'] !== null && $inquiry['country'] !== ''): ?>
-                                                    <br>
-
                                                     <span>
                                                         <?= htmlspecialchars($inquiry['country'], ENT_QUOTES, 'UTF-8') ?>
                                                     </span>
                                                 <?php endif; ?>
+                                                </div>
                                             </td>
 
                                             <td>
-                                                <span>
-                                                    <?= htmlspecialchars($inquiry['phone'], ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
+                                                <div class="inquiry-contact">
+                                                    <span>
+                                                        <?= htmlspecialchars($inquiry['phone'], ENT_QUOTES, 'UTF-8') ?>
+                                                    </span>
 
                                                 <?php if ($inquiry['email'] !== null && $inquiry['email'] !== ''): ?>
-                                                    <br>
-
                                                     <span>
                                                         <?= htmlspecialchars($inquiry['email'], ENT_QUOTES, 'UTF-8') ?>
                                                     </span>
                                                 <?php endif; ?>
+                                                </div>
                                             </td>
 
                                             <td>
-                                                <strong>
+                                                <strong class="inquiry-term">
                                                     <?= htmlspecialchars(formatDateForDisplay($inquiry['date_from']), ENT_QUOTES, 'UTF-8') ?>
                                                     —
                                                     <?= htmlspecialchars(formatDateForDisplay($inquiry['date_to']), ENT_QUOTES, 'UTF-8') ?>
@@ -199,17 +531,19 @@ $getStatusClass = static function (string $status): string {
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars((string) $inquiry['guests'], ENT_QUOTES, 'UTF-8') ?>
-                                                os.
+                                                <div class="inquiry-guests">
+                                                    <strong>
+                                                        <?= htmlspecialchars((string) $inquiry['guests'], ENT_QUOTES, 'UTF-8') ?>
+                                                        os.
+                                                    </strong>
 
-                                                <br>
-
-                                                <span>
+                                                    <span>
                                                     dorośli:
                                                     <?= htmlspecialchars((string) $inquiry['adults'], ENT_QUOTES, 'UTF-8') ?>,
-                                                    dzieci:
-                                                    <?= htmlspecialchars((string) $inquiry['children'], ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
+                                                        dzieci:
+                                                        <?= htmlspecialchars((string) $inquiry['children'], ENT_QUOTES, 'UTF-8') ?>
+                                                    </span>
+                                                </div>
                                             </td>
 
                                             <td>
@@ -219,11 +553,13 @@ $getStatusClass = static function (string $status): string {
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($inquiry['source'], ENT_QUOTES, 'UTF-8') ?>
+                                                <span class="inquiry-source">
+                                                    <?= htmlspecialchars($inquiry['source'], ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
                                             </td>
 
                                             <td>
-                                                <div class="table-actions">
+                                                <div class="inquiry-actions">
                                                     <a
                                                         class="button button--secondary button--small"
                                                         href="/admin/zapytania/pokaz?id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
@@ -238,7 +574,7 @@ $getStatusClass = static function (string $status): string {
                                                         Rezerwacja
                                                     </a>
 
-                                                    <form method="post" action="/admin/zapytania/status">
+                                                    <form class="inquiry-status-form" method="post" action="/admin/zapytania/status">
     <?= csrfField() ?>
                                                         <input
                                                             type="hidden"
@@ -258,11 +594,12 @@ $getStatusClass = static function (string $status): string {
                                                         </select>
 
                                                         <button class="button button--primary button--small" type="submit">
-                                                            Status
+                                                            Zapisz
                                                         </button>
                                                     </form>
 
                                                     <form
+                                                        class="inquiry-delete-form"
                                                         method="post"
                                                         action="/admin/zapytania/usun"
                                                         onsubmit="return confirm('Czy na pewno usunąć to zapytanie?')"
@@ -274,7 +611,7 @@ $getStatusClass = static function (string $status): string {
                                                             value="<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
                                                         >
 
-                                                        <button class="button button--secondary button--small" type="submit">
+                                                        <button class="button button--small inquiry-delete-button" type="submit">
                                                             Usuń
                                                         </button>
                                                     </form>
@@ -283,7 +620,7 @@ $getStatusClass = static function (string $status): string {
                                         </tr>
 
                                         <?php if ($inquiry['notes'] !== null && $inquiry['notes'] !== ''): ?>
-                                            <tr>
+                                            <tr class="inquiry-note-row">
                                                 <td colspan="9">
                                                     <strong>Notatka:</strong>
                                                     <?= nl2br(htmlspecialchars($inquiry['notes'], ENT_QUOTES, 'UTF-8')) ?>

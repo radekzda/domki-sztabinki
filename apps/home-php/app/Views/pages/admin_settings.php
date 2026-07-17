@@ -11,13 +11,273 @@ declare(strict_types=1);
  * @var bool $canSave
  */
 ?>
+<style>
+    .settings-panel {
+        padding: 28px;
+    }
+
+    /*
+     * Naglowek strony
+     */
+    .settings-panel > .page-header {
+        margin-bottom: 22px;
+        align-items: flex-start;
+    }
+
+    .settings-panel > .page-header .eyebrow {
+        display: none;
+ > .page-header {
+        margin-bottom: 22px;
+        align-items: flex-start;
+    }
+
+    .settings-panel > .    }
+
+    .settings-panel > .page-header h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+        line-height: 1.1;
+    }
+
+    .settings-panel > .page-header p {
+        max-width: 760px;
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #6b7280;
+    }
+
+    .settings-panel > .page-header .button {
+        min-height: 38px;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+    }
+
+    /*
+     * Glowny formularz
+     */
+    .settings-form {
+        max-width: none !important;
+    }
+
+    .settings-form .form-grid {
+        display: grid;
+        grid-template-columns: repeat(
+            2,
+            minmax(0, 1fr)
+        );
+        gap: 14px 16px;
+    }
+
+    .settings-form .form-field {
+        min-width: 0;
+        margin: 0;
+    }
+
+    .settings-form .form-field--full {
+        grid-column: 1 / -1;
+    }
+
+    /*
+     * Sekcje formularza
+     */
+    .settings-section-heading {
+        margin-top: 10px !important;
+        padding: 16px 18px !important;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .settings-section-heading:first-child {
+        margin-top: 0 !important;
+    }
+
+    .settings-section-heading h2 {
+        margin: 0 0 5px !important;
+        font-size: 17px;
+        line-height: 1.2;
+        color: #111827;
+    }
+
+    .settings-section-heading p {
+        margin: 0 !important;
+        max-width: 820px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #6b7280;
+    }
+
+    /*
+     * Pola formularza
+     */
+    .settings-form .form-field > label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 12px;
+        line-height: 1.25;
+        font-weight: 700;
+        color: #374151;
+    }
+
+    .settings-form input[type="text"],
+    .settings-form input[type="email"],
+    .settings-form input[type="number"],
+    .settings-form input[type="time"],
+    .settings-form textarea,
+    .settings-form select {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid #d1d5db;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #111827;
+        font-size: 13px;
+        transition:
+            border-color 0.15s ease,
+            box-shadow 0.15s ease;
+    }
+
+    .settings-form input[type="text"],
+    .settings-form input[type="email"],
+    .settings-form input[type="number"],
+    .settings-form input[type="time"],
+    .settings-form select {
+        min-height: 42px;
+        padding: 9px 11px;
+    }
+
+    .settings-form textarea {
+        padding: 11px 12px;
+        line-height: 1.5;
+        resize: vertical;
+    }
+
+    .settings-form input:focus,
+    .settings-form textarea:focus,
+    .settings-form select:focus {
+        outline: none;
+        border-color: #15803d;
+        box-shadow:
+            0 0 0 3px rgba(
+                21,
+                128,
+                61,
+                0.1
+            );
+    }
+
+    /*
+     * Bledy
+     */
+    .settings-form .form-error {
+        display: block;
+        margin-top: 5px;
+        font-size: 11px;
+        line-height: 1.35;
+        color: #dc2626;
+    }
+
+    /*
+     * Akcje na dole
+     */
+    .settings-form > .form-actions {
+        position: sticky;
+        bottom: 12px;
+        z-index: 10;
+        margin-top: 20px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: rgba(
+            255,
+            255,
+            255,
+            0.96
+        );
+        box-shadow:
+            0 8px 24px rgba(
+                15,
+                23,
+                42,
+                0.08
+            );
+        backdrop-filter: blur(8px);
+    }
+
+    .settings-form > .form-actions .button {
+        min-height: 38px;
+        padding: 8px 16px;
+        border-radius: 9px;
+        font-size: 12px;
+    }
+
+    /*
+     * Delikatne grupowanie pol miedzy naglowkami
+     */
+    .settings-section-heading
+    + .form-field {
+        margin-top: 2px;
+    }
+
+    /*
+     * Responsive
+     */
+    @media (max-width: 900px) {
+        .settings-panel {
+            padding: 22px;
+        }
+
+        .settings-form .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .settings-form .form-field--full {
+            grid-column: 1;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .settings-panel {
+            padding: 16px;
+        }
+
+        .settings-panel > .page-header {
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .settings-panel > .page-header h1 {
+            font-size: 27px;
+        }
+
+        .settings-section-heading {
+            padding: 14px !important;
+        }
+
+        .settings-form > .form-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .settings-form > .form-actions .button {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
             <?php View::partial('partials/admin_sidebar', ['active' => 'settings']); ?>
 
             <div class="admin-content">
-                <div class="panel">
+                <div class="panel settings-panel">
                     <div class="page-header">
                         <div>
                             <p class="eyebrow">Ustawienia</p>
@@ -55,9 +315,17 @@ declare(strict_types=1);
                         </div>
                     <?php endif; ?>
 
-                    <form class="form form--wide" method="post" action="/admin/ustawienia">
+                    <form class="form form--wide settings-form" method="post" action="/admin/ustawienia">
     <?= csrfField() ?>
                         <div class="form-grid">
+                            <div class="form-field form-field--full settings-section-heading">
+                                <h2>Dane obiektu</h2>
+
+                                <p>
+                                    Podstawowe dane kontaktowe, lokalizacja oraz zasady obsługi pobytu.
+                                </p>
+                            </div>
+
                             <div class="form-field form-field--full">
                                 <label for="property_name">Nazwa obiektu</label>
                                 <input
@@ -200,7 +468,7 @@ declare(strict_types=1);
                                 <?php endif; ?>
                             </div>
 
-                            <div class="form-field form-field--full">
+                            <div class="form-field form-field--full settings-section-heading">
                                 <h2>Cennik podstawowy</h2>
                                 <p>
                                     Cena za jedną noc zależnie od całkowitej długości pobytu.
@@ -282,7 +550,7 @@ declare(strict_types=1);
                                 <?php endif; ?>
                             </div>
 
-                            <div class="form-field form-field--full">
+                            <div class="form-field form-field--full settings-section-heading">
                                 <h2>Płatności i zadatek</h2>
 
                                 <p>
@@ -330,6 +598,14 @@ declare(strict_types=1);
                                     value="<?= htmlspecialchars($form['bank_account_number'], ENT_QUOTES, 'UTF-8') ?>"
                                     placeholder="PL00 0000 0000 0000 0000 0000 0000"
                                 >
+                            </div>
+
+                            <div class="form-field form-field--full settings-section-heading">
+                                <h2>Treści publiczne i zasady</h2>
+
+                                <p>
+                                    Informacje wykorzystywane na stronie publicznej oraz przy prezentowaniu zasad pobytu.
+                                </p>
                             </div>
 
                             <div class="form-field form-field--full">

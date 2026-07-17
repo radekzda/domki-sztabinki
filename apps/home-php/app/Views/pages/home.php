@@ -1593,6 +1593,146 @@ if (isset($settings) && is_array($settings)) {
         pointer-events: none !important;
     }
 
+
+
+    /* M13.93.24 — spójna typografia strony publicznej */
+
+    .public-page {
+        font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    /*
+     * Główne nagłówki sekcji
+     */
+    .public-section__head h2,
+    .public-availability h2,
+    .public-benefit-intro h2,
+    .public-form-card h2,
+    .public-contact-card h2 {
+        margin-top: 0;
+        color: var(--public-green);
+        font-family:
+            Georgia,
+            "Times New Roman",
+            serif;
+        font-size: clamp(
+            28px,
+            3vw,
+            38px
+        );
+        font-weight: 700;
+        line-height: 1.12;
+        letter-spacing: -0.04em;
+    }
+
+    /*
+     * Opisy pod nagłówkami sekcji
+     */
+    .public-section__head p:not(.public-kicker),
+    .public-availability p,
+    .public-benefit-intro p,
+    .public-form-card > p,
+    .public-contact-card > p {
+        font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+        font-size: 16px;
+        line-height: 1.65;
+    }
+
+    /*
+     * Małe etykiety nad nagłówkami
+     */
+    .public-kicker {
+        font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+        font-size: 13px;
+        line-height: 1.3;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    /*
+     * Nazwy domków
+     */
+    .public-cabin-card h3 {
+        font-family:
+            Georgia,
+            "Times New Roman",
+            serif;
+        font-size: 24px;
+        line-height: 1.2;
+        font-weight: 700;
+    }
+
+    /*
+     * Teksty kart i galerii
+     */
+    .public-cabin-card p,
+    .public-benefit p,
+    .public-media-card__body,
+    .public-media-card__body strong {
+        font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    /*
+     * Galeria ma dokładnie tę samą typografię
+     * nagłówka co pozostałe sekcje.
+     */
+    #galeria .public-section__head h2 {
+        margin-bottom: 0;
+    }
+
+    #galeria .public-section__head h2 + p {
+        margin-top: 10px;
+    }
+
+    /*
+     * Formularze i przyciski
+     */
+    .public-button,
+    .public-label,
+    .public-input,
+    .public-select,
+    .public-textarea {
+        font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+    }
+
+    @media (max-width: 700px) {
+        .public-section__head h2,
+        .public-availability h2,
+        .public-benefit-intro h2,
+        .public-form-card h2,
+        .public-contact-card h2 {
+            font-size: 28px;
+        }
+
+        .public-section__head p:not(.public-kicker),
+        .public-availability p,
+        .public-benefit-intro p,
+        .public-form-card > p,
+        .public-contact-card > p {
+            font-size: 15px;
+        }
+    }
+
 </style>
 
 <section class="public-page">
@@ -1818,7 +1958,7 @@ if (isset($settings) && is_array($settings)) {
         <div class="public-wrap">
             <div class="public-availability">
                 <div>
-                    <p class="public-kicker"><h2>Sprawdź dostępność</h2></p>
+                    <h2>Sprawdź dostępność</h2>
 
                     
 
@@ -2016,7 +2156,11 @@ if (isset($settings) && is_array($settings)) {
             <div class="public-wrap">
                 <div class="public-section__head">
                     <div>
-                        <p class="public-kicker">Galeria</p>
+                        <h2>Galeria</h2>
+
+                        <p>
+                            Zobacz domki, jezioro i otoczenie Domków Sztabinki.
+                        </p>
                     </div>
                 </div>
 

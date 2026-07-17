@@ -51,14 +51,273 @@ $cleaningStatusLabels = [
 ?>
 
 <style>
-    /* M13.70 cabin delete button */
+    .cabins-panel {
+        padding: 28px;
+    }
+
+    .cabins-panel .page-header {
+        margin-bottom: 22px;
+        align-items: flex-start;
+    }
+
+    .cabins-panel .page-header h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+        line-height: 1.1;
+    }
+
+    .cabins-panel .page-header p {
+        max-width: 760px;
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #6b7280;
+    }
+
+    .cabins-panel .page-header__actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .cabins-panel .page-header__actions .button {
+        min-height: 38px;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+    }
+
+    /*
+     * Tabela domków
+     */
+    .cabins-table-wrapper {
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 8px 20px rgba(15, 23, 42, 0.035);
+    }
+
+    .cabins-table {
+        width: 100%;
+        min-width: 900px;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .cabins-table thead {
+        background: #f8fafc;
+    }
+
+    .cabins-table th {
+        padding: 13px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 11px;
+        line-height: 1.2;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-align: left;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .cabins-table td {
+        padding: 16px;
+        border-bottom: 1px solid #edf0f2;
+        vertical-align: middle;
+        font-size: 13px;
+        line-height: 1.4;
+        color: #374151;
+    }
+
+    .cabins-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .cabins-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .cabins-table tbody tr:hover {
+        background: #fafbfc;
+    }
+
+    /*
+     * Nazwa domku
+     */
+    .cabins-table td:first-child > strong {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 15px;
+        color: #111827;
+    }
+
+    .cabins-table td:first-child div {
+        margin-top: 3px !important;
+        font-size: 12px !important;
+        line-height: 1.35;
+        color: #9ca3af !important;
+    }
+
+    /*
+     * Parametry i ceny
+     */
+    .cabins-table td:nth-child(2) > div,
+    .cabins-table td:nth-child(3) > div {
+        gap: 4px !important;
+    }
+
+    .cabins-table td:nth-child(2) span,
+    .cabins-table td:nth-child(3) span {
+        font-size: 13px;
+        line-height: 1.35;
+    }
+
+    .cabins-table td:nth-child(2) strong,
+    .cabins-table td:nth-child(3) strong {
+        color: #111827;
+    }
+
+    /*
+     * Status
+     */
+    .cabins-status-cell > div {
+        gap: 7px !important;
+    }
+
+    .cabins-status-cell .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 26px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 700;
+    }
+
+    /*
+     * Akcje
+     */
+    .cabins-actions {
+        min-width: 190px;
+        display: grid;
+        grid-template-columns: repeat(
+            2,
+            minmax(0, 1fr)
+        );
+        gap: 7px;
+    }
+
+    .cabins-actions > a,
+    .cabins-actions > form {
+        min-width: 0;
+        margin: 0;
+    }
+
+    .cabins-actions .button {
+        width: 100%;
+        min-height: 34px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        line-height: 1.2;
+    }
+
+    .cabins-cleaning-form {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            auto;
+        gap: 7px;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 9px;
+        background: #f8fafc;
+    }
+
+    .cabins-cleaning-form select {
+        width: 100%;
+        min-width: 0;
+        height: 34px;
+        padding: 5px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 7px;
+        background: #ffffff;
+        font-size: 12px;
+        color: #374151;
+    }
+
+    .cabins-cleaning-form .button {
+        width: auto;
+        white-space: nowrap;
+    }
+
+    .cabins-actions form[action="/admin/domki/status"] {
+        grid-column: 1 / 2;
+    }
+
+    .cabins-actions form[action="/admin/domki/usun"] {
+        grid-column: 2 / 3;
+    }
+
     .button--danger {
-        background: #dc2626;
+        background: #ef4444;
+        border-color: #ef4444;
         color: #ffffff;
     }
 
     .button--danger:hover {
-        background: #991b1b;
+        background: #dc2626;
+        border-color: #dc2626;
+    }
+
+    /*
+     * Responsywność
+     */
+    @media (max-width: 1100px) {
+        .cabins-panel {
+            padding: 22px;
+        }
+
+        .cabins-panel .page-header {
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .cabins-panel .page-header__actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .cabins-panel {
+            padding: 16px;
+        }
+
+        .cabins-panel .page-header h1 {
+            font-size: 27px;
+        }
+
+        .cabins-panel .page-header__actions {
+            display: grid;
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            );
+            width: 100%;
+        }
+
+        .cabins-panel .page-header__actions .button {
+            width: 100%;
+            text-align: center;
+        }
     }
 </style>
 
@@ -69,7 +328,7 @@ $cleaningStatusLabels = [
             <?php View::partial('partials/admin_sidebar', ['active' => 'cabins']); ?>
 
             <div class="admin-content">
-                <div class="panel">
+                <div class="panel cabins-panel">
                     <div class="page-header">
                         <div>
                             <p class="eyebrow">Domki</p>
@@ -119,15 +378,15 @@ $cleaningStatusLabels = [
                             </p>
                         </div>
                     <?php else: ?>
-                        <div class="table-wrapper">
-                            <table class="data-table" style="min-width: 0;">
+                        <div class="table-wrapper cabins-table-wrapper">
+                            <table class="data-table cabins-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 26%;">Domek</th>
-                                        <th style="width: 24%;">Parametry</th>
-                                        <th style="width: 22%;">Ceny</th>
-                                        <th style="width: 12%;">Status</th>
-                                        <th style="width: 16%;">Akcje</th>
+                                        <th style="width: 23%;">Domek</th>
+                                        <th style="width: 18%;">Parametry</th>
+                                        <th style="width: 21%;">Ceny</th>
+                                        <th style="width: 14%;">Status</th>
+                                        <th style="width: 24%;">Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -203,7 +462,7 @@ $cleaningStatusLabels = [
                                                 </div>
                                             </td>
 
-                                            <td>
+                                            <td class="cabins-status-cell">
                                                 <div style="display: grid; gap: 8px;">
                                                     <div>
                                                         <?php if ($cabin['is_active'] === 1): ?>
@@ -268,7 +527,7 @@ $cleaningStatusLabels = [
                                             </td>
 
                                             <td>
-                                                <div style="display: grid; gap: 8px; min-width: 120px;">
+                                                <div class="cabins-actions">
                                                     <a
                                                         class="button button--secondary button--small"
                                                         href="/admin/domki/edytuj?id=<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
@@ -284,9 +543,9 @@ $cleaningStatusLabels = [
                                                     </a>
 
                                                     <form
+                                                        class="cabins-cleaning-form"
                                                         method="post"
                                                         action="/admin/domki/sprzatanie"
-                                                        style="display: grid; gap: 6px;"
                                                     >
                                                         <?= csrfField() ?>
 
@@ -327,7 +586,7 @@ $cleaningStatusLabels = [
                                                             type="submit"
                                                             style="width: 100%;"
                                                         >
-                                                            Zmień sprzątanie
+                                                            Zapisz
                                                         </button>
                                                     </form>
 

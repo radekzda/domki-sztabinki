@@ -1333,6 +1333,671 @@ $summaryCards = [
         background: #ffffff;
     }
 
+
+
+    /* M13.93.11 — professional calendar layout */
+
+    .calendar-panel {
+        padding: 28px;
+    }
+
+    .calendar-panel > .page-header {
+        margin-bottom: 18px !important;
+        align-items: center;
+    }
+
+    .calendar-panel > .page-header h1 {
+        margin: 0 !important;
+        font-size: 32px !important;
+        line-height: 1.1 !important;
+    }
+
+    .calendar-panel > .page-header .eyebrow {
+        display: none;
+    }
+
+    .calendar-panel > .page-header__actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px !important;
+    }
+
+    .calendar-panel > .page-header .button {
+        min-height: 38px !important;
+        padding: 8px 15px !important;
+        border-radius: 10px;
+        font-size: 12px !important;
+    }
+
+    /*
+     * Miesiac i wybor miesiaca
+     */
+    .pms-calendar-toolbar--compact {
+        margin-top: 0 !important;
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px !important;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 8px 20px rgba(15, 23, 42, 0.03);
+    }
+
+    .pms-calendar-month-heading {
+        min-width: 0;
+    }
+
+    .pms-calendar-month-heading h2 {
+        margin: 0 0 5px;
+        font-size: 22px;
+        line-height: 1.1;
+        color: #111827;
+        text-transform: capitalize;
+    }
+
+    .pms-calendar-help {
+        max-width: 780px;
+        margin: 0 !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+        font-weight: 400 !important;
+        color: #9ca3af !important;
+    }
+
+    .pms-calendar-month-form {
+        flex-shrink: 0;
+        margin: 0 !important;
+        display: flex;
+        align-items: center;
+        gap: 8px !important;
+    }
+
+    .pms-calendar-month-form input[type="month"] {
+        width: 160px;
+        min-height: 38px !important;
+        padding: 0 11px;
+        border: 1px solid #d1d5db;
+        border-radius: 9px;
+        background: #ffffff;
+        font-size: 12px !important;
+        color: #374151;
+    }
+
+    .pms-calendar-month-form .button {
+        min-height: 38px !important;
+        padding: 7px 14px !important;
+        border-radius: 9px;
+        font-size: 12px !important;
+    }
+
+    /*
+     * Statystyki miesiaca
+     */
+    .pms-calendar-summary {
+        grid-template-columns: repeat(
+            5,
+            minmax(0, 1fr)
+        ) !important;
+        gap: 10px !important;
+        margin-top: 14px !important;
+    }
+
+    .pms-calendar-summary__card {
+        min-height: 62px;
+        padding: 12px 14px !important;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 12px !important;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.015),
+            0 6px 14px rgba(15, 23, 42, 0.025);
+    }
+
+    .pms-calendar-summary__card span {
+        min-width: 0;
+        font-size: 11px !important;
+        line-height: 1.2;
+        font-weight: 700 !important;
+        letter-spacing: 0 !important;
+        text-transform: none !important;
+        color: #6b7280 !important;
+    }
+
+    .pms-calendar-summary__card strong {
+        flex-shrink: 0;
+        margin: 0 !important;
+        font-size: 18px !important;
+        line-height: 1;
+        font-weight: 750;
+        color: #111827 !important;
+    }
+
+    /*
+     * Glowny kalendarz
+     */
+    .pms-calendar-table-wrap {
+        margin-top: 14px !important;
+        overflow: visible !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 14px !important;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 10px 24px rgba(15, 23, 42, 0.04);
+    }
+
+    .pms-calendar-table {
+        border-radius: 14px;
+    }
+
+    .pms-calendar-table th {
+        height: 46px;
+        padding: 6px 3px !important;
+        background: #f8fafc !important;
+        border-color: #e5e7eb !important;
+    }
+
+    .pms-calendar-table__cabin {
+        width: 145px !important;
+        min-width: 145px !important;
+        padding: 10px 14px !important;
+    }
+
+    .pms-calendar-table th.pms-calendar-table__cabin {
+        background: #f8fafc !important;
+    }
+
+    .pms-calendar-cabin-name {
+        font-size: 13px !important;
+        line-height: 1.25;
+        font-weight: 750 !important;
+        color: #111827 !important;
+    }
+
+    .pms-calendar-cabin-short {
+        margin-top: 3px !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        color: #9ca3af !important;
+    }
+
+    /*
+     * Dni
+     */
+    .pms-calendar-day-head {
+        gap: 1px !important;
+    }
+
+    .pms-calendar-day-head strong {
+        font-size: 11px !important;
+        line-height: 1;
+        color: #374151;
+    }
+
+    .pms-calendar-day-head span {
+        font-size: 8px !important;
+        line-height: 1;
+        color: #9ca3af;
+    }
+
+    .pms-calendar-day-head--today strong,
+    .pms-calendar-day-head--today span {
+        color: #15803d !important;
+        font-weight: 800;
+    }
+
+    /*
+     * Wiersze kalendarza
+     */
+    .pms-calendar-row-grid {
+        grid-template-rows: 76px !important;
+        min-height: 76px !important;
+    }
+
+    .pms-calendar-bg-cell {
+        min-height: 76px !important;
+        border-color: #edf0f2 !important;
+    }
+
+    .pms-calendar-bg-cell--weekend {
+        background: #fafbfc !important;
+    }
+
+    .pms-calendar-bg-cell--today {
+        background: rgba(
+            21,
+            128,
+            61,
+            0.055
+        ) !important;
+        box-shadow:
+            inset 2px 0 0 rgba(21, 128, 61, 0.2),
+            inset -2px 0 0 rgba(21, 128, 61, 0.2) !important;
+    }
+
+    /*
+     * Paski rezerwacji
+     */
+    .pms-calendar-bar {
+        top: 10px !important;
+        height: 56px !important;
+        padding: 6px 8px !important;
+        gap: 2px !important;
+        border-radius: 9px !important;
+        box-shadow:
+            0 4px 10px rgba(15, 23, 42, 0.11) !important;
+        transition:
+            filter 0.15s ease,
+            transform 0.15s ease,
+            box-shadow 0.15s ease;
+    }
+
+    .pms-calendar-bar:hover {
+        z-index: 20;
+        filter: brightness(0.97);
+        transform: translateY(-1px);
+        box-shadow:
+            0 7px 16px rgba(15, 23, 42, 0.16) !important;
+    }
+
+    .pms-calendar-bar__guest {
+        font-size: 12px !important;
+        line-height: 1.05 !important;
+        font-weight: 650 !important;
+    }
+
+    .pms-calendar-bar__line {
+        font-size: 10px !important;
+        line-height: 1.05 !important;
+        font-weight: 450 !important;
+    }
+
+    /*
+     * Tooltip
+     */
+    .pms-calendar-tooltip {
+        width: min(
+            270px,
+            calc(100vw - 48px)
+        ) !important;
+        max-width: 270px !important;
+        padding: 13px 14px !important;
+        gap: 6px !important;
+        border-radius: 12px !important;
+        box-shadow:
+            0 18px 40px rgba(15, 23, 42, 0.2) !important;
+    }
+
+    .pms-calendar-tooltip strong {
+        font-size: 15px !important;
+        line-height: 1.25;
+    }
+
+    /*
+     * Legenda
+     */
+    .pms-calendar-legend--bottom {
+        margin-top: 12px !important;
+        padding: 10px 12px !important;
+        display: flex;
+        align-items: center;
+        gap: 14px !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 12px !important;
+        background: #f8fafc !important;
+    }
+
+    .pms-calendar-legend__item {
+        gap: 5px !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        color: #6b7280 !important;
+    }
+
+    .pms-calendar-legend__dot {
+        width: 10px !important;
+        height: 10px !important;
+    }
+
+    /*
+     * Responsive
+     */
+    @media (max-width: 1200px) {
+        .calendar-panel {
+            padding: 22px;
+        }
+
+        .calendar-panel > .page-header {
+            align-items: flex-start;
+        }
+
+        .pms-calendar-toolbar--compact {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .pms-calendar-month-form {
+            width: 100%;
+        }
+
+        .pms-calendar-summary {
+            grid-template-columns: repeat(
+                3,
+                minmax(0, 1fr)
+            ) !important;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .calendar-panel {
+            padding: 16px;
+        }
+
+        .calendar-panel > .page-header {
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .calendar-panel > .page-header__actions {
+            justify-content: flex-start;
+        }
+
+        .pms-calendar-month-form {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .pms-calendar-month-form input[type="month"],
+        .pms-calendar-month-form .button {
+            width: 100%;
+            max-width: none;
+        }
+
+        .pms-calendar-summary {
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            ) !important;
+        }
+    }
+
+
+
+    /* M13.93.12 — final calendar readability */
+
+    /*
+     * Wybor miesiaca w gornym pasku
+     */
+    .calendar-panel > .page-header__actions {
+        align-items: center;
+    }
+
+    .pms-calendar-month-form--header {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 0;
+    }
+
+    .pms-calendar-month-form--header input[type="month"] {
+        width: 145px;
+        height: 38px;
+        min-height: 38px;
+        padding: 0 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        background: #ffffff;
+        font-size: 12px;
+        color: #111827;
+    }
+
+    .pms-calendar-month-form--header .button {
+        min-height: 38px !important;
+        height: 38px;
+        padding: 0 13px !important;
+        white-space: nowrap;
+    }
+
+    /*
+     * Statystyki od razu pod naglowkiem
+     */
+    .pms-calendar-summary {
+        margin-top: 0 !important;
+        margin-bottom: 14px;
+    }
+
+    /*
+     * Wiersz dopasowany do paska.
+     * Pasek pozostaje 56 px.
+     * 6 px wolnego miejsca u gory i na dole.
+     */
+    .pms-calendar-row-grid {
+        grid-template-rows: 68px !important;
+        min-height: 68px !important;
+    }
+
+    .pms-calendar-bg-cell {
+        min-height: 68px !important;
+    }
+
+    .pms-calendar-bar {
+        top: 6px !important;
+        height: 56px !important;
+        padding: 5px 8px !important;
+    }
+
+    /*
+     * Czytelniejszy czarny tekst na paskach
+     */
+    .pms-calendar-bar > .pms-calendar-bar__line {
+        color: #111827 !important;
+        font-family:
+            Inter,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            Arial,
+            sans-serif;
+        text-shadow: none !important;
+    }
+
+    .pms-calendar-bar__guest {
+        font-size: 13px !important;
+        line-height: 1.08 !important;
+        font-weight: 700 !important;
+    }
+
+    .pms-calendar-bar__line {
+        font-size: 11px !important;
+        line-height: 1.08 !important;
+        font-weight: 550 !important;
+    }
+
+    /*
+     * Nazwa domku bez D1 / D2
+     */
+    .pms-calendar-table__cabin {
+        vertical-align: middle !important;
+    }
+
+    .pms-calendar-cabin-name {
+        margin: 0;
+        font-size: 13px !important;
+        line-height: 1.2;
+    }
+
+    /*
+     * Legenda tylko statusy
+     */
+    .pms-calendar-legend--bottom {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 1200px) {
+        .calendar-panel > .page-header__actions {
+            width: 100%;
+        }
+
+        .pms-calendar-month-form--header {
+            order: 10;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .pms-calendar-month-form--header {
+            width: 100%;
+        }
+
+        .pms-calendar-month-form--header input[type="month"] {
+            flex: 1;
+            width: auto;
+        }
+    }
+
+
+
+    /* M13.93.13 — pionowe centrowanie paskow rezerwacji */
+
+    .pms-calendar-row-cell {
+        height: 68px !important;
+        vertical-align: middle !important;
+    }
+
+    .pms-calendar-row-grid {
+        height: 68px !important;
+        min-height: 68px !important;
+        grid-template-rows: 68px !important;
+    }
+
+    .pms-calendar-bg-cell {
+        height: 68px !important;
+        min-height: 68px !important;
+    }
+
+    .pms-calendar-bar {
+        top: 50% !important;
+        height: 56px !important;
+        transform: translateY(-50%);
+    }
+
+    .pms-calendar-bar:hover {
+        transform: translateY(calc(-50% - 1px));
+    }
+
+
+
+    /* M13.93.14 — precyzyjne centrowanie paskow w wierszach */
+
+    .pms-calendar-row-cell {
+        height: 68px !important;
+        min-height: 68px !important;
+        padding: 0 !important;
+    }
+
+    .pms-calendar-row-grid {
+        position: relative !important;
+        height: 68px !important;
+        min-height: 68px !important;
+        grid-template-rows: 68px !important;
+    }
+
+    .pms-calendar-bg-cell {
+        height: 68px !important;
+        min-height: 68px !important;
+        box-sizing: border-box !important;
+    }
+
+    .pms-calendar-bar {
+        top: 6px !important;
+        bottom: auto !important;
+        height: 56px !important;
+        min-height: 56px !important;
+        box-sizing: border-box !important;
+        transform: none !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .pms-calendar-bar:hover {
+        transform: translateY(-1px) !important;
+    }
+
+
+
+    /* M13.93.15 — tooltip zawsze wewnatrz okna */
+
+    .pms-calendar-tooltip {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        z-index: 9999 !important;
+        width: min(
+            270px,
+            calc(100vw - 24px)
+        ) !important;
+        max-width: 270px !important;
+        transform: none !important;
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .pms-calendar-bar:hover .pms-calendar-tooltip {
+        transform: none !important;
+    }
+
+
+
+    /* M13.93.16 — tooltip pozycjonowany wzgledem ekranu */
+
+    .pms-calendar-bar,
+    .pms-calendar-bar:hover {
+        transform: none !important;
+    }
+
+    .pms-calendar-bar:hover {
+        filter: brightness(0.97);
+        box-shadow:
+            0 7px 16px rgba(15, 23, 42, 0.16) !important;
+    }
+
+    .pms-calendar-tooltip {
+        position: fixed !important;
+        transform: none !important;
+    }
+
+    .pms-calendar-bar:hover .pms-calendar-tooltip {
+        transform: none !important;
+    }
+
+
+
+    /* M13.93.17 — tooltip niezalezny od paska rezerwacji */
+
+    .pms-calendar-bar,
+    .pms-calendar-bar:hover {
+        transform: none !important;
+        filter: none !important;
+    }
+
+    body > .pms-calendar-tooltip {
+        position: fixed !important;
+        z-index: 99999 !important;
+        margin: 0 !important;
+        transform: none !important;
+        pointer-events: none !important;
+    }
+
 </style>
 
 <section class="page-section">
@@ -1341,7 +2006,7 @@ $summaryCards = [
             <?php View::partial('partials/admin_sidebar', ['active' => 'calendar']); ?>
 
             <div class="admin-content">
-                <div class="panel">
+                <div class="panel calendar-panel">
                     <div class="page-header">
                         <div>
                             <p class="eyebrow">Kalendarz</p>
@@ -1356,6 +2021,26 @@ $summaryCards = [
                             >
                                 Nowa rezerwacja
                             </a>
+
+                            <form
+                                method="get"
+                                action="/admin/kalendarz"
+                                class="pms-calendar-month-form pms-calendar-month-form--header"
+                            >
+                                <input
+                                    type="month"
+                                    name="month"
+                                    value="<?= htmlspecialchars($monthStart->format('Y-m'), ENT_QUOTES, 'UTF-8') ?>"
+                                    aria-label="Wybierz miesiąc"
+                                >
+
+                                <button
+                                    class="button button--primary"
+                                    type="submit"
+                                >
+                                    Pokaż miesiąc
+                                </button>
+                            </form>
 
                             <a class="button button--secondary" href="/admin/kalendarz?month=<?= htmlspecialchars($previousMonth, ENT_QUOTES, 'UTF-8') ?>">
                                 Poprzedni
@@ -1376,30 +2061,6 @@ $summaryCards = [
                             <?= htmlspecialchars($databaseMessage, ENT_QUOTES, 'UTF-8') ?>
                         </div>
                     <?php endif; ?>
-
-                    <div class="pms-calendar-toolbar">
-                        <div>
-                            <h2><?= htmlspecialchars($monthLabel, ENT_QUOTES, 'UTF-8') ?></h2>
-
-                            <p style="margin: 6px 0 0;">
-                                Kliknij zajęty dzień, aby przejść do szczegółów rezerwacji.
-                                Godziny przyjazdu i wyjazdu pochodzą z importu Base44 lub ręcznej edycji rezerwacji.
-                            </p>
-                        </div>
-
-                        <form method="get" action="/admin/kalendarz" class="form-actions" style="margin-top: 0;">
-                            <input
-                                type="month"
-                                name="month"
-                                value="<?= htmlspecialchars($monthStart->format('Y-m'), ENT_QUOTES, 'UTF-8') ?>"
-                                style="min-height: 42px; border: 1px solid var(--color-border); border-radius: 999px; padding: 0 14px;"
-                            >
-
-                            <button class="button button--primary" type="submit">
-                                Pokaż miesiąc
-                            </button>
-                        </form>
-                    </div>
 
                     <div class="pms-calendar-summary">
                         <?php foreach ($summaryCards as $card): ?>
@@ -1449,9 +2110,6 @@ $summaryCards = [
                                                     <?= htmlspecialchars((string) ($cabin['name'] ?? 'Domek'), ENT_QUOTES, 'UTF-8') ?>
                                                 </span>
 
-                                                <span class="pms-calendar-cabin-short">
-                                                    <?= htmlspecialchars((string) ($cabin['short_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
                                             </td>
 
                                             <td
@@ -1516,7 +2174,6 @@ $summaryCards = [
                                                             class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
                                                             style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
                                                             href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
-                                                            title="<?= htmlspecialchars($cellTitle($barReservation), ENT_QUOTES, 'UTF-8') ?>"
                                                         >
                                                             <span class="pms-calendar-bar__line pms-calendar-bar__guest">
                                                                 <?= htmlspecialchars($reservationGuestName($barReservation), ENT_QUOTES, 'UTF-8') ?>
@@ -1632,20 +2289,6 @@ $summaryCards = [
                             Anulowana
                         </span>
 
-                        <span class="pms-calendar-legend__item">
-                            <strong>Prz.</strong>
-                            Przyjazd
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <strong>Pob.</strong>
-                            Pobyt
-                        </span>
-
-                        <span class="pms-calendar-legend__item">
-                            <strong>Wyj.</strong>
-                            Wyjazd
-                        </span>
                     </div>
 </div>
             </div>
@@ -1756,4 +2399,171 @@ $summaryCards = [
             });
         });
     });
+</script>
+
+
+<script>
+    document.addEventListener(
+        'DOMContentLoaded',
+        function () {
+            var calendarBars = document.querySelectorAll(
+                '.pms-calendar-bar'
+            );
+
+            function hideTooltip(tooltip) {
+                if (!tooltip) {
+                    return;
+                }
+
+                tooltip.style.opacity = '0';
+                tooltip.style.visibility = 'hidden';
+            }
+
+            function positionTooltip(bar, tooltip) {
+                if (!bar || !tooltip) {
+                    return;
+                }
+
+                var viewportPadding = 12;
+                var gap = 10;
+
+                tooltip.style.visibility = 'hidden';
+                tooltip.style.opacity = '0';
+                tooltip.style.left = '0px';
+                tooltip.style.top = '0px';
+
+                var barRect = bar.getBoundingClientRect();
+
+                var tooltipWidth =
+                    tooltip.offsetWidth;
+
+                var tooltipHeight =
+                    tooltip.offsetHeight;
+
+                var left =
+                    barRect.left
+                    + (
+                        barRect.width
+                        / 2
+                    )
+                    - (
+                        tooltipWidth
+                        / 2
+                    );
+
+                var maxLeft =
+                    window.innerWidth
+                    - tooltipWidth
+                    - viewportPadding;
+
+                left = Math.max(
+                    viewportPadding,
+                    Math.min(
+                        left,
+                        maxLeft
+                    )
+                );
+
+                var top =
+                    barRect.bottom
+                    + gap;
+
+                if (
+                    top
+                    + tooltipHeight
+                    > window.innerHeight
+                    - viewportPadding
+                ) {
+                    top =
+                        barRect.top
+                        - tooltipHeight
+                        - gap;
+                }
+
+                if (top < viewportPadding) {
+                    top = viewportPadding;
+                }
+
+                tooltip.style.left =
+                    left + 'px';
+
+                tooltip.style.top =
+                    top + 'px';
+
+                tooltip.style.visibility =
+                    'visible';
+
+                tooltip.style.opacity =
+                    '1';
+            }
+
+            calendarBars.forEach(
+                function (bar) {
+                    var tooltip =
+                        bar.querySelector(
+                            '.pms-calendar-tooltip'
+                        );
+
+                    if (!tooltip) {
+                        return;
+                    }
+
+                    /*
+                     * Tooltip musi byc poza paskiem rezerwacji.
+                     * Dzieki temu position: fixed jest liczony
+                     * wzgledem calego okna przegladarki.
+                     */
+                    document.body.appendChild(
+                        tooltip
+                    );
+
+                    bar.addEventListener(
+                        'mouseenter',
+                        function () {
+                            positionTooltip(
+                                bar,
+                                tooltip
+                            );
+                        }
+                    );
+
+                    bar.addEventListener(
+                        'mouseleave',
+                        function () {
+                            hideTooltip(
+                                tooltip
+                            );
+                        }
+                    );
+                }
+            );
+
+            window.addEventListener(
+                'scroll',
+                function () {
+                    document
+                        .querySelectorAll(
+                            '.pms-calendar-tooltip'
+                        )
+                        .forEach(
+                            hideTooltip
+                        );
+                },
+                true
+            );
+
+            window.addEventListener(
+                'resize',
+                function () {
+                    document
+                        .querySelectorAll(
+                            '.pms-calendar-tooltip'
+                        )
+                        .forEach(
+                            hideTooltip
+                        );
+                }
+            );
+        }
+    );
 </script>

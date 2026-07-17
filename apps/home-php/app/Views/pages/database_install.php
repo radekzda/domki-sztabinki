@@ -17,13 +17,15 @@ $statusLabels = [
     'neutral' => 'INFO',
 ];
 ?>
+<?php View::partial('partials/admin_system_styles'); ?>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
             <?php View::partial('partials/admin_sidebar', ['active' => 'system']); ?>
 
             <div class="admin-content">
-                <div class="panel">
+                <div class="panel system-panel">
                     <p class="eyebrow">System</p>
 
                     <h1>Instalator bazy MySQL</h1>
@@ -51,7 +53,7 @@ $statusLabels = [
                         </div>
                     <?php endif; ?>
 
-                    <div class="status-list">
+                    <div class="status-list system-status-list">
                         <?php foreach ($checks as $check): ?>
                             <?php
                             $status = $check['status'];
@@ -72,9 +74,9 @@ $statusLabels = [
                         <?php endforeach; ?>
                     </div>
 
-                    <form class="form" method="post" action="/admin/system/database/install">
+                    <form class="form system-form" method="post" action="/admin/system/database/install">
     <?= csrfField() ?>
-                        <div class="form-actions">
+                        <div class="form-actions system-actions">
                             <button
                                 class="button button--primary"
                                 type="submit"

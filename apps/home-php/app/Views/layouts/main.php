@@ -31,7 +31,10 @@ $adminEmail = $isLoggedIn ? Auth::adminEmail() : '';
             </a>
 
             <nav class="site-nav" aria-label="Nawigacja główna">
+                <?php /* M13.93.25 — ukryj na stronie głównej */ ?>
+                <?php if (($title ?? '') !== 'Strona główna'): ?>
                 <a href="/">Strona główna</a>
+                <?php endif; ?>
 
                 <?php if ($isLoggedIn): ?>
                     <a href="/admin">Panel</a>
@@ -46,7 +49,10 @@ $adminEmail = $isLoggedIn ? Auth::adminEmail() : '';
                         </button>
                     </form>
                 <?php else: ?>
+                    <?php /* M13.93.25 — ukryj na stronie głównej */ ?>
+                    <?php if (($title ?? '') !== 'Strona główna'): ?>
                     <a href="/logowanie">Logowanie</a>
+                    <?php endif; ?>
                 <?php endif; ?>
             </nav>
         </div>

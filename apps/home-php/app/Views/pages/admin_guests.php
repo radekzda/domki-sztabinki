@@ -21,13 +21,242 @@ declare(strict_types=1);
  * @var string|null $successMessage
  */
 ?>
+<style>
+    .guests-panel {
+        padding: 28px;
+    }
+
+    .guests-panel .page-header {
+        margin-bottom: 22px;
+        align-items: flex-start;
+    }
+
+    .guests-panel .page-header h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+        line-height: 1.1;
+    }
+
+    .guests-panel .page-header p {
+        max-width: 760px;
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #6b7280;
+    }
+
+    .guests-panel .page-header__actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .guests-panel .page-header__actions .button {
+        min-height: 38px;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+    }
+
+    /*
+     * Tabela
+     */
+    .guests-table-wrapper {
+        overflow-x: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 8px 20px rgba(15, 23, 42, 0.035);
+    }
+
+    .guests-table {
+        width: 100%;
+        min-width: 1050px;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .guests-table thead {
+        background: #f8fafc;
+    }
+
+    .guests-table th {
+        padding: 13px 14px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 11px;
+        line-height: 1.2;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-align: left;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .guests-table td {
+        padding: 14px;
+        border-bottom: 1px solid #edf0f2;
+        vertical-align: middle;
+        font-size: 13px;
+        line-height: 1.35;
+        color: #374151;
+    }
+
+    .guests-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .guests-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .guests-table tbody tr:hover {
+        background: #fafbfc;
+    }
+
+    /*
+     * Dane goscia
+     */
+    .guest-list-name {
+        display: block;
+        font-size: 14px;
+        line-height: 1.3;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .guest-list-contact {
+        display: grid;
+        gap: 3px;
+        color: #6b7280;
+    }
+
+    .guest-list-contact span {
+        display: block;
+        font-size: 12px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    .guest-list-address {
+        font-size: 12px;
+        line-height: 1.4;
+        color: #6b7280;
+        overflow-wrap: anywhere;
+    }
+
+    .guest-list-muted {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    /*
+     * VIP
+     */
+    .guests-table .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 26px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 700;
+    }
+
+    /*
+     * Akcje
+     */
+    .guests-actions {
+        min-width: 170px;
+        display: grid;
+        grid-template-columns: repeat(
+            2,
+            minmax(0, 1fr)
+        );
+        gap: 7px;
+    }
+
+    .guests-actions > a,
+    .guests-actions > form {
+        min-width: 0;
+        margin: 0;
+    }
+
+    .guests-actions .button {
+        width: 100%;
+        min-height: 34px;
+        padding: 7px 9px;
+        border-radius: 8px;
+        font-size: 12px;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .guest-delete-button {
+        background: #ef4444;
+        border-color: #ef4444;
+        color: #ffffff;
+    }
+
+    .guest-delete-button:hover {
+        background: #dc2626;
+        border-color: #dc2626;
+    }
+
+    /*
+     * Responsive
+     */
+    @media (max-width: 1100px) {
+        .guests-panel {
+            padding: 22px;
+        }
+
+        .guests-panel .page-header {
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .guests-panel .page-header__actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .guests-panel {
+            padding: 16px;
+        }
+
+        .guests-panel .page-header h1 {
+            font-size: 27px;
+        }
+
+        .guests-panel .page-header__actions {
+            display: grid;
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            );
+            width: 100%;
+        }
+
+        .guests-panel .page-header__actions .button {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
             <?php View::partial('partials/admin_sidebar', ['active' => 'guests']); ?>
 
             <div class="admin-content">
-                <div class="panel">
+                <div class="panel guests-panel">
                     <div class="page-header">
                         <div>
                             <p class="eyebrow">Goście</p>
@@ -77,18 +306,18 @@ declare(strict_types=1);
                             </p>
                         </div>
                     <?php else: ?>
-                        <div class="table-wrapper">
-                            <table class="data-table">
+                        <div class="table-wrapper guests-table-wrapper">
+                            <table class="data-table guests-table">
                                 <thead>
                                     <tr>
-                                        <th>Gość</th>
-                                        <th>Kontakt</th>
-                                        <th>Adres</th>
-                                        <th>Kraj</th>
-                                        <th>VIP</th>
-                                        <th>Źródło</th>
-                                        <th>Utworzono</th>
-                                        <th>Akcje</th>
+                                        <th style="width: 16%;">Gość</th>
+                                        <th style="width: 20%;">Kontakt</th>
+                                        <th style="width: 18%;">Adres</th>
+                                        <th style="width: 8%;">Kraj</th>
+                                        <th style="width: 6%;">VIP</th>
+                                        <th style="width: 8%;">Źródło</th>
+                                        <th style="width: 10%;">Utworzono</th>
+                                        <th style="width: 14%;">Akcje</th>
                                     </tr>
                                 </thead>
 
@@ -96,24 +325,24 @@ declare(strict_types=1);
                                     <?php foreach ($guests as $guest): ?>
                                         <tr>
                                             <td>
-                                                <strong>
+                                                <strong class="guest-list-name">
                                                     <?= htmlspecialchars($guest['first_name'], ENT_QUOTES, 'UTF-8') ?>
                                                     <?= htmlspecialchars($guest['last_name'], ENT_QUOTES, 'UTF-8') ?>
                                                 </strong>
                                             </td>
 
                                             <td>
-                                                <span>
-                                                    <?= htmlspecialchars($guest['email'], ENT_QUOTES, 'UTF-8') ?>
-                                                </span>
-
-                                                <?php if ($guest['phone'] !== null && $guest['phone'] !== ''): ?>
-                                                    <br>
-
+                                                <div class="guest-list-contact">
                                                     <span>
-                                                        <?= htmlspecialchars($guest['phone'], ENT_QUOTES, 'UTF-8') ?>
+                                                        <?= htmlspecialchars($guest['email'], ENT_QUOTES, 'UTF-8') ?>
                                                     </span>
-                                                <?php endif; ?>
+
+                                                    <?php if ($guest['phone'] !== null && $guest['phone'] !== ''): ?>
+                                                        <span>
+                                                            <?= htmlspecialchars($guest['phone'], ENT_QUOTES, 'UTF-8') ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
                                             </td>
 
                                             <td>
@@ -125,7 +354,9 @@ declare(strict_types=1);
                                                 }
                                                 ?>
 
-                                                <?= htmlspecialchars($guestAddress !== '' ? $guestAddress : '—', ENT_QUOTES, 'UTF-8') ?>
+                                                <span class="guest-list-address">
+                                                    <?= htmlspecialchars($guestAddress !== '' ? $guestAddress : '—', ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
                                             </td>
 
                                             <td>
@@ -141,15 +372,19 @@ declare(strict_types=1);
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars($guest['source'], ENT_QUOTES, 'UTF-8') ?>
+                                                <span class="guest-list-muted">
+                                                    <?= htmlspecialchars($guest['source'], ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
                                             </td>
 
                                             <td>
-                                                <?= htmlspecialchars(formatDateForDisplay($guest['created_at']), ENT_QUOTES, 'UTF-8') ?>
+                                                <span class="guest-list-muted">
+                                                    <?= htmlspecialchars(formatDateForDisplay($guest['created_at']), ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
                                             </td>
 
                                             <td>
-                                                <div class="table-actions">
+                                                <div class="guests-actions">
                                                     <a
                                                         class="button button--secondary button--small"
                                                         href="/admin/goscie/pokaz?id=<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
@@ -195,7 +430,7 @@ declare(strict_types=1);
                                                             value="<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
                                                         >
 
-                                                        <button class="button button--secondary button--small" type="submit">
+                                                        <button class="button button--small guest-delete-button" type="submit">
                                                             Usuń
                                                         </button>
                                                     </form>

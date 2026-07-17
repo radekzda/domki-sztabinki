@@ -45,14 +45,292 @@ $warningCards = [
     ['label' => 'Domki bez external_id', 'value' => $summary['cabins_without_external_id'] ?? 0],
 ];
 ?>
+<style>
+    .import-audit-panel {
+        padding: 28px;
+    }
+
+    /*
+     * Naglowek strony
+     */
+    .import-audit-header {
+        margin-bottom: 22px;
+        align-items: flex-start;
+        gap: 24px;
+    }
+
+    .import-audit-header .eyebrow {
+        display: none;
+    }
+
+    .import-audit-header h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+        line-height: 1.1;
+        color: #111827;
+    }
+
+    .import-audit-header p {
+        max-width: 720px;
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #6b7280;
+    }
+
+    .import-audit-header .page-header__actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 7px;
+    }
+
+    .import-audit-header .button {
+        min-height: 36px;
+        padding: 7px 12px;
+        border-radius: 9px;
+        font-size: 11px;
+        line-height: 1.2;
+    }
+
+    /*
+     * Podsumowanie importu
+     */
+    .import-audit-summary {
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(
+            3,
+            minmax(0, 1fr)
+        );
+        gap: 10px;
+    }
+
+    .import-audit-summary
+    .pms-calendar-summary__card {
+        min-width: 0;
+        min-height: 64px;
+        padding: 13px 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 11px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 6px 16px rgba(15, 23, 42, 0.025);
+    }
+
+    .import-audit-summary
+    .pms-calendar-summary__card span {
+        min-width: 0;
+        font-size: 11px;
+        line-height: 1.3;
+        font-weight: 650;
+        color: #6b7280;
+    }
+
+    .import-audit-summary
+    .pms-calendar-summary__card strong {
+        flex-shrink: 0;
+        font-size: 21px;
+        line-height: 1;
+        font-weight: 800;
+        color: #111827;
+    }
+
+    /*
+     * Ostrzezenia danych
+     */
+    .import-audit-summary--warnings {
+        margin-top: 10px;
+        grid-template-columns: repeat(
+            4,
+            minmax(0, 1fr)
+        );
+    }
+
+    .import-audit-summary--warnings
+    .pms-calendar-summary__card {
+        min-height: 58px;
+        border-top: 3px solid #f59e0b;
+        background: #fffdf7;
+    }
+
+    .import-audit-summary--warnings
+    .pms-calendar-summary__card strong {
+        font-size: 19px;
+        color: #92400e;
+    }
+
+    /*
+     * Naglowki poszczegolnych kontroli
+     */
+    .import-audit-section-header {
+        margin: 26px 0 10px !important;
+        padding-bottom: 9px;
+        border-bottom: 1px solid #edf0f2;
+    }
+
+    .import-audit-section-header h2 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.2;
+        color: #111827;
+    }
+
+    /*
+     * Tabele
+     */
+    .import-audit-table-wrapper {
+        overflow-x: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 11px;
+        background: #ffffff;
+    }
+
+    .import-audit-table-wrapper .data-table {
+        width: 100%;
+        margin: 0;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+
+    .import-audit-table-wrapper
+    .data-table th {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f8fafc;
+        color: #4b5563;
+        font-size: 10px;
+        line-height: 1.25;
+        font-weight: 800;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.035em;
+    }
+
+    .import-audit-table-wrapper
+    .data-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #edf0f2;
+        color: #374151;
+        line-height: 1.4;
+        vertical-align: top;
+    }
+
+    .import-audit-table-wrapper
+    .data-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .import-audit-table-wrapper
+    .data-table tbody tr:hover {
+        background: #fafbfc;
+    }
+
+    /*
+     * Rozklad rezerwacji
+     */
+    .import-audit-table-wrapper
+    .data-table td > div {
+        margin-bottom: 4px;
+    }
+
+    .import-audit-table-wrapper
+    .data-table td > div:last-child {
+        margin-bottom: 0;
+    }
+
+    .import-audit-table-wrapper
+    .data-table td > div strong {
+        font-size: 11px;
+        color: #111827;
+    }
+
+    /*
+     * Komunikaty o poprawnosci danych
+     */
+    .import-audit-panel
+    .import-audit-section-header
+    + .alert {
+        margin-top: 0;
+        border-radius: 10px;
+        font-size: 12px;
+    }
+
+    /*
+     * Responsywnosc
+     */
+    @media (max-width: 1100px) {
+        .import-audit-summary {
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            );
+        }
+
+        .import-audit-summary--warnings {
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            );
+        }
+    }
+
+    @media (max-width: 800px) {
+        .import-audit-panel {
+            padding: 22px;
+        }
+
+        .import-audit-header {
+            flex-direction: column;
+        }
+
+        .import-audit-header
+        .page-header__actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .import-audit-panel {
+            padding: 16px;
+        }
+
+        .import-audit-header h1 {
+            font-size: 27px;
+        }
+
+        .import-audit-summary,
+        .import-audit-summary--warnings {
+            grid-template-columns: 1fr;
+        }
+
+        .import-audit-header
+        .page-header__actions {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .import-audit-header .button {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
-            <?php View::partial('partials/admin_sidebar', ['active' => 'system']); ?>
+            <?php View::partial('partials/admin_sidebar', ['active' => 'imports']); ?>
 
             <div class="admin-content">
-                <div class="panel">
-                    <div class="page-header">
+                <div class="panel import-audit-panel">
+                    <div class="page-header import-audit-header">
                         <div>
                             <p class="eyebrow">System</p>
 
@@ -84,7 +362,7 @@ $warningCards = [
                         </div>
                     <?php endif; ?>
 
-                    <div class="pms-calendar-summary" style="margin-top: 24px;">
+                    <div class="import-audit-summary">
                         <?php foreach ($summaryCards as $card): ?>
                             <div class="pms-calendar-summary__card">
                                 <span><?= htmlspecialchars($card['label'], ENT_QUOTES, 'UTF-8') ?></span>
@@ -93,7 +371,7 @@ $warningCards = [
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="pms-calendar-summary" style="margin-top: 14px;">
+                    <div class="import-audit-summary import-audit-summary--warnings">
                         <?php foreach ($warningCards as $card): ?>
                             <div class="pms-calendar-summary__card">
                                 <span><?= htmlspecialchars($card['label'], ENT_QUOTES, 'UTF-8') ?></span>
@@ -102,13 +380,13 @@ $warningCards = [
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="page-header" style="margin-top: 28px;">
+                    <div class="page-header import-audit-section-header">
                         <div>
                             <h2>Rozkład rezerwacji</h2>
                         </div>
                     </div>
 
-                    <div class="table-wrapper">
+                    <div class="table-wrapper import-audit-table-wrapper">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -163,7 +441,7 @@ $warningCards = [
                         </table>
                     </div>
 
-                    <div class="page-header" style="margin-top: 28px;">
+                    <div class="page-header import-audit-section-header">
                         <div>
                             <h2>Rezerwacje bez gościa</h2>
                         </div>
@@ -174,7 +452,7 @@ $warningCards = [
                             Wszystkie rezerwacje są powiązane z kartą gościa.
                         </div>
                     <?php else: ?>
-                        <div class="table-wrapper">
+                        <div class="table-wrapper import-audit-table-wrapper">
                             <table class="data-table">
                                 <thead>
                                     <tr>
@@ -205,7 +483,7 @@ $warningCards = [
                         </div>
                     <?php endif; ?>
 
-                    <div class="page-header" style="margin-top: 28px;">
+                    <div class="page-header import-audit-section-header">
                         <div>
                             <h2>Rezerwacje bez external_id</h2>
                         </div>
@@ -216,7 +494,7 @@ $warningCards = [
                             Wszystkie rezerwacje z importu mają external_id albo nie ma ręcznych rezerwacji bez ID.
                         </div>
                     <?php else: ?>
-                        <div class="table-wrapper">
+                        <div class="table-wrapper import-audit-table-wrapper">
                             <table class="data-table">
                                 <thead>
                                     <tr>
@@ -247,7 +525,7 @@ $warningCards = [
                         </div>
                     <?php endif; ?>
 
-                    <div class="page-header" style="margin-top: 28px;">
+                    <div class="page-header import-audit-section-header">
                         <div>
                             <h2>Goście bez external_id</h2>
                         </div>
@@ -258,7 +536,7 @@ $warningCards = [
                             Wszyscy goście mają external_id.
                         </div>
                     <?php else: ?>
-                        <div class="table-wrapper">
+                        <div class="table-wrapper import-audit-table-wrapper">
                             <table class="data-table">
                                 <thead>
                                     <tr>
@@ -288,7 +566,7 @@ $warningCards = [
                         </div>
                     <?php endif; ?>
 
-                    <div class="page-header" style="margin-top: 28px;">
+                    <div class="page-header import-audit-section-header">
                         <div>
                             <h2>Domki bez external_id</h2>
                         </div>
@@ -299,7 +577,7 @@ $warningCards = [
                             Wszystkie domki mają external_id.
                         </div>
                     <?php else: ?>
-                        <div class="table-wrapper">
+                        <div class="table-wrapper import-audit-table-wrapper">
                             <table class="data-table">
                                 <thead>
                                     <tr>

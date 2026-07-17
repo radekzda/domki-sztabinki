@@ -14,13 +14,15 @@ $statusLabels = [
     'neutral' => 'INFO',
 ];
 ?>
+<?php View::partial('partials/admin_system_styles'); ?>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
             <?php View::partial('partials/admin_sidebar', ['active' => 'system']); ?>
 
             <div class="admin-content">
-                <div class="panel">
+                <div class="panel system-panel">
                     <p class="eyebrow">System</p>
 
                     <h1>Połączenie z bazą MySQL</h1>
@@ -30,7 +32,7 @@ $statusLabels = [
                         Hasło i dane wrażliwe nie są tutaj wyświetlane.
                     </p>
 
-                    <div class="status-list">
+                    <div class="status-list system-status-list">
                         <?php foreach ($checks as $check): ?>
                             <?php
                             $status = $check['status'];
@@ -51,7 +53,7 @@ $statusLabels = [
                         <?php endforeach; ?>
                     </div>
 
-                    <div class="admin-actions">
+                    <div class="admin-actions system-actions">
                         <a class="button button--primary" href="/admin/system/database/install">
                             Instalator struktury bazy
                         </a>

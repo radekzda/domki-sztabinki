@@ -82,135 +82,297 @@ $inquiryGuestName = static function (
 };
 ?>
 <style>
+    .dashboard-panel {
+        padding: 28px;
+    }
+
+    .dashboard-panel .page-header {
+        margin-bottom: 24px;
+    }
+
+    .dashboard-panel .page-header h1 {
+        margin-bottom: 6px;
+    }
+
+    /*
+     * Górne liczniki
+     */
     .dashboard-today-grid {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 16px;
-        margin-bottom: 16px;
+        grid-template-columns: repeat(
+            6,
+            minmax(0, 1fr)
+        );
+        gap: 12px;
+        margin-top: 0;
+        margin-bottom: 20px;
     }
 
     .dashboard-today-card {
-        min-height: 70px;
-        padding: 12px 14px;
+        position: relative;
+        min-width: 0;
+        min-height: 74px;
+        padding: 14px 16px;
         display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 3px;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 8px 20px rgba(15, 23, 42, 0.04);
+        color: #111827;
+        text-decoration: none;
+        transition:
+            transform 0.15s ease,
+            box-shadow 0.15s ease,
+            border-color 0.15s ease;
+    }
+
+    .dashboard-today-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+    }
+
+    .dashboard-today-card:nth-child(1)::before {
+        background: #3b82f6;
+    }
+
+    .dashboard-today-card:nth-child(2)::before {
+        background: #f97316;
+    }
+
+    .dashboard-today-card:nth-child(3)::before {
+        background: #22c55e;
+    }
+
+    .dashboard-today-card:nth-child(4)::before {
+        background: #a855f7;
+    }
+
+    .dashboard-today-card:nth-child(5)::before {
+        background: #eab308;
+    }
+
+    .dashboard-today-card:nth-child(6)::before {
+        background: #ef4444;
+    }
+
+    .dashboard-today-card:hover {
+        transform: translateY(-2px);
+        border-color: #d1d5db;
+        box-shadow:
+            0 4px 8px rgba(15, 23, 42, 0.04),
+            0 12px 28px rgba(15, 23, 42, 0.08);
     }
 
     .dashboard-today-card strong {
-        font-size: 24px;
+        display: block;
+        flex-shrink: 0;
+        order: 2;
+        font-size: 26px;
         line-height: 1;
+        font-weight: 750;
+        letter-spacing: -0.02em;
+        color: #111827;
     }
 
     .dashboard-today-card span {
+        display: block;
+        min-width: 0;
+        order: 1;
         font-size: 13px;
-        line-height: 1.25;
+        line-height: 1.2;
+        font-weight: 600;
+        color: #6b7280;
     }
 
+    /*
+     * Dolne sekcje 3 x 2
+     */
     .dashboard-today-sections {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 12px;
+        grid-template-columns: repeat(
+            3,
+            minmax(0, 1fr)
+        );
+        gap: 16px;
+        align-items: stretch;
+        margin-top: 0;
     }
 
     .dashboard-today-section {
         min-width: 0;
-        min-height: 120px;
-        padding: 12px 14px;
+        min-height: 210px;
+        padding: 0;
         margin: 0;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 12px;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-top-width: 3px;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow:
+            0 2px 4px rgba(15, 23, 42, 0.02),
+            0 8px 20px rgba(15, 23, 42, 0.035);
     }
 
     .dashboard-today-section:nth-child(1) {
-        background: #eff6ff;
-        border-top: 4px solid #3b82f6;
+        border-top-color: #3b82f6;
     }
 
     .dashboard-today-section:nth-child(2) {
-        background: #fff7ed;
-        border-top: 4px solid #f97316;
+        border-top-color: #f97316;
     }
 
     .dashboard-today-section:nth-child(3) {
-        background: #f0fdf4;
-        border-top: 4px solid #22c55e;
+        border-top-color: #22c55e;
     }
 
     .dashboard-today-section:nth-child(4) {
-        background: #faf5ff;
-        border-top: 4px solid #a855f7;
+        border-top-color: #a855f7;
     }
 
     .dashboard-today-section:nth-child(5) {
-        background: #fefce8;
-        border-top: 4px solid #eab308;
+        border-top-color: #eab308;
     }
 
     .dashboard-today-section:nth-child(6) {
-        background: #fef2f2;
-        border-top: 4px solid #ef4444;
+        border-top-color: #ef4444;
     }
 
+    /*
+     * Nagłówki kart
+     */
     .dashboard-today-section__header {
+        min-height: 60px;
+        padding: 14px 18px 12px;
         display: flex;
         flex-direction: column;
+        justify-content: center;
         align-items: flex-start;
         gap: 6px;
-        min-height: 42px;
+        border-bottom: 1px solid #f0f1f3;
     }
 
     .dashboard-today-section__header strong {
         display: block;
         margin: 0;
-        font-size: 14px;
-        line-height: 1.2;
+        font-size: 16px;
+        line-height: 1.08;
         font-weight: 700;
+        color: #111827;
     }
 
     .dashboard-today-section__header p {
         display: block;
         margin: 0;
-        font-size: 12px;
-        line-height: 1.35;
-        opacity: 0.72;
+        font-size: 13px;
+        line-height: 1.45;
+        color: #9ca3af;
     }
 
+    /*
+     * Listy wewnątrz kart
+     */
     .dashboard-today-section .status-list {
-        margin-top: 10px;
+        margin: 0;
+        padding: 12px;
         display: grid;
-        gap: 5px;
+        gap: 8px;
     }
 
     .dashboard-today-section .status-row {
-        padding: 7px 8px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.7);
-        font-size: 12px;
-        line-height: 1.3;
+        min-width: 0;
+        padding: 11px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border: 1px solid #edf0f2;
+        border-radius: 10px;
+        background: #fafafa;
+        color: #374151;
+        text-decoration: none;
+        transition:
+            background 0.15s ease,
+            border-color 0.15s ease,
+            transform 0.15s ease;
     }
 
-    .dashboard-today-section .status-row span,
+    a.dashboard-today-section .status-row:hover,
+    .dashboard-today-section a.status-row:hover {
+        background: #f5f7f9;
+        border-color: #dfe3e8;
+        transform: translateY(-1px);
+    }
+
+    .dashboard-today-section .status-row span {
+        min-width: 0;
+        display: block;
+        font-size: 13px;
+        line-height: 1.4;
+        font-weight: 500;
+        color: #6b7280;
+        overflow-wrap: anywhere;
+    }
+
     .dashboard-today-section .status-row strong {
-        font-size: 12px;
+        min-width: 0;
+        display: block;
+        font-size: 13px;
+        line-height: 1.4;
+        font-weight: 700;
+        text-align: right;
+        color: #111827;
+        overflow-wrap: anywhere;
     }
 
+    /*
+     * Puste karty
+     */
+    .dashboard-today-section__header:has(p) {
+        border-bottom-color: transparent;
+    }
+
+    .dashboard-today-section__header p {
+        max-width: 280px;
+    }
+
+    /*
+     * Sprzątanie
+     */
     .dashboard-cleaning-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
+        gap: 16px;
     }
 
     .dashboard-cleaning-row__info {
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        align-items: flex-start;
+        gap: 7px;
+    }
+
+    .dashboard-cleaning-row__info strong {
+        width: fit-content;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #fee2e2;
+        color: #b91c1c;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: left;
     }
 
     .dashboard-cleaning-row form {
@@ -219,27 +381,106 @@ $inquiryGuestName = static function (
     }
 
     .dashboard-cleaning-row .button {
+        min-height: 34px;
+        padding-left: 13px;
+        padding-right: 13px;
         white-space: nowrap;
+        border-radius: 8px;
+        font-size: 12px;
     }
 
-    @media (max-width: 1200px) {
-        .dashboard-today-grid,
-        .dashboard-today-sections {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+    /*
+     * Delikatne akcenty kolorystyczne nagłówków
+     */
+    .dashboard-today-section:nth-child(1)
+    .dashboard-today-section__header strong {
+        color: #1d4ed8;
+    }
+
+    .dashboard-today-section:nth-child(2)
+    .dashboard-today-section__header strong {
+        color: #c2410c;
+    }
+
+    .dashboard-today-section:nth-child(3)
+    .dashboard-today-section__header strong {
+        color: #15803d;
+    }
+
+    .dashboard-today-section:nth-child(4)
+    .dashboard-today-section__header strong {
+        color: #7e22ce;
+    }
+
+    .dashboard-today-section:nth-child(5)
+    .dashboard-today-section__header strong {
+        color: #a16207;
+    }
+
+    .dashboard-today-section:nth-child(6)
+    .dashboard-today-section__header strong {
+        color: #b91c1c;
+    }
+
+    /*
+     * Responsive
+     */
+    @media (max-width: 1300px) {
+        .dashboard-today-grid {
+            grid-template-columns: repeat(
+                3,
+                minmax(0, 1fr)
+            );
         }
     }
 
-    @media (max-width: 800px) {
-        .dashboard-today-grid,
+    @media (max-width: 1050px) {
         .dashboard-today-sections {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            );
         }
     }
 
-    @media (max-width: 520px) {
-        .dashboard-today-grid,
+    @media (max-width: 750px) {
+        .dashboard-panel {
+            padding: 20px;
+        }
+
+        .dashboard-today-grid {
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            );
+        }
+
         .dashboard-today-sections {
             grid-template-columns: 1fr;
+        }
+
+        .dashboard-today-section {
+            min-height: 0;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .dashboard-panel {
+            padding: 16px;
+        }
+
+        .dashboard-today-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-cleaning-row {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .dashboard-cleaning-row form,
+        .dashboard-cleaning-row .button {
+            width: 100%;
         }
     }
 </style>
@@ -253,28 +494,7 @@ $inquiryGuestName = static function (
             ); ?>
 
             <div class="admin-content">
-                <div class="panel">
-                    <div class="page-header">
-                        <div>
-                            <p class="eyebrow">
-                                Dashboard
-                            </p>
-
-                            <h1>
-                                Co dziś
-                            </h1>
-
-                            <p>
-                                <?= htmlspecialchars(
-                                    (new DateTimeImmutable())
-                                        ->format('d.m.Y'),
-                                    ENT_QUOTES,
-                                    'UTF-8'
-                                ) ?>
-                            </p>
-                        </div>
-                    </div>
-
+                <div class="panel dashboard-panel">
                     <?php if (
                         is_string($databaseMessage)
                         && $databaseMessage !== ''
