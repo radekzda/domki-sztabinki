@@ -455,6 +455,8 @@ final class ReservationRepository
      */
     public static function update(int $id, array $data): void
     {
+        $reservationBefore = self::find($id);
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -504,6 +506,43 @@ final class ReservationRepository
             'paid_amount' => $data['paid_amount'],
             'notes' => $data['notes'],
         ]);
+
+        $reservationAfter = self::find($id);
+
+        if (
+            $reservationBefore === null
+            || $reservationAfter === null
+        ) {
+            return;
+        }
+
+        $changes = self::describeReservationChanges(
+            $reservationBefore,
+            $reservationAfter
+        );
+
+        if ($changes === []) {
+            return;
+        }
+
+        try {
+            ReservationHistoryRepository::add(
+                $id,
+                'EDIT',
+                'Zmieniono dane rezerwacji',
+                implode(
+                    "\n",
+                    $changes
+                )
+            );
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się zapisać historii edycji rezerwacji #'
+                . $id
+                . ': '
+                . $exception->getMessage()
+            );
+        }
     }
 
     public static function setStatus(int $id, string $status): void
@@ -749,6 +788,129 @@ final class ReservationRepository
     public static function cancel(int $id): void
     {
         self::setStatus($id, 'CANCELLED');
+    }
+
+    /**
+     * @param array<string, mixed> $before
+     * @param array<string, mixed> $after
+     * @return array<int, string>
+     */
+    private static function describeReservationChanges(
+        array $before,
+        array $after
+    ): array {
+        $fields = [
+            'cabin_id' => 'Domek',
+            'guest_name' => 'Gość',
+            'email' => 'E-mail',
+            'phone' => 'Telefon',
+            'start_date' => 'Data przyjazdu',
+            'end_date' => 'Data wyjazdu',
+            'check_in_at' => 'Godzina przyjazdu',
+            'check_out_at' => 'Godzina wyjazdu',
+            'nights' => 'Liczba nocy',
+            'guests' => 'Liczba osób',
+            'adults' => 'Dorośli',
+            'children' => 'Dzieci',
+            'status' => 'Status',
+            'source' => 'Źródło',
+            'payment_status' => 'Status płatności',
+            'total_price' => 'Cena pobytu',
+            'paid_amount' => 'Wpłacono',
+            'notes' => 'Notatki',
+        ];
+
+        $changes = [];
+
+        foreach ($fields as $field => $label) {
+            $oldValue = self::historyComparableValue(
+                $before[$field] ?? null
+            );
+
+            $newValue = self::historyComparableValue(
+                $after[$field] ?? null
+            );
+
+            if ($oldValue === $newValue) {
+                continue;
+            }
+
+            $changes[] = $label
+                . ': '
+                . self::historyDisplayValue(
+                    $field,
+                    $oldValue
+                )
+                . ' → '
+                . self::historyDisplayValue(
+                    $field,
+                    $newValue
+                );
+        }
+
+        return $changes;
+    }
+
+    private static function historyComparableValue(
+        mixed $value
+    ): string {
+        if ($value === null) {
+            return '';
+        }
+
+        return trim(
+            (string) $value
+        );
+    }
+
+    private static function historyDisplayValue(
+        string $field,
+        string $value
+    ): string {
+        if ($value === '') {
+            return '—';
+        }
+
+        $statusLabels = [
+            'PENDING' => 'Oczekuje',
+            'CONFIRMED' => 'Potwierdzona',
+            'CHECKED_IN' => 'Zameldowany',
+            'CHECKED_OUT' => 'Wymeldowany',
+            'CANCELLED' => 'Anulowana',
+        ];
+
+        $paymentLabels = [
+            'PENDING' => 'Oczekuje',
+            'PAID' => 'Opłacona',
+            'PARTIAL' => 'Częściowa',
+            'REFUNDED' => 'Zwrócona',
+        ];
+
+        if ($field === 'status') {
+            return $statusLabels[$value]
+                ?? $value;
+        }
+
+        if ($field === 'payment_status') {
+            return $paymentLabels[$value]
+                ?? $value;
+        }
+
+        if (
+            $field === 'total_price'
+            || $field === 'paid_amount'
+        ) {
+            return is_numeric($value)
+                ? number_format(
+                    (float) $value,
+                    0,
+                    ',',
+                    ' '
+                ) . ' zł'
+                : $value;
+        }
+
+        return $value;
     }
 
     public static function delete(int $id): void
