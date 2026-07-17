@@ -195,8 +195,137 @@ $router->post('/wyloguj', function (): void {
 $router->get('/admin', function (): void {
     Auth::requireAdmin();
 
+    $todayArrivals = [];
+    $todayDepartures = [];
+    $checkedInReservations = [];
+    $newInquiries = [];
+    $upcomingReservations = [];
+    $databaseMessage = null;
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Dane operacyjne dashboardu będą dostępne po skonfigurowaniu MySQL.';
+    } else {
+        try {
+            $reservations = ReservationRepository::all();
+            $inquiries = InquiryRepository::all();
+
+            $today = new DateTimeImmutable('today');
+            $todayKey = $today->format('Y-m-d');
+            $upcomingEndKey = $today
+                ->modify('+7 days')
+                ->format('Y-m-d');
+
+            foreach ($reservations as $reservation) {
+                $status = (string) (
+                    $reservation['status']
+                    ?? ''
+                );
+
+                $startDate = substr(
+                    (string) (
+                        $reservation['start_date']
+                        ?? ''
+                    ),
+                    0,
+                    10
+                );
+
+                $endDate = substr(
+                    (string) (
+                        $reservation['end_date']
+                        ?? ''
+                    ),
+                    0,
+                    10
+                );
+
+                if (
+                    $startDate === $todayKey
+                    && in_array(
+                        $status,
+                        [
+                            'PENDING',
+                            'CONFIRMED',
+                            'CHECKED_IN',
+                        ],
+                        true
+                    )
+                ) {
+                    $todayArrivals[] = $reservation;
+                }
+
+                if (
+                    $endDate === $todayKey
+                    && $status !== 'CANCELLED'
+                ) {
+                    $todayDepartures[] = $reservation;
+                }
+
+                if ($status === 'CHECKED_IN') {
+                    $checkedInReservations[] = $reservation;
+                }
+
+                if (
+                    $startDate > $todayKey
+                    && $startDate <= $upcomingEndKey
+                    && in_array(
+                        $status,
+                        [
+                            'PENDING',
+                            'CONFIRMED',
+                        ],
+                        true
+                    )
+                ) {
+                    $upcomingReservations[] = $reservation;
+                }
+            }
+
+            foreach ($inquiries as $inquiry) {
+                if (
+                    (string) (
+                        $inquiry['status']
+                        ?? ''
+                    ) === 'NEW'
+                ) {
+                    $newInquiries[] = $inquiry;
+                }
+            }
+
+            usort(
+                $upcomingReservations,
+                static function (
+                    array $first,
+                    array $second
+                ): int {
+                    return strcmp(
+                        (string) (
+                            $first['start_date']
+                            ?? ''
+                        ),
+                        (string) (
+                            $second['start_date']
+                            ?? ''
+                        )
+                    );
+                }
+            );
+        } catch (Throwable $exception) {
+            $databaseMessage = 'Nie udało się pobrać danych dashboardu: '
+                . AppErrorHandler::safeMessage(
+                    $exception
+                );
+        }
+    }
+
     Response::html(View::render('pages/admin', [
         'title' => 'Panel administratora',
+        'todayArrivals' => $todayArrivals,
+        'todayDepartures' => $todayDepartures,
+        'checkedInReservations' => $checkedInReservations,
+        'newInquiries' => $newInquiries,
+        'upcomingReservations' => $upcomingReservations,
+        'databaseMessage' => $databaseMessage,
     ]));
 });
 
