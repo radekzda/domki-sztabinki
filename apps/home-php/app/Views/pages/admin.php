@@ -199,6 +199,29 @@ $inquiryGuestName = static function (
         font-size: 12px;
     }
 
+    .dashboard-cleaning-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .dashboard-cleaning-row__info {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .dashboard-cleaning-row form {
+        flex-shrink: 0;
+        margin: 0;
+    }
+
+    .dashboard-cleaning-row .button {
+        white-space: nowrap;
+    }
+
     @media (max-width: 1200px) {
         .dashboard-today-grid,
         .dashboard-today-sections {
@@ -660,29 +683,65 @@ $inquiryGuestName = static function (
                                             : 'Do sprzątania';
                                     ?>
 
-                                    <a
-                                        class="status-row"
-                                        href="/admin/domki"
+                                    <div
+                                        class="status-row dashboard-cleaning-row"
                                     >
-                                        <span>
-                                            <?= htmlspecialchars(
-                                                (string) (
-                                                    $cabin['name']
-                                                    ?? 'Domek'
-                                                ),
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </span>
+                                        <div class="dashboard-cleaning-row__info">
+                                            <span>
+                                                <?= htmlspecialchars(
+                                                    (string) (
+                                                        $cabin['name']
+                                                        ?? 'Domek'
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </span>
 
-                                        <strong>
-                                            <?= htmlspecialchars(
-                                                $cleaningLabel,
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </strong>
-                                    </a>
+                                            <strong>
+                                                <?= htmlspecialchars(
+                                                    $cleaningLabel,
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </strong>
+                                        </div>
+
+                                        <form
+                                            method="post"
+                                            action="/admin/domki/sprzatanie"
+                                        >
+                                            <?= csrfField() ?>
+
+                                            <input
+                                                type="hidden"
+                                                name="id"
+                                                value="<?= (int) (
+                                                    $cabin['id']
+                                                    ?? 0
+                                                ) ?>"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="cleaning_status"
+                                                value="READY"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="return_url"
+                                                value="/admin"
+                                            >
+
+                                            <button
+                                                class="button button--primary button--small"
+                                                type="submit"
+                                            >
+                                                Sprzątnięty
+                                            </button>
+                                        </form>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>

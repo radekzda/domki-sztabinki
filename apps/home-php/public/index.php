@@ -533,8 +533,26 @@ $router->post('/admin/domki/sprzatanie', function (): void {
             $cleaningStatus
         );
 
+        $returnUrl = $_POST['return_url']
+            ?? '/admin/domki?cleaning_changed=1';
+
+        if (
+            !is_string($returnUrl)
+            || !in_array(
+                $returnUrl,
+                [
+                    '/admin',
+                    '/admin/domki?cleaning_changed=1',
+                ],
+                true
+            )
+        ) {
+            $returnUrl =
+                '/admin/domki?cleaning_changed=1';
+        }
+
         Response::redirect(
-            '/admin/domki?cleaning_changed=1'
+            $returnUrl
         );
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
