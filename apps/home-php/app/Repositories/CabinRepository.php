@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 final class CabinRepository
 {
+    private static bool $operationalColumnsEnsured = false;
+
     /**
      * @return array<int, array{
      *     id: int,
@@ -27,6 +29,8 @@ final class CabinRepository
      */
     public static function all(): array
     {
+        self::ensureOperationalColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->query(
@@ -46,6 +50,8 @@ final class CabinRepository
                 price_six_nights,
                 price_seven_plus_nights,
                 is_active,
+                cleaning_status,
+                cleaning_updated_at,
                 sort_order,
                 created_at
             FROM cabins
@@ -79,6 +85,10 @@ final class CabinRepository
                 'price_six_nights' => (int) ($row['price_six_nights'] ?? 0),
                 'price_seven_plus_nights' => (int) ($row['price_seven_plus_nights'] ?? 0),
                 'is_active' => (int) ($row['is_active'] ?? 0),
+                'cleaning_status' => (string) ($row['cleaning_status'] ?? 'READY'),
+                'cleaning_updated_at' => isset($row['cleaning_updated_at'])
+                    ? (string) $row['cleaning_updated_at']
+                    : null,
                 'sort_order' => (int) ($row['sort_order'] ?? 0),
                 'created_at' => (string) ($row['created_at'] ?? ''),
             ];
@@ -109,6 +119,8 @@ final class CabinRepository
      */
     public static function find(int $id): ?array
     {
+        self::ensureOperationalColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -129,6 +141,8 @@ final class CabinRepository
                 price_six_nights,
                 price_seven_plus_nights,
                 is_active,
+                cleaning_status,
+                cleaning_updated_at,
                 sort_order,
                 created_at
             FROM cabins
@@ -163,6 +177,10 @@ final class CabinRepository
             'price_six_nights' => (int) ($row['price_six_nights'] ?? 0),
             'price_seven_plus_nights' => (int) ($row['price_seven_plus_nights'] ?? 0),
             'is_active' => (int) ($row['is_active'] ?? 0),
+            'cleaning_status' => (string) ($row['cleaning_status'] ?? 'READY'),
+            'cleaning_updated_at' => isset($row['cleaning_updated_at'])
+                ? (string) $row['cleaning_updated_at']
+                : null,
             'sort_order' => (int) ($row['sort_order'] ?? 0),
             'created_at' => (string) ($row['created_at'] ?? ''),
         ];
@@ -356,6 +374,109 @@ final class CabinRepository
         ]);
     }
 
+
+    private static function ensureOperationalColumns(): void
+    {
+        if (self::$operationalColumnsEnsured) {
+            return;
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->query(
+            'SHOW COLUMNS FROM cabins'
+        );
+
+        $columns = [];
+
+        if ($statement !== false) {
+            $rows = $statement->fetchAll();
+
+            if (is_array($rows)) {
+                foreach ($rows as $row) {
+                    if (
+                        is_array($row)
+                        && isset($row['Field'])
+                    ) {
+                        $columns[] = (string) $row['Field'];
+                    }
+                }
+            }
+        }
+
+        if (
+            !in_array(
+                'cleaning_status',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                "ALTER TABLE cabins
+                ADD COLUMN cleaning_status VARCHAR(30)
+                NOT NULL DEFAULT 'READY'
+                AFTER is_active"
+            );
+
+            $columns[] = 'cleaning_status';
+        }
+
+        if (
+            !in_array(
+                'cleaning_updated_at',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE cabins
+                ADD COLUMN cleaning_updated_at DATETIME NULL
+                AFTER cleaning_status'
+            );
+        }
+
+        self::$operationalColumnsEnsured = true;
+    }
+
+    public static function setCleaningStatus(
+        int $id,
+        string $status
+    ): void {
+        self::ensureOperationalColumns();
+
+        $allowedStatuses = [
+            'READY',
+            'DIRTY',
+            'CLEANING',
+        ];
+
+        if (
+            !in_array(
+                $status,
+                $allowedStatuses,
+                true
+            )
+        ) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowy status sprzątania domku.'
+            );
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'UPDATE cabins
+            SET
+                cleaning_status = :cleaning_status,
+                cleaning_updated_at = NOW()
+            WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+            'cleaning_status' => $status,
+        ]);
+    }
 
     public static function setActive(int $id, bool $isActive): void
     {
