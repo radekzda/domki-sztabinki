@@ -1050,9 +1050,15 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
             return;
         }
 
+        $settings = SettingsRepository::all();
+
         Response::html(View::render('pages/admin_reservations_show', [
             'title' => 'Szczegóły rezerwacji',
             'reservation' => $reservation,
+            'reservationConfirmationTemplate' => GuestMessageTemplates::reservationConfirmation(
+                $reservation,
+                $settings
+            ),
         ]));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [

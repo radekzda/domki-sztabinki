@@ -27,6 +27,7 @@ declare(strict_types=1);
  *     notes: string|null,
  *     created_at: string
  * } $reservation
+ * @var string $reservationConfirmationTemplate
  */
 
 $statusLabels = [
@@ -449,6 +450,32 @@ $displayDateTime = static function (mixed $value): string {
                         </div>
                     </div>
 
+                    <div class="empty-state">
+                        <strong>Potwierdzenie rezerwacji</strong>
+
+                        <p>
+                            Gotowa wiadomość przygotowana na podstawie danych zapisanej rezerwacji.
+                        </p>
+
+                        <div class="form-field">
+                            <textarea
+                                id="reservation-confirmation-template"
+                                rows="18"
+                                readonly
+                            ><?= htmlspecialchars($reservationConfirmationTemplate, ENT_QUOTES, 'UTF-8') ?></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button
+                                class="button button--primary"
+                                id="copy-reservation-confirmation"
+                                type="button"
+                            >
+                                Kopiuj wiadomość
+                            </button>
+                        </div>
+                    </div>
+
                     <?php if ($reservation['notes'] !== null && $reservation['notes'] !== ''): ?>
                         <div class="empty-state">
                             <strong>Notatki</strong>
@@ -466,3 +493,47 @@ $displayDateTime = static function (mixed $value): string {
         </div>
     </div>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const copyButton = document.getElementById(
+        'copy-reservation-confirmation'
+    );
+
+    const textarea = document.getElementById(
+        'reservation-confirmation-template'
+    );
+
+    if (!copyButton || !textarea) {
+        return;
+    }
+
+    copyButton.addEventListener('click', async function () {
+        const message = textarea.value;
+
+        try {
+            if (
+                navigator.clipboard
+                && window.isSecureContext
+            ) {
+                await navigator.clipboard.writeText(message);
+            } else {
+                textarea.focus();
+                textarea.select();
+                document.execCommand('copy');
+            }
+
+            const originalText = copyButton.textContent;
+
+            copyButton.textContent = 'Skopiowano';
+
+            window.setTimeout(function () {
+                copyButton.textContent = originalText;
+            }, 1500);
+        } catch (error) {
+            textarea.focus();
+            textarea.select();
+        }
+    });
+});
+</script>
