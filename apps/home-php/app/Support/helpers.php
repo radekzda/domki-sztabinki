@@ -77,6 +77,11 @@ function defaultCabinForm(): array
         'price_six_nights' => '400',
         'price_seven_plus_nights' => '350',
         'is_active' => '1',
+        'ical_url' => '',
+        'ical_enabled' => '0',
+        'ical_source' => 'BOOKING',
+        'ical_last_sync_at' => '',
+        'ical_last_sync_status' => '',
         'sort_order' => '0',
     ];
 }
@@ -138,6 +143,11 @@ function cabinFormFromCabin(array $cabin): array
         'price_six_nights' => (string) $cabin['price_six_nights'],
         'price_seven_plus_nights' => (string) $cabin['price_seven_plus_nights'],
         'is_active' => (string) $cabin['is_active'],
+        'ical_url' => (string) ($cabin['ical_url'] ?? ''),
+        'ical_enabled' => (string) ($cabin['ical_enabled'] ?? 0),
+        'ical_source' => (string) ($cabin['ical_source'] ?? 'BOOKING'),
+        'ical_last_sync_at' => (string) ($cabin['ical_last_sync_at'] ?? ''),
+        'ical_last_sync_status' => (string) ($cabin['ical_last_sync_status'] ?? ''),
         'sort_order' => (string) $cabin['sort_order'],
     ];
 }
@@ -187,6 +197,41 @@ function validateCabinForm(array $form): array
         $errors['is_active'] = 'Nieprawidłowy status widoczności.';
     }
 
+    if (!in_array($form['ical_enabled'], ['0', '1'], true)) {
+        $errors['ical_enabled'] = 'Nieprawidłowy status synchronizacji iCal.';
+    }
+
+    if (
+        !in_array(
+            $form['ical_source'],
+            [
+                'BOOKING',
+                'AIRBNB',
+                'OTHER',
+            ],
+            true
+        )
+    ) {
+        $errors['ical_source'] = 'Nieprawidłowe źródło kalendarza iCal.';
+    }
+
+    if (
+        $form['ical_url'] !== ''
+        && filter_var(
+            $form['ical_url'],
+            FILTER_VALIDATE_URL
+        ) === false
+    ) {
+        $errors['ical_url'] = 'Podaj prawidłowy adres URL kalendarza iCal.';
+    }
+
+    if (
+        $form['ical_enabled'] === '1'
+        && $form['ical_url'] === ''
+    ) {
+        $errors['ical_url'] = 'Podaj adres URL kalendarza przed włączeniem synchronizacji.';
+    }
+
     return $errors;
 }
 
@@ -229,6 +274,11 @@ function cabinDataFromForm(array $form): array
         'price_six_nights' => (int) $form['price_six_nights'],
         'price_seven_plus_nights' => (int) $form['price_seven_plus_nights'],
         'is_active' => (int) $form['is_active'],
+        'ical_url' => $form['ical_url'] !== ''
+            ? $form['ical_url']
+            : null,
+        'ical_enabled' => (int) $form['ical_enabled'],
+        'ical_source' => $form['ical_source'],
         'sort_order' => (int) $form['sort_order'],
     ];
 }

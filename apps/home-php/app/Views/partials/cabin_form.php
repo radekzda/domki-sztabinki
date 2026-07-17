@@ -141,6 +141,173 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
             <?php endif; ?>
         </div>
 
+        <div class="form-field form-field--full">
+            <div
+                style="
+                    margin-top: 8px;
+                    padding: 14px 16px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 10px;
+                    background: #f8fafc;
+                "
+            >
+                <strong style="display: block; margin-bottom: 4px;">
+                    Synchronizacja kalendarza iCal
+                </strong>
+
+                <span style="color: #6b7280; font-size: 13px; line-height: 1.5;">
+                    Skonfiguruj kalendarz rezerwacji dla tego domku.
+                    Import i automatyczna synchronizacja zostaną uruchomione
+                    w kolejnych etapach M13.95.
+                </span>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label for="ical_source">
+                Źródło kalendarza
+            </label>
+
+            <select
+                id="ical_source"
+                name="ical_source"
+            >
+                <option
+                    value="BOOKING"
+                    <?= $form['ical_source'] === 'BOOKING' ? 'selected' : '' ?>
+                >
+                    Booking.com
+                </option>
+
+                <option
+                    value="AIRBNB"
+                    <?= $form['ical_source'] === 'AIRBNB' ? 'selected' : '' ?>
+                >
+                    Airbnb
+                </option>
+
+                <option
+                    value="OTHER"
+                    <?= $form['ical_source'] === 'OTHER' ? 'selected' : '' ?>
+                >
+                    Inne
+                </option>
+            </select>
+
+            <?php if (isset($errors['ical_source'])): ?>
+                <span class="form-error">
+                    <?= htmlspecialchars(
+                        $errors['ical_source'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field">
+            <label for="ical_enabled">
+                Synchronizacja
+            </label>
+
+            <select
+                id="ical_enabled"
+                name="ical_enabled"
+            >
+                <option
+                    value="0"
+                    <?= $form['ical_enabled'] === '0' ? 'selected' : '' ?>
+                >
+                    Wyłączona
+                </option>
+
+                <option
+                    value="1"
+                    <?= $form['ical_enabled'] === '1' ? 'selected' : '' ?>
+                >
+                    Włączona
+                </option>
+            </select>
+
+            <?php if (isset($errors['ical_enabled'])): ?>
+                <span class="form-error">
+                    <?= htmlspecialchars(
+                        $errors['ical_enabled'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field form-field--full">
+            <label for="ical_url">
+                URL kalendarza iCal do importu
+            </label>
+
+            <input
+                id="ical_url"
+                name="ical_url"
+                type="url"
+                placeholder="https://..."
+                value="<?= htmlspecialchars(
+                    $form['ical_url'],
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+            >
+
+            <?php if (isset($errors['ical_url'])): ?>
+                <span class="form-error">
+                    <?= htmlspecialchars(
+                        $errors['ical_url'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field form-field--full">
+            <div
+                style="
+                    padding: 12px 14px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 9px;
+                    background: #ffffff;
+                    color: #6b7280;
+                    font-size: 13px;
+                    line-height: 1.5;
+                "
+            >
+                <strong style="color: #374151;">
+                    Ostatnia synchronizacja:
+                </strong>
+
+                <?= htmlspecialchars(
+                    $form['ical_last_sync_at'] !== ''
+                        ? $form['ical_last_sync_at']
+                        : 'jeszcze nie wykonano',
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>
+
+                <br>
+
+                <strong style="color: #374151;">
+                    Status:
+                </strong>
+
+                <?= htmlspecialchars(
+                    $form['ical_last_sync_status'] !== ''
+                        ? $form['ical_last_sync_status']
+                        : '—',
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>
+            </div>
+        </div>
+
         <div class="form-field">
             <label for="price_per_night">Cena domyślna</label>
             <input

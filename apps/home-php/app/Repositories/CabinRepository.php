@@ -52,6 +52,11 @@ final class CabinRepository
                 is_active,
                 cleaning_status,
                 cleaning_updated_at,
+                ical_url,
+                ical_enabled,
+                ical_source,
+                ical_last_sync_at,
+                ical_last_sync_status,
                 sort_order,
                 created_at
             FROM cabins
@@ -88,6 +93,17 @@ final class CabinRepository
                 'cleaning_status' => (string) ($row['cleaning_status'] ?? 'READY'),
                 'cleaning_updated_at' => isset($row['cleaning_updated_at'])
                     ? (string) $row['cleaning_updated_at']
+                    : null,
+                'ical_url' => isset($row['ical_url'])
+                    ? (string) $row['ical_url']
+                    : null,
+                'ical_enabled' => (int) ($row['ical_enabled'] ?? 0),
+                'ical_source' => (string) ($row['ical_source'] ?? 'BOOKING'),
+                'ical_last_sync_at' => isset($row['ical_last_sync_at'])
+                    ? (string) $row['ical_last_sync_at']
+                    : null,
+                'ical_last_sync_status' => isset($row['ical_last_sync_status'])
+                    ? (string) $row['ical_last_sync_status']
                     : null,
                 'sort_order' => (int) ($row['sort_order'] ?? 0),
                 'created_at' => (string) ($row['created_at'] ?? ''),
@@ -143,6 +159,11 @@ final class CabinRepository
                 is_active,
                 cleaning_status,
                 cleaning_updated_at,
+                ical_url,
+                ical_enabled,
+                ical_source,
+                ical_last_sync_at,
+                ical_last_sync_status,
                 sort_order,
                 created_at
             FROM cabins
@@ -181,6 +202,17 @@ final class CabinRepository
             'cleaning_updated_at' => isset($row['cleaning_updated_at'])
                 ? (string) $row['cleaning_updated_at']
                 : null,
+            'ical_url' => isset($row['ical_url'])
+                ? (string) $row['ical_url']
+                : null,
+            'ical_enabled' => (int) ($row['ical_enabled'] ?? 0),
+            'ical_source' => (string) ($row['ical_source'] ?? 'BOOKING'),
+            'ical_last_sync_at' => isset($row['ical_last_sync_at'])
+                ? (string) $row['ical_last_sync_at']
+                : null,
+            'ical_last_sync_status' => isset($row['ical_last_sync_status'])
+                ? (string) $row['ical_last_sync_status']
+                : null,
             'sort_order' => (int) ($row['sort_order'] ?? 0),
             'created_at' => (string) ($row['created_at'] ?? ''),
         ];
@@ -208,6 +240,8 @@ final class CabinRepository
      */
     public static function create(array $data): int
     {
+        self::ensureOperationalColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -227,6 +261,9 @@ final class CabinRepository
                 price_six_nights,
                 price_seven_plus_nights,
                 is_active,
+                ical_url,
+                ical_enabled,
+                ical_source,
                 sort_order
             ) VALUES (
                 :name,
@@ -244,6 +281,9 @@ final class CabinRepository
                 :price_six_nights,
                 :price_seven_plus_nights,
                 :is_active,
+                :ical_url,
+                :ical_enabled,
+                :ical_source,
                 :sort_order
             )'
         );
@@ -264,6 +304,9 @@ final class CabinRepository
             'price_six_nights' => $data['price_six_nights'],
             'price_seven_plus_nights' => $data['price_seven_plus_nights'],
             'is_active' => $data['is_active'],
+            'ical_url' => $data['ical_url'] ?? null,
+            'ical_enabled' => $data['ical_enabled'] ?? 0,
+            'ical_source' => $data['ical_source'] ?? 'BOOKING',
             'sort_order' => $data['sort_order'],
         ]);
 
@@ -292,6 +335,8 @@ final class CabinRepository
      */
     public static function update(int $id, array $data): void
     {
+        self::ensureOperationalColumns();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -312,6 +357,9 @@ final class CabinRepository
                 price_six_nights = :price_six_nights,
                 price_seven_plus_nights = :price_seven_plus_nights,
                 is_active = :is_active,
+                ical_url = :ical_url,
+                ical_enabled = :ical_enabled,
+                ical_source = :ical_source,
                 sort_order = :sort_order
             WHERE id = :id'
         );
@@ -333,6 +381,9 @@ final class CabinRepository
             'price_six_nights' => $data['price_six_nights'],
             'price_seven_plus_nights' => $data['price_seven_plus_nights'],
             'is_active' => $data['is_active'],
+            'ical_url' => $data['ical_url'] ?? null,
+            'ical_enabled' => $data['ical_enabled'] ?? 0,
+            'ical_source' => $data['ical_source'] ?? 'BOOKING',
             'sort_order' => $data['sort_order'],
         ]);
     }
@@ -432,6 +483,86 @@ final class CabinRepository
                 'ALTER TABLE cabins
                 ADD COLUMN cleaning_updated_at DATETIME NULL
                 AFTER cleaning_status'
+            );
+        }
+
+        if (
+            !in_array(
+                'ical_url',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE cabins
+                ADD COLUMN ical_url TEXT NULL
+                AFTER cleaning_updated_at'
+            );
+
+            $columns[] = 'ical_url';
+        }
+
+        if (
+            !in_array(
+                'ical_enabled',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE cabins
+                ADD COLUMN ical_enabled TINYINT(1)
+                NOT NULL DEFAULT 0
+                AFTER ical_url'
+            );
+
+            $columns[] = 'ical_enabled';
+        }
+
+        if (
+            !in_array(
+                'ical_source',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                "ALTER TABLE cabins
+                ADD COLUMN ical_source VARCHAR(40)
+                NOT NULL DEFAULT 'BOOKING'
+                AFTER ical_enabled"
+            );
+
+            $columns[] = 'ical_source';
+        }
+
+        if (
+            !in_array(
+                'ical_last_sync_at',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE cabins
+                ADD COLUMN ical_last_sync_at DATETIME NULL
+                AFTER ical_source'
+            );
+
+            $columns[] = 'ical_last_sync_at';
+        }
+
+        if (
+            !in_array(
+                'ical_last_sync_status',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE cabins
+                ADD COLUMN ical_last_sync_status VARCHAR(40) NULL
+                AFTER ical_last_sync_at'
             );
         }
 
