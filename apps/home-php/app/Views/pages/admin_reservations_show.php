@@ -30,6 +30,7 @@ declare(strict_types=1);
  * @var string $reservationConfirmationTemplate
  * @var string $preArrivalTemplate
  * @var string $depositPaymentTemplate
+ * @var array<int, array<string, mixed>> $reservationMessageTemplates
  */
 
 $statusLabels = [
@@ -453,82 +454,100 @@ $displayDateTime = static function (mixed $value): string {
                     </div>
 
                     <div class="empty-state">
-                        <strong>Potwierdzenie rezerwacji</strong>
+                        <strong>Wiadomości do gościa</strong>
 
                         <p>
-                            Gotowa wiadomość przygotowana na podstawie danych zapisanej rezerwacji.
+                            Wiadomości są przygotowane na podstawie aktywnych szablonów.
+                            Możesz zmienić treść poniżej przed skopiowaniem.
+                            Zmiana wykonana tutaj nie zmienia globalnego szablonu.
                         </p>
-
-                        <div class="form-field">
-                            <textarea
-                                id="reservation-confirmation-template"
-                                rows="18"
-                                readonly
-                            ><?= htmlspecialchars($reservationConfirmationTemplate, ENT_QUOTES, 'UTF-8') ?></textarea>
-                        </div>
-
-                        <div class="form-actions">
-                            <button
-                                class="button button--primary"
-                                id="copy-reservation-confirmation"
-                                type="button"
-                            >
-                                Kopiuj wiadomość
-                            </button>
-                        </div>
                     </div>
 
-                    <div class="empty-state">
-                        <strong>Dane do wpłaty zadatku</strong>
+                    <?php if ($reservationMessageTemplates === []): ?>
+                        <div class="empty-state">
+                            <strong>Brak aktywnych szablonów</strong>
 
-                        <p>
-                            Gotowa wiadomość z kwotą zadatku i danymi do przelewu z Ustawień systemu.
-                        </p>
+                            <p>
+                                Aktywne szablony możesz dodać lub włączyć
+                                w sekcji Szablony.
+                            </p>
 
-                        <div class="form-field">
-                            <textarea
-                                id="deposit-payment-template"
-                                rows="18"
-                                readonly
-                            ><?= htmlspecialchars($depositPaymentTemplate, ENT_QUOTES, 'UTF-8') ?></textarea>
-                        </div>
-
-                        <div class="form-actions">
-                            <button
-                                class="button button--primary"
-                                id="copy-deposit-payment"
-                                type="button"
+                            <a
+                                class="button button--secondary"
+                                href="/admin/szablony"
                             >
-                                Kopiuj wiadomość
-                            </button>
+                                Przejdź do szablonów
+                            </a>
                         </div>
-                    </div>
+                    <?php endif; ?>
 
-                    <div class="empty-state">
-                        <strong>Wiadomość przed przyjazdem</strong>
+                    <?php foreach ($reservationMessageTemplates as $messageTemplate): ?>
+                        <?php
+                        $messageTemplateId = (int) (
+                            $messageTemplate['id']
+                            ?? 0
+                        );
 
-                        <p>
-                            Gotowa wiadomość z terminem pobytu, godzinami zameldowania i danymi kontaktowymi.
-                        </p>
+                        $messageTemplateName = (string) (
+                            $messageTemplate['name']
+                            ?? 'Szablon wiadomości'
+                        );
 
-                        <div class="form-field">
-                            <textarea
-                                id="pre-arrival-template"
-                                rows="18"
-                                readonly
-                            ><?= htmlspecialchars($preArrivalTemplate, ENT_QUOTES, 'UTF-8') ?></textarea>
+                        $renderedContent = (string) (
+                            $messageTemplate['rendered_content']
+                            ?? ''
+                        );
+
+                        $textareaId = 'reservation-message-template-'
+                            . $messageTemplateId;
+                        ?>
+
+                        <div class="empty-state">
+                            <strong>
+                                <?= htmlspecialchars(
+                                    $messageTemplateName,
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </strong>
+
+                            <div class="form-field">
+                                <textarea
+                                    id="<?= htmlspecialchars(
+                                        $textareaId,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>"
+                                    rows="18"
+                                ><?= htmlspecialchars(
+                                    $renderedContent,
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button
+                                    class="button button--primary js-copy-message-template"
+                                    data-copy-target="<?= htmlspecialchars(
+                                        $textareaId,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>"
+                                    type="button"
+                                >
+                                    Kopiuj wiadomość
+                                </button>
+
+                                <a
+                                    class="button button--secondary"
+                                    href="/admin/szablony"
+                                >
+                                    Edytuj szablony
+                                </a>
+                            </div>
                         </div>
-
-                        <div class="form-actions">
-                            <button
-                                class="button button--primary"
-                                id="copy-pre-arrival"
-                                type="button"
-                            >
-                                Kopiuj wiadomość
-                            </button>
-                        </div>
-                    </div>
+                    <?php endforeach; ?>
 
                     <?php if ($reservation['notes'] !== null && $reservation['notes'] !== ''): ?>
                         <div class="empty-state">
@@ -676,6 +695,73 @@ document.addEventListener('DOMContentLoaded', function () {
             depositTextarea.focus();
             depositTextarea.select();
         }
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const copyButtons = document.querySelectorAll(
+        '.js-copy-message-template'
+    );
+
+    copyButtons.forEach(function (copyButton) {
+        copyButton.addEventListener(
+            'click',
+            async function () {
+                const targetId = copyButton.getAttribute(
+                    'data-copy-target'
+                );
+
+                if (!targetId) {
+                    return;
+                }
+
+                const textarea = document.getElementById(
+                    targetId
+                );
+
+                if (!textarea) {
+                    return;
+                }
+
+                const message = textarea.value;
+
+                try {
+                    if (
+                        navigator.clipboard
+                        && window.isSecureContext
+                    ) {
+                        await navigator.clipboard.writeText(
+                            message
+                        );
+                    } else {
+                        textarea.focus();
+                        textarea.select();
+                        document.execCommand(
+                            'copy'
+                        );
+                    }
+
+                    const originalText =
+                        copyButton.textContent;
+
+                    copyButton.textContent =
+                        'Skopiowano';
+
+                    window.setTimeout(
+                        function () {
+                            copyButton.textContent =
+                                originalText;
+                        },
+                        1500
+                    );
+                } catch (error) {
+                    textarea.focus();
+                    textarea.select();
+                }
+            }
+        );
     });
 });
 </script>

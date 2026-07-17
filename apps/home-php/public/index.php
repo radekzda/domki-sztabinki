@@ -1054,9 +1054,29 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
 
         $settings = SettingsRepository::all();
 
+        $reservationMessageTemplates = [];
+
+        foreach (
+            MessageTemplateRepository::activeForContext(
+                'RESERVATION'
+            )
+            as $messageTemplate
+        ) {
+            $messageTemplate[
+                'rendered_content'
+            ] = MessageTemplateRenderer::forReservation(
+                (string) $messageTemplate['content'],
+                $reservation,
+                $settings
+            );
+
+            $reservationMessageTemplates[] = $messageTemplate;
+        }
+
         Response::html(View::render('pages/admin_reservations_show', [
             'title' => 'Szczegóły rezerwacji',
             'reservation' => $reservation,
+            'reservationMessageTemplates' => $reservationMessageTemplates,
             'reservationConfirmationTemplate' => GuestMessageTemplates::reservationConfirmation(
                 $reservation,
                 $settings

@@ -292,6 +292,82 @@ TEXT,
     }
 
     /**
+     * @return array<int, array{
+     *     id: int,
+     *     name: string,
+     *     template_key: string|null,
+     *     template_context: string,
+     *     content: string,
+     *     is_active: bool,
+     *     sort_order: int,
+     *     created_at: string|null,
+     *     updated_at: string|null
+     * }>
+     */
+    public static function activeForContext(
+        string $context
+    ): array {
+        self::ensureTable();
+
+        $context = strtoupper(
+            trim($context)
+        );
+
+        if ($context === '') {
+            return [];
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                id,
+                name,
+                template_key,
+                template_context,
+                content,
+                is_active,
+                sort_order,
+                created_at,
+                updated_at
+            FROM message_templates
+            WHERE is_active = 1
+              AND (
+                  template_context = :template_context
+                  OR template_context = "GENERAL"
+              )
+            ORDER BY
+                sort_order ASC,
+                name ASC,
+                id ASC'
+        );
+
+        $statement->execute([
+            'template_context' => $context,
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        $templates = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $templates[] = self::mapRow(
+                $row
+            );
+        }
+
+        return $templates;
+    }
+
+    /**
      * @return array{
      *     id: int,
      *     name: string,
