@@ -26,6 +26,7 @@ declare(strict_types=1);
  *     source: string,
  *     created_at: string
  * } $inquiry
+ * @var string $availabilityReplyTemplate
  */
 
 $statusLabels = [
@@ -149,6 +150,32 @@ $cabinName = $inquiry['linked_cabin_name']
                         </div>
                     <?php endif; ?>
 
+                    <div class="empty-state">
+                        <strong>Gotowa odpowiedź na zapytanie</strong>
+
+                        <p>
+                            Wiadomość została przygotowana automatycznie na podstawie danych zapytania i aktualnego cennika systemowego.
+                        </p>
+
+                        <div class="form-field">
+                            <textarea
+                                id="availability-reply-template"
+                                rows="14"
+                                readonly
+                            ><?= htmlspecialchars($availabilityReplyTemplate, ENT_QUOTES, 'UTF-8') ?></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button
+                                class="button button--primary"
+                                id="copy-availability-reply"
+                                type="button"
+                            >
+                                Kopiuj wiadomość
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="admin-actions">
                         <form method="post" action="/admin/zapytania/status">
     <?= csrfField() ?>
@@ -203,3 +230,47 @@ $cabinName = $inquiry['linked_cabin_name']
         </div>
     </div>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const copyButton = document.getElementById(
+        'copy-availability-reply'
+    );
+
+    const textarea = document.getElementById(
+        'availability-reply-template'
+    );
+
+    if (!copyButton || !textarea) {
+        return;
+    }
+
+    copyButton.addEventListener('click', async function () {
+        const message = textarea.value;
+
+        try {
+            if (
+                navigator.clipboard
+                && window.isSecureContext
+            ) {
+                await navigator.clipboard.writeText(message);
+            } else {
+                textarea.focus();
+                textarea.select();
+                document.execCommand('copy');
+            }
+
+            const originalText = copyButton.textContent;
+
+            copyButton.textContent = 'Skopiowano';
+
+            window.setTimeout(function () {
+                copyButton.textContent = originalText;
+            }, 1500);
+        } catch (error) {
+            textarea.focus();
+            textarea.select();
+        }
+    });
+});
+</script>

@@ -21,6 +21,7 @@ require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Core/Mailer.php';
 require dirname(__DIR__) . '/app/Services/InquiryMailer.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
+require dirname(__DIR__) . '/app/Services/GuestMessageTemplates.php';
 require dirname(__DIR__) . '/app/Support/PublicFormGuard.php';
 require dirname(__DIR__) . '/app/Support/ImageUploader.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
@@ -2056,9 +2057,15 @@ $router->get('/admin/zapytania/pokaz', function (): void {
             return;
         }
 
+        $settings = SettingsRepository::all();
+
         Response::html(View::render('pages/admin_inquiries_show', [
             'title' => 'Szczegóły zapytania',
             'inquiry' => $inquiry,
+            'availabilityReplyTemplate' => GuestMessageTemplates::availabilityReply(
+                $inquiry,
+                $settings
+            ),
         ]));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
