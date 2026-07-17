@@ -27,6 +27,7 @@ require dirname(__DIR__) . '/app/Support/ImageUploader.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/CabinImageRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
+require dirname(__DIR__) . '/app/Repositories/ReportRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationHistoryRepository.php';
 require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
@@ -2971,6 +2972,90 @@ $router->post('/admin/ustawienia', function (): void {
             'canSave' => true,
         ]), 500);
     }
+});
+
+$router->get('/admin/raporty', function (): void {
+    Auth::requireAdmin();
+
+    $currentYear = date('Y');
+
+    $dateFrom = isset($_GET['date_from'])
+        && is_string($_GET['date_from'])
+        ? trim($_GET['date_from'])
+        : $currentYear . '-01-01';
+
+    $dateTo = isset($_GET['date_to'])
+        && is_string($_GET['date_to'])
+        ? trim($_GET['date_to'])
+        : $currentYear . '-12-31';
+
+    $datePattern = '/^\d{4}-\d{2}-\d{2}$/';
+
+    if (
+        preg_match(
+            $datePattern,
+            $dateFrom
+        ) !== 1
+    ) {
+        $dateFrom = $currentYear
+            . '-01-01';
+    }
+
+    if (
+        preg_match(
+            $datePattern,
+            $dateTo
+        ) !== 1
+    ) {
+        $dateTo = $currentYear
+            . '-12-31';
+    }
+
+    if ($dateFrom > $dateTo) {
+        [
+            $dateFrom,
+            $dateTo,
+        ] = [
+            $dateTo,
+            $dateFrom,
+        ];
+    }
+
+    $summary = ReportRepository::emptySummary();
+    $databaseMessage = null;
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage =
+            'Baza danych nie jest jeszcze skonfigurowana. '
+            . 'Raporty będą dostępne po skonfigurowaniu MySQL.';
+    } else {
+        try {
+            $summary = ReportRepository::summary(
+                $dateFrom,
+                $dateTo
+            );
+        } catch (Throwable $exception) {
+            $databaseMessage =
+                'Nie udało się przygotować raportu: '
+                . AppErrorHandler::safeMessage(
+                    $exception
+                );
+        }
+    }
+
+    Response::html(
+        View::render(
+            'pages/admin_reports',
+            [
+                'title' => 'Raporty',
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'summary' => $summary,
+                'databaseMessage' =>
+                    $databaseMessage,
+            ]
+        )
+    );
 });
 
 $router->get('/admin/system', function () use ($config): void {

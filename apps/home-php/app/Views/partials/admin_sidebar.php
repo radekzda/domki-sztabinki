@@ -50,6 +50,11 @@ $items = [
         'active' => 'templates',
     ],
     [
+        'href' => '/admin/raporty',
+        'label' => 'Raporty',
+        'active' => 'reports',
+    ],
+    [
         'href' => '/admin/ustawienia',
         'label' => 'Ustawienia',
         'active' => 'settings',
