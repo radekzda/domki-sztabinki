@@ -609,6 +609,35 @@ final class ReservationRepository
             )
             : '';
 
+        if (
+            $oldStatus !== $status
+            && $status === 'CHECKED_OUT'
+            && $reservationBefore !== null
+        ) {
+            $cabinId = (int) (
+                $reservationBefore['cabin_id']
+                ?? 0
+            );
+
+            if ($cabinId > 0) {
+                try {
+                    CabinRepository::setCleaningStatus(
+                        $cabinId,
+                        'DIRTY'
+                    );
+                } catch (Throwable $exception) {
+                    error_log(
+                        'Nie udało się ustawić statusu sprzątania domku #'
+                        . $cabinId
+                        . ' po wymeldowaniu z rezerwacji #'
+                        . $id
+                        . ': '
+                        . $exception->getMessage()
+                    );
+                }
+            }
+        }
+
         if ($oldStatus === $status) {
             return;
         }
