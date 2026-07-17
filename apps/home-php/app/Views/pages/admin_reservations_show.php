@@ -27,9 +27,6 @@ declare(strict_types=1);
  *     notes: string|null,
  *     created_at: string
  * } $reservation
- * @var string $reservationConfirmationTemplate
- * @var string $preArrivalTemplate
- * @var string $depositPaymentTemplate
  * @var array<int, array<string, mixed>> $reservationMessageTemplates
  */
 
