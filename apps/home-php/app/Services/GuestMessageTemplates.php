@@ -193,6 +193,118 @@ final class GuestMessageTemplates
      * @param array<string, mixed> $reservation
      * @param array<string, string> $settings
      */
+    public static function depositPaymentMessage(
+        array $reservation,
+        array $settings
+    ): string {
+        $guestName = trim(
+            (string) ($reservation['guest_name'] ?? '')
+        );
+
+        $greeting = $guestName !== ''
+            ? 'Dzień dobry ' . $guestName . ','
+            : 'Dzień dobry,';
+
+        $propertyName = trim(
+            (string) (
+                $settings['property_name']
+                ?? 'Domki Sztabinki'
+            )
+        );
+
+        if ($propertyName === '') {
+            $propertyName = 'Domki Sztabinki';
+        }
+
+        $depositAmount = is_numeric(
+            $settings['deposit_amount'] ?? null
+        )
+            ? (float) $settings['deposit_amount']
+            : 0;
+
+        $accountHolder = trim(
+            (string) (
+                $settings['bank_account_holder']
+                ?? ''
+            )
+        );
+
+        $accountNumber = trim(
+            (string) (
+                $settings['bank_account_number']
+                ?? ''
+            )
+        );
+
+        $reservationId = (int) (
+            $reservation['id']
+            ?? 0
+        );
+
+        $cabinName = trim(
+            (string) (
+                $reservation['cabin_name']
+                ?? ''
+            )
+        );
+
+        $startDate = self::formatDate(
+            (string) (
+                $reservation['start_date']
+                ?? ''
+            )
+        );
+
+        $paymentTitle = 'Zadatek za rezerwację #' . $reservationId;
+
+        if ($guestName !== '') {
+            $paymentTitle .= ' - ' . $guestName;
+        }
+
+        $lines = [
+            $greeting,
+            '',
+            'w celu potwierdzenia rezerwacji prosimy o wpłatę zadatku.',
+            '',
+            'Kwota zadatku: '
+                . number_format(
+                    $depositAmount,
+                    0,
+                    ',',
+                    ' '
+                )
+                . ' zł',
+        ];
+
+        if ($accountHolder !== '') {
+            $lines[] = 'Odbiorca: ' . $accountHolder;
+        }
+
+        if ($accountNumber !== '') {
+            $lines[] = 'Numer rachunku: ' . $accountNumber;
+        }
+
+        $lines[] = 'Tytuł przelewu: ' . $paymentTitle;
+        $lines[] = '';
+
+        if ($cabinName !== '') {
+            $lines[] = 'Domek: ' . $cabinName;
+        }
+
+        $lines[] = 'Data przyjazdu: ' . $startDate;
+        $lines[] = '';
+        $lines[] = 'Po zaksięgowaniu wpłaty rezerwacja zostanie oznaczona jako potwierdzona.';
+        $lines[] = '';
+        $lines[] = 'Pozdrawiamy serdecznie';
+        $lines[] = $propertyName;
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param array<string, mixed> $reservation
+     * @param array<string, string> $settings
+     */
     public static function preArrivalMessage(
         array $reservation,
         array $settings

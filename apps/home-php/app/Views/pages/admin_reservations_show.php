@@ -29,6 +29,7 @@ declare(strict_types=1);
  * } $reservation
  * @var string $reservationConfirmationTemplate
  * @var string $preArrivalTemplate
+ * @var string $depositPaymentTemplate
  */
 
 $statusLabels = [
@@ -478,6 +479,32 @@ $displayDateTime = static function (mixed $value): string {
                     </div>
 
                     <div class="empty-state">
+                        <strong>Dane do wpłaty zadatku</strong>
+
+                        <p>
+                            Gotowa wiadomość z kwotą zadatku i danymi do przelewu z Ustawień systemu.
+                        </p>
+
+                        <div class="form-field">
+                            <textarea
+                                id="deposit-payment-template"
+                                rows="18"
+                                readonly
+                            ><?= htmlspecialchars($depositPaymentTemplate, ENT_QUOTES, 'UTF-8') ?></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button
+                                class="button button--primary"
+                                id="copy-deposit-payment"
+                                type="button"
+                            >
+                                Kopiuj wiadomość
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="empty-state">
                         <strong>Wiadomość przed przyjazdem</strong>
 
                         <p>
@@ -604,6 +631,50 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             textarea.focus();
             textarea.select();
+        }
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const depositCopyButton = document.getElementById(
+        'copy-deposit-payment'
+    );
+
+    const depositTextarea = document.getElementById(
+        'deposit-payment-template'
+    );
+
+    if (!depositCopyButton || !depositTextarea) {
+        return;
+    }
+
+    depositCopyButton.addEventListener('click', async function () {
+        const message = depositTextarea.value;
+
+        try {
+            if (
+                navigator.clipboard
+                && window.isSecureContext
+            ) {
+                await navigator.clipboard.writeText(message);
+            } else {
+                depositTextarea.focus();
+                depositTextarea.select();
+                document.execCommand('copy');
+            }
+
+            const originalText = depositCopyButton.textContent;
+
+            depositCopyButton.textContent = 'Skopiowano';
+
+            window.setTimeout(function () {
+                depositCopyButton.textContent = originalText;
+            }, 1500);
+        } catch (error) {
+            depositTextarea.focus();
+            depositTextarea.select();
         }
     });
 });

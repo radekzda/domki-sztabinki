@@ -1063,6 +1063,10 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
                 $reservation,
                 $settings
             ),
+            'depositPaymentTemplate' => GuestMessageTemplates::depositPaymentMessage(
+                $reservation,
+                $settings
+            ),
         ]));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [
