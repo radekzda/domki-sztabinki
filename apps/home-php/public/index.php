@@ -30,6 +30,7 @@ require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
 require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SettingsRepository.php';
+require dirname(__DIR__) . '/app/Repositories/MessageTemplateRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SiteImageRepository.php';
 require dirname(__DIR__) . '/app/Controllers/MediaController.php';
 require dirname(__DIR__) . '/app/Controllers/GuestImportController.php';
@@ -2183,6 +2184,17 @@ $router->post('/admin/media', function (): void {
 
 $router->get('/admin/ustawienia', function (): void {
     Auth::requireAdmin();
+
+    if (Database::canAttemptConnection()) {
+        try {
+            MessageTemplateRepository::ensureDefaultTemplates();
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się przygotować domyślnych szablonów wiadomości: '
+                . $exception->getMessage()
+            );
+        }
+    }
 
     $form = defaultSettingsForm();
     $databaseMessage = null;

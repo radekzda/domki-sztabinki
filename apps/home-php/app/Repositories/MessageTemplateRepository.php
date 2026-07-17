@@ -6,6 +6,160 @@ final class MessageTemplateRepository
 {
     /**
      * @return array<int, array{
+     *     name: string,
+     *     template_key: string,
+     *     template_context: string,
+     *     content: string,
+     *     is_active: bool,
+     *     sort_order: int
+     * }>
+     */
+    public static function defaultTemplates(): array
+    {
+        return [
+            [
+                'name' => 'Odpowiedź na dostępne zapytanie',
+                'template_key' => 'INQUIRY_AVAILABILITY',
+                'template_context' => 'INQUIRY',
+                'content' => <<<'TEXT'
+Dzień dobry {{first_name}},
+
+dziękujemy za zapytanie. Wybrany termin jest dostępny.
+
+Cena pobytu wynosi {{total_price}} zł za {{nights}} {{night_label}}. Cena obejmuje pobyt do {{guests}} {{person_label}} oraz korzystanie z wyposażenia domku, grilla, łódki, kajaka i rowerków wodnych.
+
+W celu potwierdzenia rezerwacji prosimy o informację zwrotną. Następnie prześlemy dane do wpłaty zadatku.
+
+Pozdrawiamy serdecznie
+{{property_name}}
+TEXT,
+                'is_active' => true,
+                'sort_order' => 10,
+            ],
+            [
+                'name' => 'Potwierdzenie rezerwacji',
+                'template_key' => 'RESERVATION_CONFIRMATION',
+                'template_context' => 'RESERVATION',
+                'content' => <<<'TEXT'
+Dzień dobry {{guest_name}},
+
+dziękujemy. Potwierdzamy rezerwację.
+
+Szczegóły rezerwacji:
+Domek: {{cabin_name}}
+Termin: {{start_date}} — {{end_date}}
+Liczba nocy: {{nights}}
+Liczba osób: {{guests}}
+Cena pobytu: {{total_price}} zł
+
+Zameldowanie od godz. {{check_in_time}}.
+Wymeldowanie do godz. {{check_out_time}}.
+
+Cena obejmuje korzystanie z wyposażenia domku, grilla, łódki, kajaka i rowerków wodnych.
+
+W razie pytań prosimy o kontakt.
+
+Pozdrawiamy serdecznie
+{{property_name}}
+TEXT,
+                'is_active' => true,
+                'sort_order' => 20,
+            ],
+            [
+                'name' => 'Dane do wpłaty zadatku',
+                'template_key' => 'DEPOSIT_PAYMENT',
+                'template_context' => 'RESERVATION',
+                'content' => <<<'TEXT'
+Dzień dobry {{guest_name}},
+
+w celu potwierdzenia rezerwacji prosimy o wpłatę zadatku.
+
+Kwota zadatku: {{deposit_amount}} zł
+Odbiorca: {{bank_account_holder}}
+Numer rachunku: {{bank_account_number}}
+Tytuł przelewu: {{payment_title}}
+
+Domek: {{cabin_name}}
+Data przyjazdu: {{start_date}}
+
+Po zaksięgowaniu wpłaty rezerwacja zostanie oznaczona jako potwierdzona.
+
+Pozdrawiamy serdecznie
+{{property_name}}
+TEXT,
+                'is_active' => true,
+                'sort_order' => 30,
+            ],
+            [
+                'name' => 'Wiadomość przed przyjazdem',
+                'template_key' => 'PRE_ARRIVAL',
+                'template_context' => 'RESERVATION',
+                'content' => <<<'TEXT'
+Dzień dobry {{guest_name}},
+
+przypominamy o zbliżającym się pobycie.
+
+Szczegóły pobytu:
+Domek: {{cabin_name}}
+Termin: {{start_date}} — {{end_date}}
+Zameldowanie od godz. {{check_in_time}}.
+Wymeldowanie do godz. {{check_out_time}}.
+Lokalizacja: {{location}}
+
+Prosimy o kontakt około 30 minut przed przyjazdem.
+Telefon kontaktowy: {{contact_phone}}
+
+Życzymy spokojnej podróży i do zobaczenia!
+
+Pozdrawiamy serdecznie
+{{property_name}}
+TEXT,
+                'is_active' => true,
+                'sort_order' => 40,
+            ],
+        ];
+    }
+
+    public static function ensureDefaultTemplates(): void
+    {
+        self::ensureTable();
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'INSERT IGNORE INTO message_templates (
+                name,
+                template_key,
+                template_context,
+                content,
+                is_active,
+                sort_order
+            ) VALUES (
+                :name,
+                :template_key,
+                :template_context,
+                :content,
+                :is_active,
+                :sort_order
+            )'
+        );
+
+        foreach (self::defaultTemplates() as $template) {
+            $statement->execute([
+                'name' => $template['name'],
+                'template_key' => $template['template_key'],
+                'template_context' => $template['template_context'],
+                'content' => $template['content'],
+                'is_active' => $template['is_active']
+                    ? 1
+                    : 0,
+                'sort_order' => $template['sort_order'],
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, array{
      *     id: int,
      *     name: string,
      *     template_key: string|null,
