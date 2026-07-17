@@ -22,6 +22,7 @@ require dirname(__DIR__) . '/app/Core/Mailer.php';
 require dirname(__DIR__) . '/app/Services/InquiryMailer.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Services/GuestMessageTemplates.php';
+require dirname(__DIR__) . '/app/Services/MessageTemplateRenderer.php';
 require dirname(__DIR__) . '/app/Support/PublicFormGuard.php';
 require dirname(__DIR__) . '/app/Support/ImageUploader.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
