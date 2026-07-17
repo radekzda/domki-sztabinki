@@ -289,6 +289,92 @@ $summaryCards = [
             min-height: 72px;
         }
     }
+
+    /* M13.94.2 — wyniki według domków */
+
+    .reports-section-header {
+        margin: 28px 0 12px;
+        padding-bottom: 9px;
+        border-bottom: 1px solid #edf0f2;
+    }
+
+    .reports-section-header h2 {
+        margin: 0 0 4px;
+        color: #111827;
+        font-size: 19px;
+        line-height: 1.2;
+    }
+
+    .reports-section-header p {
+        margin: 0;
+        color: #6b7280;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .reports-table-wrapper {
+        overflow-x: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 11px;
+        background: #ffffff;
+    }
+
+    .reports-table {
+        width: 100%;
+        margin: 0;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+
+    .reports-table th {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f8fafc;
+        color: #4b5563;
+        font-size: 10px;
+        font-weight: 800;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.035em;
+        white-space: nowrap;
+    }
+
+    .reports-table td {
+        padding: 11px 12px;
+        border-bottom: 1px solid #edf0f2;
+        color: #374151;
+        line-height: 1.35;
+        white-space: nowrap;
+    }
+
+    .reports-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .reports-table tbody tr:hover {
+        background: #fafbfc;
+    }
+
+    .reports-table__name {
+        min-width: 180px;
+        color: #111827 !important;
+        font-weight: 700;
+        white-space: normal !important;
+    }
+
+    .reports-table__money {
+        text-align: right;
+        font-weight: 650;
+    }
+
+    .reports-table__paid {
+        color: #166534 !important;
+    }
+
+    .reports-table__remaining {
+        color: #92400e !important;
+    }
+
 </style>
 
 <section class="page-section">
@@ -413,6 +499,113 @@ $summaryCards = [
                             </div>
                         <?php endforeach; ?>
                     </div>
+
+                    <div class="reports-section-header">
+                        <h2>
+                            Wyniki według domków
+                        </h2>
+
+                        <p>
+                            Podsumowanie nieanulowanych rezerwacji
+                            rozpoczętych w wybranym okresie.
+                        </p>
+                    </div>
+
+                    <?php if ($cabinRows === []): ?>
+                        <div class="alert alert--warning">
+                            Brak rezerwacji w wybranym okresie.
+                        </div>
+                    <?php else: ?>
+                        <div class="reports-table-wrapper">
+                            <table class="reports-table">
+                                <thead>
+                                    <tr>
+                                        <th>Domek</th>
+                                        <th>Rezerwacje</th>
+                                        <th>Noclegi</th>
+                                        <th>Osoby</th>
+                                        <th>Wartość</th>
+                                        <th>Wpłacono</th>
+                                        <th>Do zapłaty</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <?php foreach ($cabinRows as $row): ?>
+                                        <tr>
+                                            <td class="reports-table__name">
+                                                <?= htmlspecialchars(
+                                                    (string) $row['cabin_name'],
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['reservations_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['nights_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= htmlspecialchars(
+                                                    $formatNumber(
+                                                        (int) $row['guests_count']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td class="reports-table__money">
+                                                <?= htmlspecialchars(
+                                                    $formatMoney(
+                                                        (float) $row['total_value']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td class="reports-table__money reports-table__paid">
+                                                <?= htmlspecialchars(
+                                                    $formatMoney(
+                                                        (float) $row['paid_value']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+
+                                            <td class="reports-table__money reports-table__remaining">
+                                                <?= htmlspecialchars(
+                                                    $formatMoney(
+                                                        (float) $row['remaining_value']
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="reports-info">
                         <strong>

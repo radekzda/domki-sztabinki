@@ -110,6 +110,91 @@ final class ReportRepository
      *     guests_count:int
      * }
      */
+    /**
+     * Zestawienie wyników według domków.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function byCabin(
+        string $dateFrom,
+        string $dateTo
+    ): array {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                cabins.id AS cabin_id,
+                cabins.name AS cabin_name,
+                COUNT(reservations.id) AS reservations_count,
+                COALESCE(
+                    SUM(COALESCE(reservations.nights, 0)),
+                    0
+                ) AS nights_count,
+                COALESCE(
+                    SUM(COALESCE(reservations.guests, 0)),
+                    0
+                ) AS guests_count,
+                COALESCE(
+                    SUM(COALESCE(reservations.total_price, 0)),
+                    0
+                ) AS total_value,
+                COALESCE(
+                    SUM(COALESCE(reservations.paid_amount, 0)),
+                    0
+                ) AS paid_value,
+                COALESCE(
+                    SUM(
+                        GREATEST(
+                            COALESCE(reservations.total_price, 0)
+                            - COALESCE(reservations.paid_amount, 0),
+                            0
+                        )
+                    ),
+                    0
+                ) AS remaining_value
+            FROM cabins
+            INNER JOIN reservations
+                ON reservations.cabin_id = cabins.id
+            WHERE reservations.start_date >= :date_from
+            AND reservations.start_date <= :date_to
+            AND reservations.status <> "CANCELLED"
+            GROUP BY
+                cabins.id,
+                cabins.name,
+                cabins.sort_order
+            ORDER BY
+                cabins.sort_order ASC,
+                cabins.id ASC'
+        );
+
+        $statement->execute([
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        return array_map(
+            static function (array $row): array {
+                return [
+                    'cabin_id' => (int) ($row['cabin_id'] ?? 0),
+                    'cabin_name' => (string) ($row['cabin_name'] ?? ''),
+                    'reservations_count' => (int) ($row['reservations_count'] ?? 0),
+                    'nights_count' => (int) ($row['nights_count'] ?? 0),
+                    'guests_count' => (int) ($row['guests_count'] ?? 0),
+                    'total_value' => (float) ($row['total_value'] ?? 0),
+                    'paid_value' => (float) ($row['paid_value'] ?? 0),
+                    'remaining_value' => (float) ($row['remaining_value'] ?? 0),
+                ];
+            },
+            $rows
+        );
+    }
+
     public static function emptySummary(): array
     {
         return [

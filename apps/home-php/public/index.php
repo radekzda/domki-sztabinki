@@ -3022,6 +3022,7 @@ $router->get('/admin/raporty', function (): void {
     }
 
     $summary = ReportRepository::emptySummary();
+    $cabinRows = [];
     $databaseMessage = null;
 
     if (!Database::canAttemptConnection()) {
@@ -3031,6 +3032,11 @@ $router->get('/admin/raporty', function (): void {
     } else {
         try {
             $summary = ReportRepository::summary(
+                $dateFrom,
+                $dateTo
+            );
+
+            $cabinRows = ReportRepository::byCabin(
                 $dateFrom,
                 $dateTo
             );
@@ -3051,6 +3057,7 @@ $router->get('/admin/raporty', function (): void {
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
                 'summary' => $summary,
+                'cabinRows' => $cabinRows,
                 'databaseMessage' =>
                     $databaseMessage,
             ]
