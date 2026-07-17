@@ -20,6 +20,8 @@ declare(strict_types=1);
  *     price_six_nights: int,
  *     price_seven_plus_nights: int,
  *     is_active: int,
+ *     cleaning_status: string,
+ *     cleaning_updated_at: string|null,
  *     sort_order: int,
  *     created_at: string
  * }> $cabins
@@ -35,6 +37,16 @@ if (isset($_GET['deleted'])) {
 if (isset($_GET['delete_blocked'])) {
     $successMessage = 'Nie można usunąć domku, ponieważ ma rezerwacje. Możesz go ukryć.';
 }
+
+if (isset($_GET['cleaning_changed'])) {
+    $successMessage = 'Status sprzątania domku został zmieniony.';
+}
+
+$cleaningStatusLabels = [
+    'READY' => 'Gotowy',
+    'DIRTY' => 'Do sprzątania',
+    'CLEANING' => 'Sprzątanie w toku',
+];
 
 ?>
 
@@ -192,11 +204,67 @@ if (isset($_GET['delete_blocked'])) {
                                             </td>
 
                                             <td>
-                                                <?php if ($cabin['is_active'] === 1): ?>
-                                                    <span class="status-pill status-pill--success">Aktywny</span>
-                                                <?php else: ?>
-                                                    <span class="status-pill status-pill--muted">Ukryty</span>
-                                                <?php endif; ?>
+                                                <div style="display: grid; gap: 8px;">
+                                                    <div>
+                                                        <?php if ($cabin['is_active'] === 1): ?>
+                                                            <span class="status-pill status-pill--success">
+                                                                Aktywny
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="status-pill status-pill--muted">
+                                                                Ukryty
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <?php
+                                                    $cleaningStatus = (string) (
+                                                        $cabin['cleaning_status']
+                                                        ?? 'READY'
+                                                    );
+
+                                                    $cleaningLabel = $cleaningStatusLabels[
+                                                        $cleaningStatus
+                                                    ] ?? $cleaningStatus;
+                                                    ?>
+
+                                                    <div>
+                                                        <?php if ($cleaningStatus === 'READY'): ?>
+                                                            <span
+                                                                class="status-pill status-pill--success"
+                                                                style="background: #dcfce7; color: #166534;"
+                                                            >
+                                                                <?= htmlspecialchars(
+                                                                    $cleaningLabel,
+                                                                    ENT_QUOTES,
+                                                                    'UTF-8'
+                                                                ) ?>
+                                                            </span>
+                                                        <?php elseif ($cleaningStatus === 'DIRTY'): ?>
+                                                            <span
+                                                                class="status-pill"
+                                                                style="background: #fee2e2; color: #991b1b;"
+                                                            >
+                                                                <?= htmlspecialchars(
+                                                                    $cleaningLabel,
+                                                                    ENT_QUOTES,
+                                                                    'UTF-8'
+                                                                ) ?>
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span
+                                                                class="status-pill"
+                                                                style="background: #fef3c7; color: #92400e;"
+                                                            >
+                                                                <?= htmlspecialchars(
+                                                                    $cleaningLabel,
+                                                                    ENT_QUOTES,
+                                                                    'UTF-8'
+                                                                ) ?>
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
                                             </td>
 
                                             <td>
@@ -214,6 +282,54 @@ if (isset($_GET['delete_blocked'])) {
                                                     >
                                                         Zdjęcia
                                                     </a>
+
+                                                    <form
+                                                        method="post"
+                                                        action="/admin/domki/sprzatanie"
+                                                        style="display: grid; gap: 6px;"
+                                                    >
+                                                        <?= csrfField() ?>
+
+                                                        <input
+                                                            type="hidden"
+                                                            name="id"
+                                                            value="<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+
+                                                        <select
+                                                            name="cleaning_status"
+                                                            style="width: 100%;"
+                                                        >
+                                                            <option
+                                                                value="READY"
+                                                                <?= ($cabin['cleaning_status'] ?? 'READY') === 'READY' ? 'selected' : '' ?>
+                                                            >
+                                                                Gotowy
+                                                            </option>
+
+                                                            <option
+                                                                value="DIRTY"
+                                                                <?= ($cabin['cleaning_status'] ?? '') === 'DIRTY' ? 'selected' : '' ?>
+                                                            >
+                                                                Do sprzątania
+                                                            </option>
+
+                                                            <option
+                                                                value="CLEANING"
+                                                                <?= ($cabin['cleaning_status'] ?? '') === 'CLEANING' ? 'selected' : '' ?>
+                                                            >
+                                                                Sprzątanie w toku
+                                                            </option>
+                                                        </select>
+
+                                                        <button
+                                                            class="button button--secondary button--small"
+                                                            type="submit"
+                                                            style="width: 100%;"
+                                                        >
+                                                            Zmień sprzątanie
+                                                        </button>
+                                                    </form>
 
                                                     <form method="post" action="/admin/domki/status">
     <?= csrfField() ?>

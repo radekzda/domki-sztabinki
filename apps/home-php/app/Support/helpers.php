@@ -286,6 +286,35 @@ function activeStatusFromPost(): ?bool
     return null;
 }
 
+function cleaningStatusFromPost(): ?string
+{
+    $value = $_POST['cleaning_status'] ?? null;
+
+    if (!is_string($value)) {
+        return null;
+    }
+
+    $value = strtoupper(
+        trim($value)
+    );
+
+    if (
+        !in_array(
+            $value,
+            [
+                'READY',
+                'DIRTY',
+                'CLEANING',
+            ],
+            true
+        )
+    ) {
+        return null;
+    }
+
+    return $value;
+}
+
 function defaultReservationForm(): array
 {
     return [

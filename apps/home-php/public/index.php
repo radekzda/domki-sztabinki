@@ -476,6 +476,52 @@ $router->post('/admin/domki/status', function (): void {
 });
 
 
+$router->post('/admin/domki/sprzatanie', function (): void {
+    Auth::requireAdmin();
+    requireValidCsrf();
+
+    $id = cabinIdFromPost();
+    $cleaningStatus = cleaningStatusFromPost();
+
+    if (
+        $id === null
+        || $cleaningStatus === null
+    ) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można zmienić statusu sprzątania, ponieważ przesłane dane są nieprawidłowe.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Baza danych nie jest jeszcze skonfigurowana. Nie można zmienić statusu sprzątania.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        CabinRepository::setCleaningStatus(
+            $id,
+            $cleaningStatus
+        );
+
+        Response::redirect(
+            '/admin/domki?cleaning_changed=1'
+        );
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się zmienić statusu sprzątania',
+            'message' => AppErrorHandler::safeMessage($exception),
+        ]), 500);
+    }
+});
+
+
 $router->post('/admin/domki/usun', function (): void {
     Auth::requireAdmin();
     requireValidCsrf();
