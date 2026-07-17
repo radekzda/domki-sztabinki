@@ -1942,10 +1942,142 @@ $router->get('/admin/goscie/pokaz', function (): void {
 
         $reservations = ReservationRepository::forGuest($id);
 
+        $todayKey = (
+            new DateTimeImmutable('today')
+        )->format('Y-m-d');
+
+        $guestStats = [
+            'reservations_count' => 0,
+            'completed_stays' => 0,
+            'cancelled_count' => 0,
+            'total_value' => 0.0,
+            'total_paid' => 0.0,
+            'last_stay' => null,
+            'next_stay' => null,
+        ];
+
+        foreach ($reservations as $reservation) {
+            $status = (string) (
+                $reservation['status']
+                ?? ''
+            );
+
+            $startDate = substr(
+                (string) (
+                    $reservation['start_date']
+                    ?? ''
+                ),
+                0,
+                10
+            );
+
+            $endDate = substr(
+                (string) (
+                    $reservation['end_date']
+                    ?? ''
+                ),
+                0,
+                10
+            );
+
+            if ($status === 'CANCELLED') {
+                $guestStats[
+                    'cancelled_count'
+                ]++;
+
+                continue;
+            }
+
+            $guestStats[
+                'reservations_count'
+            ]++;
+
+            if ($status === 'CHECKED_OUT') {
+                $guestStats[
+                    'completed_stays'
+                ]++;
+            }
+
+            $guestStats[
+                'total_value'
+            ] += is_numeric(
+                $reservation['total_price']
+                ?? null
+            )
+                ? (float) $reservation[
+                    'total_price'
+                ]
+                : 0;
+
+            $guestStats[
+                'total_paid'
+            ] += is_numeric(
+                $reservation['paid_amount']
+                ?? null
+            )
+                ? (float) $reservation[
+                    'paid_amount'
+                ]
+                : 0;
+
+            if (
+                $endDate !== ''
+                && (
+                    $endDate < $todayKey
+                    || $status === 'CHECKED_OUT'
+                )
+            ) {
+                $lastStay = $guestStats[
+                    'last_stay'
+                ];
+
+                if (
+                    !is_array($lastStay)
+                    || $endDate > (
+                        $lastStay['end_date']
+                        ?? ''
+                    )
+                ) {
+                    $guestStats[
+                        'last_stay'
+                    ] = $reservation;
+                }
+            }
+
+            if (
+                $startDate >= $todayKey
+                && in_array(
+                    $status,
+                    [
+                        'PENDING',
+                        'CONFIRMED',
+                    ],
+                    true
+                )
+            ) {
+                $nextStay = $guestStats[
+                    'next_stay'
+                ];
+
+                if (
+                    !is_array($nextStay)
+                    || $startDate < (
+                        $nextStay['start_date']
+                        ?? '9999-12-31'
+                    )
+                ) {
+                    $guestStats[
+                        'next_stay'
+                    ] = $reservation;
+                }
+            }
+        }
+
         Response::html(View::render('pages/admin_guests_show', [
             'title' => 'Szczegóły gościa',
             'guest' => $guest,
             'reservations' => $reservations,
+            'guestStats' => $guestStats,
         ]));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/error', [

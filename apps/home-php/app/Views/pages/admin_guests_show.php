@@ -6,6 +6,7 @@ declare(strict_types=1);
  * @var string $title
  * @var array<string, mixed> $guest
  * @var array<int, array<string, mixed>> $reservations
+ * @var array<string, mixed> $guestStats
  */
 
 $statusLabels = [
@@ -41,6 +42,100 @@ $displayDate = static function (mixed $value): string {
     return formatDateForDisplay((string) $value);
 };
 ?>
+<style>
+    .guest-profile-stats {
+        display: grid;
+        grid-template-columns: repeat(
+            6,
+            minmax(0, 1fr)
+        );
+        gap: 10px;
+        margin: 18px 0;
+    }
+
+    .guest-profile-stat {
+        min-width: 0;
+        padding: 12px 14px;
+        border: 1px solid rgba(
+            15,
+            23,
+            42,
+            0.08
+        );
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .guest-profile-stat:nth-child(1) {
+        background: #eff6ff;
+    }
+
+    .guest-profile-stat:nth-child(2) {
+        background: #f0fdf4;
+    }
+
+    .guest-profile-stat:nth-child(3) {
+        background: #fefce8;
+    }
+
+    .guest-profile-stat:nth-child(4) {
+        background: #fff7ed;
+    }
+
+    .guest-profile-stat:nth-child(5) {
+        background: #faf5ff;
+    }
+
+    .guest-profile-stat:nth-child(6) {
+        background: #f0fdfa;
+    }
+
+    .guest-profile-stat span {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 12px;
+        opacity: 0.7;
+    }
+
+    .guest-profile-stat strong {
+        display: block;
+        font-size: 15px;
+        line-height: 1.3;
+    }
+
+    .guest-profile-stat small {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        line-height: 1.3;
+        opacity: 0.7;
+    }
+
+    @media (max-width: 1200px) {
+        .guest-profile-stats {
+            grid-template-columns: repeat(
+                3,
+                minmax(0, 1fr)
+            );
+        }
+    }
+
+    @media (max-width: 700px) {
+        .guest-profile-stats {
+            grid-template-columns: repeat(
+                2,
+                minmax(0, 1fr)
+            );
+        }
+    }
+
+    @media (max-width: 480px) {
+        .guest-profile-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 <section class="page-section">
     <div class="container">
         <div class="admin-shell">
@@ -73,6 +168,164 @@ $displayDate = static function (mixed $value): string {
                             <a class="button button--secondary" href="/admin/goscie">
                                 Wróć do listy
                             </a>
+                        </div>
+                    </div>
+
+                    <div class="guest-profile-stats">
+                        <div class="guest-profile-stat">
+                            <span>Rezerwacje</span>
+
+                            <strong>
+                                <?= (int) (
+                                    $guestStats[
+                                        'reservations_count'
+                                    ]
+                                    ?? 0
+                                ) ?>
+                            </strong>
+
+                            <?php if (
+                                (int) (
+                                    $guestStats[
+                                        'cancelled_count'
+                                    ]
+                                    ?? 0
+                                ) > 0
+                            ): ?>
+                                <small>
+                                    Anulowane:
+                                    <?= (int) $guestStats[
+                                        'cancelled_count'
+                                    ] ?>
+                                </small>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="guest-profile-stat">
+                            <span>Zakończone pobyty</span>
+
+                            <strong>
+                                <?= (int) (
+                                    $guestStats[
+                                        'completed_stays'
+                                    ]
+                                    ?? 0
+                                ) ?>
+                            </strong>
+                        </div>
+
+                        <div class="guest-profile-stat">
+                            <span>Łączna wartość</span>
+
+                            <strong>
+                                <?= htmlspecialchars(
+                                    formatMoneyForDisplay(
+                                        $guestStats[
+                                            'total_value'
+                                        ]
+                                        ?? 0
+                                    ),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </strong>
+                        </div>
+
+                        <div class="guest-profile-stat">
+                            <span>Łącznie wpłacono</span>
+
+                            <strong>
+                                <?= htmlspecialchars(
+                                    formatMoneyForDisplay(
+                                        $guestStats[
+                                            'total_paid'
+                                        ]
+                                        ?? 0
+                                    ),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </strong>
+                        </div>
+
+                        <div class="guest-profile-stat">
+                            <span>Ostatni pobyt</span>
+
+                            <?php if (
+                                is_array(
+                                    $guestStats[
+                                        'last_stay'
+                                    ]
+                                    ?? null
+                                )
+                            ): ?>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        formatDateForDisplay(
+                                            (string) $guestStats[
+                                                'last_stay'
+                                            ]['start_date']
+                                        ),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </strong>
+
+                                <small>
+                                    <?= htmlspecialchars(
+                                        (string) (
+                                            $guestStats[
+                                                'last_stay'
+                                            ]['cabin_name']
+                                            ?? 'Domek'
+                                        ),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </small>
+                            <?php else: ?>
+                                <strong>—</strong>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="guest-profile-stat">
+                            <span>Najbliższy pobyt</span>
+
+                            <?php if (
+                                is_array(
+                                    $guestStats[
+                                        'next_stay'
+                                    ]
+                                    ?? null
+                                )
+                            ): ?>
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        formatDateForDisplay(
+                                            (string) $guestStats[
+                                                'next_stay'
+                                            ]['start_date']
+                                        ),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </strong>
+
+                                <small>
+                                    <?= htmlspecialchars(
+                                        (string) (
+                                            $guestStats[
+                                                'next_stay'
+                                            ]['cabin_name']
+                                            ?? 'Domek'
+                                        ),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </small>
+                            <?php else: ?>
+                                <strong>—</strong>
+                            <?php endif; ?>
                         </div>
                     </div>
 
