@@ -1183,6 +1183,10 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
 
         $settings = SettingsRepository::all();
 
+        $reservationHistory = ReservationHistoryRepository::forReservation(
+            (int) $reservation['id']
+        );
+
         $reservationMessageTemplates = [];
 
         foreach (
@@ -1205,6 +1209,7 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
         Response::html(View::render('pages/admin_reservations_show', [
             'title' => 'Szczegóły rezerwacji',
             'reservation' => $reservation,
+            'reservationHistory' => $reservationHistory,
             'reservationMessageTemplates' => $reservationMessageTemplates,
         ]));
     } catch (Throwable $exception) {

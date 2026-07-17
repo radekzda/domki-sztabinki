@@ -28,6 +28,7 @@ declare(strict_types=1);
  *     created_at: string
  * } $reservation
  * @var array<int, array<string, mixed>> $reservationMessageTemplates
+ * @var array<int, array<string, mixed>> $reservationHistory
  */
 
 $statusLabels = [
@@ -46,6 +47,28 @@ $paymentLabels = [
 ];
 
 $paymentStatus = $reservation['payment_status'] ?? '';
+
+$historyValueLabel = static function (
+    string $eventType,
+    ?string $value
+) use (
+    $statusLabels,
+    $paymentLabels
+): string {
+    if ($value === null || trim($value) === '') {
+        return '—';
+    }
+
+    if ($eventType === 'STATUS') {
+        return $statusLabels[$value] ?? $value;
+    }
+
+    if ($eventType === 'PAYMENT_STATUS') {
+        return $paymentLabels[$value] ?? $value;
+    }
+
+    return $value;
+};
 
 $returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
 $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
@@ -448,6 +471,119 @@ $displayDateTime = static function (mixed $value): string {
                             <span>Utworzono</span>
                             <strong><?= htmlspecialchars(formatDateForDisplay($reservation['created_at']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
+                    </div>
+
+                    <div class="empty-state">
+                        <strong>Historia rezerwacji</strong>
+
+                        <?php if ($reservationHistory === []): ?>
+                            <p>
+                                Historia zmian tej rezerwacji jest jeszcze pusta.
+                                Nowe zmiany statusów i płatności będą zapisywane automatycznie.
+                            </p>
+                        <?php else: ?>
+                            <div class="status-list">
+                                <?php foreach ($reservationHistory as $historyEntry): ?>
+                                    <?php
+                                    $eventType = (string) (
+                                        $historyEntry['event_type']
+                                        ?? ''
+                                    );
+
+                                    $oldValue = isset(
+                                        $historyEntry['old_value']
+                                    )
+                                        ? (string) $historyEntry['old_value']
+                                        : null;
+
+                                    $newValue = isset(
+                                        $historyEntry['new_value']
+                                    )
+                                        ? (string) $historyEntry['new_value']
+                                        : null;
+
+                                    $details = isset(
+                                        $historyEntry['details']
+                                    )
+                                        ? trim(
+                                            (string) $historyEntry['details']
+                                        )
+                                        : '';
+
+                                    $hasValueChange = (
+                                        $eventType === 'STATUS'
+                                        || $eventType === 'PAYMENT_STATUS'
+                                    )
+                                        && (
+                                            $oldValue !== null
+                                            || $newValue !== null
+                                        );
+                                    ?>
+
+                                    <div class="status-row">
+                                        <span>
+                                            <?= htmlspecialchars(
+                                                $displayDateTime(
+                                                    $historyEntry['created_at']
+                                                    ?? null
+                                                ),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
+                                        </span>
+
+                                        <strong>
+                                            <?= htmlspecialchars(
+                                                (string) (
+                                                    $historyEntry['title']
+                                                    ?? ''
+                                                ),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
+
+                                            <?php if ($hasValueChange): ?>
+                                                <br>
+
+                                                <small>
+                                                    <?= htmlspecialchars(
+                                                        $historyValueLabel(
+                                                            $eventType,
+                                                            $oldValue
+                                                        ),
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
+
+                                                    →
+
+                                                    <?= htmlspecialchars(
+                                                        $historyValueLabel(
+                                                            $eventType,
+                                                            $newValue
+                                                        ),
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
+                                                </small>
+                                            <?php endif; ?>
+
+                                            <?php if ($details !== ''): ?>
+                                                <br>
+
+                                                <small>
+                                                    <?= htmlspecialchars(
+                                                        $details,
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
+                                                </small>
+                                            <?php endif; ?>
+                                        </strong>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="empty-state">
