@@ -27,6 +27,7 @@ require dirname(__DIR__) . '/app/Support/ImageUploader.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/CabinImageRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
+require dirname(__DIR__) . '/app/Repositories/ReservationHistoryRepository.php';
 require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SettingsRepository.php';
