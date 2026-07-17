@@ -201,6 +201,7 @@ $router->get('/admin', function (): void {
     $checkedInReservations = [];
     $newInquiries = [];
     $upcomingReservations = [];
+    $cleaningCabins = [];
     $databaseMessage = null;
 
     if (!Database::canAttemptConnection()) {
@@ -209,6 +210,7 @@ $router->get('/admin', function (): void {
         try {
             $reservations = ReservationRepository::all();
             $inquiries = InquiryRepository::all();
+            $cabins = CabinRepository::all();
 
             $today = new DateTimeImmutable('today');
             $todayKey = $today->format('Y-m-d');
@@ -282,6 +284,26 @@ $router->get('/admin', function (): void {
                 }
             }
 
+            foreach ($cabins as $cabin) {
+                $cleaningStatus = (string) (
+                    $cabin['cleaning_status']
+                    ?? 'READY'
+                );
+
+                if (
+                    in_array(
+                        $cleaningStatus,
+                        [
+                            'DIRTY',
+                            'CLEANING',
+                        ],
+                        true
+                    )
+                ) {
+                    $cleaningCabins[] = $cabin;
+                }
+            }
+
             foreach ($inquiries as $inquiry) {
                 if (
                     (string) (
@@ -326,6 +348,7 @@ $router->get('/admin', function (): void {
         'checkedInReservations' => $checkedInReservations,
         'newInquiries' => $newInquiries,
         'upcomingReservations' => $upcomingReservations,
+        'cleaningCabins' => $cleaningCabins,
         'databaseMessage' => $databaseMessage,
     ]));
 });

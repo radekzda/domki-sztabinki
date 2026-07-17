@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @var array<int, array<string, mixed>> $checkedInReservations
  * @var array<int, array<string, mixed>> $newInquiries
  * @var array<int, array<string, mixed>> $upcomingReservations
+ * @var array<int, array<string, mixed>> $cleaningCabins
  * @var string|null $databaseMessage
  */
 
@@ -83,7 +84,7 @@ $inquiryGuestName = static function (
 <style>
     .dashboard-today-grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 10px;
         margin-top: 16px;
         margin-bottom: 16px;
@@ -110,7 +111,7 @@ $inquiryGuestName = static function (
 
     .dashboard-today-sections {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 10px;
         margin-top: 12px;
     }
@@ -148,6 +149,11 @@ $inquiryGuestName = static function (
     .dashboard-today-section:nth-child(5) {
         background: #fefce8;
         border-top: 4px solid #eab308;
+    }
+
+    .dashboard-today-section:nth-child(6) {
+        background: #fef2f2;
+        border-top: 4px solid #ef4444;
     }
 
     .dashboard-today-section__header {
@@ -322,6 +328,19 @@ $inquiryGuestName = static function (
 
                             <span>
                                 Przyjazdy w ciągu 7 dni
+                            </span>
+                        </a>
+
+                        <a
+                            class="dashboard-card dashboard-today-card"
+                            href="/admin/domki"
+                        >
+                            <strong>
+                                <?= count($cleaningCabins) ?>
+                            </strong>
+
+                            <span>
+                                Sprzątanie
                             </span>
                         </a>
                     </div>
@@ -600,6 +619,65 @@ $inquiryGuestName = static function (
                                                 $reservationGuestName(
                                                     $reservation
                                                 ),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
+                                        </strong>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="empty-state dashboard-today-section">
+                        <div class="dashboard-today-section__header">
+                            <strong>
+                                Sprzątanie
+                            </strong>
+
+                            <?php if ($cleaningCabins === []): ?>
+                                <p>
+                                    Wszystkie domki są oznaczone jako gotowe.
+                                </p>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if ($cleaningCabins !== []): ?>
+                            <div class="status-list">
+                                <?php foreach (
+                                    $cleaningCabins
+                                    as $cabin
+                                ): ?>
+                                    <?php
+                                    $cleaningStatus = (string) (
+                                        $cabin['cleaning_status']
+                                        ?? 'READY'
+                                    );
+
+                                    $cleaningLabel = $cleaningStatus
+                                        === 'CLEANING'
+                                            ? 'Sprzątanie w toku'
+                                            : 'Do sprzątania';
+                                    ?>
+
+                                    <a
+                                        class="status-row"
+                                        href="/admin/domki"
+                                    >
+                                        <span>
+                                            <?= htmlspecialchars(
+                                                (string) (
+                                                    $cabin['name']
+                                                    ?? 'Domek'
+                                                ),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
+                                        </span>
+
+                                        <strong>
+                                            <?= htmlspecialchars(
+                                                $cleaningLabel,
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
