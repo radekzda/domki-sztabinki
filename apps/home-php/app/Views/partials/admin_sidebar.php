@@ -45,6 +45,11 @@ $items = [
         'active' => 'media',
     ],
     [
+        'href' => '/admin/szablony',
+        'label' => 'Szablony',
+        'active' => 'templates',
+    ],
+    [
         'href' => '/admin/ustawienia',
         'label' => 'Ustawienia',
         'active' => 'settings',

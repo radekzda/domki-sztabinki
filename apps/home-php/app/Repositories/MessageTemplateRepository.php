@@ -126,8 +126,20 @@ TEXT,
 
         $connection = Database::connection();
 
+        $countStatement = $connection->query(
+            'SELECT COUNT(*) FROM message_templates'
+        );
+
+        $templateCount = $countStatement !== false
+            ? (int) $countStatement->fetchColumn()
+            : 0;
+
+        if ($templateCount > 0) {
+            return;
+        }
+
         $statement = $connection->prepare(
-            'INSERT IGNORE INTO message_templates (
+            'INSERT INTO message_templates (
                 name,
                 template_key,
                 template_context,

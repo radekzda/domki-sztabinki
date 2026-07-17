@@ -2182,6 +2182,328 @@ $router->post('/admin/media', function (): void {
     MediaController::handle();
 });
 
+$router->get('/admin/szablony', function (): void {
+    Auth::requireAdmin();
+
+    $templates = [];
+    $databaseMessage = null;
+    $successMessage = null;
+    $errorMessage = null;
+
+    if (isset($_GET['added'])) {
+        $successMessage = 'Szablon został dodany.';
+    } elseif (isset($_GET['updated'])) {
+        $successMessage = 'Szablon został zaktualizowany.';
+    } elseif (isset($_GET['deleted'])) {
+        $successMessage = 'Szablon został usunięty.';
+    }
+
+    $error = isset($_GET['error'])
+        ? (string) $_GET['error']
+        : '';
+
+    if ($error === 'validation') {
+        $errorMessage = 'Uzupełnij poprawnie nazwę, zastosowanie, kolejność i treść szablonu.';
+    } elseif ($error === 'not_found') {
+        $errorMessage = 'Nie znaleziono wskazanego szablonu.';
+    } elseif ($error === 'database') {
+        $errorMessage = 'Nie udało się wykonać operacji na szablonie.';
+    }
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Zarządzanie szablonami jest niedostępne.';
+    } else {
+        try {
+            MessageTemplateRepository::ensureDefaultTemplates();
+            $templates = MessageTemplateRepository::all();
+        } catch (Throwable $exception) {
+            $databaseMessage = 'Nie udało się pobrać szablonów: '
+                . AppErrorHandler::safeMessage($exception);
+        }
+    }
+
+    Response::html(View::render(
+        'pages/admin_message_templates',
+        [
+            'title' => 'Szablony wiadomości',
+            'templates' => $templates,
+            'successMessage' => $successMessage,
+            'errorMessage' => $errorMessage,
+            'databaseMessage' => $databaseMessage,
+            'canSave' => Database::canAttemptConnection(),
+        ]
+    ));
+});
+
+$router->post('/admin/szablony/dodaj', function (): void {
+    Auth::requireAdmin();
+    requireValidCsrf();
+
+    if (!Database::canAttemptConnection()) {
+        Response::redirect(
+            '/admin/szablony?error=database'
+        );
+
+        return;
+    }
+
+    $name = trim(
+        (string) ($_POST['name'] ?? '')
+    );
+
+    $templateContext = strtoupper(
+        trim(
+            (string) (
+                $_POST['template_context']
+                ?? ''
+            )
+        )
+    );
+
+    $content = trim(
+        (string) ($_POST['content'] ?? '')
+    );
+
+    $sortOrderRaw = trim(
+        (string) ($_POST['sort_order'] ?? '0')
+    );
+
+    $allowedContexts = [
+        'INQUIRY',
+        'RESERVATION',
+        'GENERAL',
+    ];
+
+    if (
+        $name === ''
+        || (
+            function_exists('mb_strlen')
+                ? mb_strlen($name)
+                : strlen($name)
+        ) > 150
+        || !in_array(
+            $templateContext,
+            $allowedContexts,
+            true
+        )
+        || $content === ''
+        || preg_match(
+            '/^\d{1,4}$/',
+            $sortOrderRaw
+        ) !== 1
+    ) {
+        Response::redirect(
+            '/admin/szablony?error=validation'
+        );
+
+        return;
+    }
+
+    try {
+        MessageTemplateRepository::create([
+            'name' => $name,
+            'template_key' => null,
+            'template_context' => $templateContext,
+            'content' => $content,
+            'is_active' => isset(
+                $_POST['is_active']
+            ),
+            'sort_order' => (int) $sortOrderRaw,
+        ]);
+
+        Response::redirect(
+            '/admin/szablony?added=1'
+        );
+    } catch (Throwable $exception) {
+        error_log(
+            'Nie udało się dodać szablonu: '
+            . $exception->getMessage()
+        );
+
+        Response::redirect(
+            '/admin/szablony?error=database'
+        );
+    }
+});
+
+$router->post('/admin/szablony/edytuj', function (): void {
+    Auth::requireAdmin();
+    requireValidCsrf();
+
+    if (!Database::canAttemptConnection()) {
+        Response::redirect(
+            '/admin/szablony?error=database'
+        );
+
+        return;
+    }
+
+    $id = filter_var(
+        $_POST['id'] ?? null,
+        FILTER_VALIDATE_INT
+    );
+
+    if (!is_int($id) || $id < 1) {
+        Response::redirect(
+            '/admin/szablony?error=not_found'
+        );
+
+        return;
+    }
+
+    $name = trim(
+        (string) ($_POST['name'] ?? '')
+    );
+
+    $templateContext = strtoupper(
+        trim(
+            (string) (
+                $_POST['template_context']
+                ?? ''
+            )
+        )
+    );
+
+    $content = trim(
+        (string) ($_POST['content'] ?? '')
+    );
+
+    $sortOrderRaw = trim(
+        (string) ($_POST['sort_order'] ?? '0')
+    );
+
+    $allowedContexts = [
+        'INQUIRY',
+        'RESERVATION',
+        'GENERAL',
+    ];
+
+    if (
+        $name === ''
+        || (
+            function_exists('mb_strlen')
+                ? mb_strlen($name)
+                : strlen($name)
+        ) > 150
+        || !in_array(
+            $templateContext,
+            $allowedContexts,
+            true
+        )
+        || $content === ''
+        || preg_match(
+            '/^\d{1,4}$/',
+            $sortOrderRaw
+        ) !== 1
+    ) {
+        Response::redirect(
+            '/admin/szablony?error=validation'
+        );
+
+        return;
+    }
+
+    try {
+        $existingTemplate = MessageTemplateRepository::find(
+            $id
+        );
+
+        if ($existingTemplate === null) {
+            Response::redirect(
+                '/admin/szablony?error=not_found'
+            );
+
+            return;
+        }
+
+        MessageTemplateRepository::update(
+            $id,
+            [
+                'name' => $name,
+                'template_key' => $existingTemplate[
+                    'template_key'
+                ],
+                'template_context' => $templateContext,
+                'content' => $content,
+                'is_active' => isset(
+                    $_POST['is_active']
+                ),
+                'sort_order' => (int) $sortOrderRaw,
+            ]
+        );
+
+        Response::redirect(
+            '/admin/szablony?updated=1'
+        );
+    } catch (Throwable $exception) {
+        error_log(
+            'Nie udało się zaktualizować szablonu: '
+            . $exception->getMessage()
+        );
+
+        Response::redirect(
+            '/admin/szablony?error=database'
+        );
+    }
+});
+
+$router->post('/admin/szablony/usun', function (): void {
+    Auth::requireAdmin();
+    requireValidCsrf();
+
+    if (!Database::canAttemptConnection()) {
+        Response::redirect(
+            '/admin/szablony?error=database'
+        );
+
+        return;
+    }
+
+    $id = filter_var(
+        $_POST['id'] ?? null,
+        FILTER_VALIDATE_INT
+    );
+
+    if (!is_int($id) || $id < 1) {
+        Response::redirect(
+            '/admin/szablony?error=not_found'
+        );
+
+        return;
+    }
+
+    try {
+        $template = MessageTemplateRepository::find(
+            $id
+        );
+
+        if ($template === null) {
+            Response::redirect(
+                '/admin/szablony?error=not_found'
+            );
+
+            return;
+        }
+
+        MessageTemplateRepository::delete(
+            $id
+        );
+
+        Response::redirect(
+            '/admin/szablony?deleted=1'
+        );
+    } catch (Throwable $exception) {
+        error_log(
+            'Nie udało się usunąć szablonu: '
+            . $exception->getMessage()
+        );
+
+        Response::redirect(
+            '/admin/szablony?error=database'
+        );
+    }
+});
+
 $router->get('/admin/ustawienia', function (): void {
     Auth::requireAdmin();
 
