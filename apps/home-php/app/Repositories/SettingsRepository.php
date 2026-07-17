@@ -30,6 +30,9 @@ final class SettingsRepository
             'price_seven_plus_nights' => '350',
             'fishing_price' => '30',
             'hot_tub_price' => '200',
+            'deposit_amount' => '0',
+            'bank_account_holder' => '',
+            'bank_account_number' => '',
             'public_short_description' => 'Domki letniskowe nad jeziorem w spokojnej okolicy.',
             'booking_rules' => 'Obiekt przeznaczony jest do spokojnego wypoczynku. Nie organizujemy głośnych imprez.',
         ];

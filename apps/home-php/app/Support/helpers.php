@@ -1149,6 +1149,9 @@ function defaultSettingsForm(): array
         'price_seven_plus_nights' => '350',
         'fishing_price' => '30',
         'hot_tub_price' => '200',
+        'deposit_amount' => '0',
+        'bank_account_holder' => '',
+        'bank_account_number' => '',
         'public_short_description' => 'Domki letniskowe nad jeziorem w spokojnej okolicy.',
         'booking_rules' => 'Obiekt przeznaczony jest do spokojnego wypoczynku. Nie organizujemy głośnych imprez.',
     ];
@@ -1226,6 +1229,10 @@ function validateSettingsForm(array $form): array
 
     if (!ctype_digit($form['hot_tub_price'])) {
         $errors['hot_tub_price'] = 'Cena balii/kubila musi być liczbą całkowitą.';
+    }
+
+    if (!ctype_digit($form['deposit_amount'])) {
+        $errors['deposit_amount'] = 'Kwota zadatku musi być liczbą całkowitą.';
     }
 
     return $errors;

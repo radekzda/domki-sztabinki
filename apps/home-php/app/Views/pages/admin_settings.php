@@ -283,6 +283,56 @@ declare(strict_types=1);
                             </div>
 
                             <div class="form-field form-field--full">
+                                <h2>Płatności i zadatek</h2>
+
+                                <p>
+                                    Dane wykorzystywane przy przygotowywaniu wiadomości z prośbą o wpłatę zadatku.
+                                </p>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="deposit_amount">Kwota zadatku</label>
+
+                                <input
+                                    id="deposit_amount"
+                                    name="deposit_amount"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value="<?= htmlspecialchars($form['deposit_amount'], ENT_QUOTES, 'UTF-8') ?>"
+                                >
+
+                                <?php if (isset($errors['deposit_amount'])): ?>
+                                    <span class="form-error">
+                                        <?= htmlspecialchars($errors['deposit_amount'], ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="bank_account_holder">Odbiorca przelewu</label>
+
+                                <input
+                                    id="bank_account_holder"
+                                    name="bank_account_holder"
+                                    type="text"
+                                    value="<?= htmlspecialchars($form['bank_account_holder'], ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                            </div>
+
+                            <div class="form-field form-field--full">
+                                <label for="bank_account_number">Numer rachunku bankowego</label>
+
+                                <input
+                                    id="bank_account_number"
+                                    name="bank_account_number"
+                                    type="text"
+                                    value="<?= htmlspecialchars($form['bank_account_number'], ENT_QUOTES, 'UTF-8') ?>"
+                                    placeholder="PL00 0000 0000 0000 0000 0000 0000"
+                                >
+                            </div>
+
+                            <div class="form-field form-field--full">
                                 <label for="public_short_description">Krótki opis publiczny</label>
                                 <textarea
                                     id="public_short_description"
