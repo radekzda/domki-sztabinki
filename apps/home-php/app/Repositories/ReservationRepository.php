@@ -306,6 +306,45 @@ final class ReservationRepository
         }, $rows);
     }
 
+    /**
+     * Rezerwacje PMS eksportowane do zewnętrznego kalendarza.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function forIcalExport(
+        int $cabinId
+    ): array {
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                id,
+                cabin_id,
+                start_date,
+                end_date,
+                status
+            FROM reservations
+            WHERE cabin_id = :cabin_id
+            AND status IN (
+                "PENDING",
+                "CONFIRMED",
+                "CHECKED_IN"
+            )
+            AND end_date > CURDATE()
+            ORDER BY start_date ASC, id ASC'
+        );
+
+        $statement->execute([
+            'cabin_id' => $cabinId,
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        return is_array($rows)
+            ? $rows
+            : [];
+    }
+
     public static function hasBlockingOverlap(
         int $cabinId,
         string $startDate,

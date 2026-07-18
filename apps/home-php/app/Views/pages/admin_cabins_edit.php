@@ -69,6 +69,108 @@ declare(strict_types=1);
                     <?php endif; ?>
 
                     <?php
+                    $exportToken = isset(
+                        $icalExportToken
+                    ) && is_string(
+                        $icalExportToken
+                    )
+                        ? trim(
+                            $icalExportToken
+                        )
+                        : '';
+
+                    $icalExportUrl = '';
+
+                    if ($exportToken !== '') {
+                        $isHttps = (
+                            isset($_SERVER['HTTPS'])
+                            && $_SERVER['HTTPS'] !== ''
+                            && $_SERVER['HTTPS'] !== 'off'
+                        );
+
+                        $scheme = $isHttps
+                            ? 'https'
+                            : 'http';
+
+                        $host = (string) (
+                            $_SERVER['HTTP_HOST']
+                            ?? ''
+                        );
+
+                        if ($host !== '') {
+                            $icalExportUrl =
+                                $scheme
+                                . '://'
+                                . $host
+                                . '/ical/domek?id='
+                                . rawurlencode(
+                                    (string) $id
+                                )
+                                . '&token='
+                                . rawurlencode(
+                                    $exportToken
+                                );
+                        }
+                    }
+                    ?>
+
+                    <?php if ($icalExportUrl !== ''): ?>
+                        <div
+                            style="
+                                margin-bottom: 20px;
+                                padding: 16px;
+                                border: 1px solid #e5e7eb;
+                                border-radius: 10px;
+                                background: #f8fafc;
+                            "
+                        >
+                            <strong>
+                                Adres eksportu iCal PMS
+                            </strong>
+
+                            <p
+                                style="
+                                    margin: 6px 0 10px;
+                                    color: #6b7280;
+                                    font-size: 13px;
+                                "
+                            >
+                                Ten adres będzie można dodać
+                                do Booking.com lub innego systemu
+                                jako kalendarz importowany.
+                                Nie udostępniaj go publicznie.
+                            </p>
+
+                            <input
+                                type="text"
+                                readonly
+                                value="<?= htmlspecialchars(
+                                    $icalExportUrl,
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>"
+                                style="width: 100%;"
+                                onclick="this.select()"
+                            >
+
+                            <div style="margin-top: 10px;">
+                                <a
+                                    class="button button--secondary"
+                                    href="<?= htmlspecialchars(
+                                        $icalExportUrl,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>"
+                                    target="_blank"
+                                    rel="noopener"
+                                >
+                                    Otwórz kalendarz iCal
+                                </a>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php
                     View::partial('partials/cabin_form', [
                         'form' => $form,
                         'errors' => $errors,

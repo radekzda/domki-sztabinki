@@ -57,6 +57,7 @@ final class CabinRepository
                 ical_source,
                 ical_last_sync_at,
                 ical_last_sync_status,
+                ical_export_token,
                 sort_order,
                 created_at
             FROM cabins
@@ -104,6 +105,9 @@ final class CabinRepository
                     : null,
                 'ical_last_sync_status' => isset($row['ical_last_sync_status'])
                     ? (string) $row['ical_last_sync_status']
+                    : null,
+                'ical_export_token' => isset($row['ical_export_token'])
+                    ? (string) $row['ical_export_token']
                     : null,
                 'sort_order' => (int) ($row['sort_order'] ?? 0),
                 'created_at' => (string) ($row['created_at'] ?? ''),
@@ -241,6 +245,7 @@ final class CabinRepository
                 ical_source,
                 ical_last_sync_at,
                 ical_last_sync_status,
+                ical_export_token,
                 sort_order,
                 created_at
             FROM cabins
@@ -289,6 +294,9 @@ final class CabinRepository
                 : null,
             'ical_last_sync_status' => isset($row['ical_last_sync_status'])
                 ? (string) $row['ical_last_sync_status']
+                : null,
+            'ical_export_token' => isset($row['ical_export_token'])
+                ? (string) $row['ical_export_token']
                 : null,
             'sort_order' => (int) ($row['sort_order'] ?? 0),
             'created_at' => (string) ($row['created_at'] ?? ''),
@@ -643,7 +651,74 @@ final class CabinRepository
             );
         }
 
+        if (
+            !in_array(
+                'ical_export_token',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE cabins
+                ADD COLUMN ical_export_token VARCHAR(64) NULL
+                AFTER ical_last_sync_status'
+            );
+
+            $columns[] = 'ical_export_token';
+        }
+
         self::$operationalColumnsEnsured = true;
+    }
+
+    public static function ensureIcalExportToken(
+        int $id
+    ): string {
+        self::ensureOperationalColumns();
+
+        if ($id < 1) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowy identyfikator domku.'
+            );
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT ical_export_token
+            FROM cabins
+            WHERE id = :id
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'id' => $id,
+        ]);
+
+        $value = $statement->fetchColumn();
+
+        if (
+            is_string($value)
+            && trim($value) !== ''
+        ) {
+            return trim($value);
+        }
+
+        $token = bin2hex(
+            random_bytes(32)
+        );
+
+        $statement = $connection->prepare(
+            'UPDATE cabins
+            SET ical_export_token = :token
+            WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+            'token' => $token,
+        ]);
+
+        return $token;
     }
 
     public static function recordIcalSyncResult(

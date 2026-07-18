@@ -23,6 +23,7 @@ require dirname(__DIR__) . '/app/Services/InquiryMailer.php';
 require dirname(__DIR__) . '/app/Services/IcalParser.php';
 require dirname(__DIR__) . '/app/Services/IcalCalendarClient.php';
 require dirname(__DIR__) . '/app/Services/IcalSyncService.php';
+require dirname(__DIR__) . '/app/Services/IcalExportService.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Services/MessageTemplateRenderer.php';
 require dirname(__DIR__) . '/app/Support/PublicFormGuard.php';
@@ -46,6 +47,98 @@ require dirname(__DIR__) . '/app/Controllers/ReservationImportController.php';
 require dirname(__DIR__) . '/app/Controllers/ImportAuditController.php';
 
 $router = new Router();
+
+$router->get('/ical/domek', function (): void {
+    $idValue = $_GET['id'] ?? null;
+    $tokenValue = $_GET['token'] ?? null;
+
+    $id = filter_var(
+        $idValue,
+        FILTER_VALIDATE_INT
+    );
+
+    $token = is_string($tokenValue)
+        ? trim($tokenValue)
+        : '';
+
+    if (
+        !is_int($id)
+        || $id < 1
+        || $token === ''
+    ) {
+        http_response_code(404);
+
+        return;
+    }
+
+    try {
+        $cabin = CabinRepository::find(
+            $id
+        );
+
+        if ($cabin === null) {
+            http_response_code(404);
+
+            return;
+        }
+
+        $expectedToken = trim(
+            (string) (
+                $cabin['ical_export_token']
+                ?? ''
+            )
+        );
+
+        if (
+            $expectedToken === ''
+            || !hash_equals(
+                $expectedToken,
+                $token
+            )
+        ) {
+            http_response_code(404);
+
+            return;
+        }
+
+        $reservations =
+            ReservationRepository::forIcalExport(
+                $id
+            );
+
+        $content =
+            IcalExportService::generate(
+                $id,
+                $reservations
+            );
+
+        header(
+            'Content-Type: text/calendar; charset=utf-8'
+        );
+
+        header(
+            'Content-Disposition: inline; filename="domek-'
+            . $id
+            . '.ics"'
+        );
+
+        header(
+            'Cache-Control: no-cache, no-store, must-revalidate'
+        );
+
+        echo $content;
+    } catch (Throwable $exception) {
+        error_log(
+            'Blad eksportu iCal domku #'
+            . $id
+            . ': '
+            . $exception->getMessage()
+        );
+
+        http_response_code(500);
+    }
+});
+
 
 $router->get('/', function (): void {
     Response::html(View::render('pages/home', [
@@ -648,10 +741,16 @@ $router->get('/admin/domki/edytuj', function (): void {
             return;
         }
 
+        $icalExportToken =
+            CabinRepository::ensureIcalExportToken(
+                $id
+            );
+
         Response::html(View::render('pages/admin_cabins_edit', [
             'title' => 'Edytuj domek',
             'id' => $id,
             'form' => cabinFormFromCabin($cabin),
+            'icalExportToken' => $icalExportToken,
             'errors' => [],
             'databaseMessage' => null,
             'canSave' => true,
