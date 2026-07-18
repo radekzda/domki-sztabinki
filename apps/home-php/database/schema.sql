@@ -1,6 +1,43 @@
+CREATE TABLE IF NOT EXISTS invoice_sellers (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+    name VARCHAR(190) NOT NULL,
+
+    tax_id_type VARCHAR(20) NOT NULL DEFAULT 'NIP',
+    tax_id VARCHAR(40) NULL,
+
+    street VARCHAR(190) NULL,
+    postal_code VARCHAR(40) NULL,
+    city VARCHAR(120) NULL,
+    country VARCHAR(120) NOT NULL DEFAULT 'Polska',
+
+    email VARCHAR(190) NULL,
+    phone VARCHAR(60) NULL,
+
+    bank_account_holder VARCHAR(190) NULL,
+    bank_account_number VARCHAR(80) NULL,
+
+    invoice_series VARCHAR(40) NOT NULL DEFAULT 'FV',
+
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    INDEX invoice_sellers_active_index (
+        is_active
+    )
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS cabins (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     external_id VARCHAR(80) NULL,
+    invoice_seller_id INT UNSIGNED NULL,
     name VARCHAR(160) NOT NULL,
     short_name VARCHAR(80) NULL,
     description TEXT NOT NULL,
@@ -36,7 +73,14 @@ CREATE TABLE IF NOT EXISTS cabins (
     PRIMARY KEY (id),
     INDEX idx_cabins_external_id (external_id),
     INDEX cabins_is_active_index (is_active),
-    INDEX cabins_sort_order_index (sort_order)
+    INDEX cabins_sort_order_index (sort_order),
+    INDEX cabins_invoice_seller_index (
+        invoice_seller_id
+    ),
+    CONSTRAINT cabins_invoice_seller_foreign
+        FOREIGN KEY (invoice_seller_id)
+        REFERENCES invoice_sellers(id)
+        ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS cabin_images (
@@ -133,28 +177,53 @@ CREATE TABLE IF NOT EXISTS reservations (
 
 CREATE TABLE IF NOT EXISTS invoice_sequences (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+    seller_id INT UNSIGNED NOT NULL,
+
     series VARCHAR(40) NOT NULL DEFAULT 'FV',
+
     sequence_year SMALLINT UNSIGNED NOT NULL,
+    sequence_month TINYINT UNSIGNED NOT NULL,
+
     last_number INT UNSIGNED NOT NULL DEFAULT 0,
+
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
+
     PRIMARY KEY (id),
-    UNIQUE KEY invoice_sequences_series_year_unique (
+
+    UNIQUE KEY invoice_sequences_seller_period_unique (
+        seller_id,
         series,
-        sequence_year
-    )
+        sequence_year,
+        sequence_month
+    ),
+
+    INDEX invoice_sequences_seller_index (
+        seller_id
+    ),
+
+    CONSTRAINT invoice_sequences_seller_foreign
+        FOREIGN KEY (seller_id)
+        REFERENCES invoice_sellers(id)
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS invoices (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+
     reservation_id INT UNSIGNED NULL,
+    seller_id INT UNSIGNED NOT NULL,
 
     invoice_number VARCHAR(100) NOT NULL,
+
     series VARCHAR(40) NOT NULL DEFAULT 'FV',
+
     sequence_year SMALLINT UNSIGNED NOT NULL,
+    sequence_month TINYINT UNSIGNED NOT NULL,
     sequence_number INT UNSIGNED NOT NULL,
 
     issue_date DATE NOT NULL,
@@ -166,54 +235,84 @@ CREATE TABLE IF NOT EXISTS invoices (
     currency CHAR(3) NOT NULL DEFAULT 'PLN',
 
     payment_method VARCHAR(30) NULL,
-    payment_status VARCHAR(30) NOT NULL DEFAULT 'UNPAID',
+    payment_status VARCHAR(30)
+        NOT NULL DEFAULT 'UNPAID',
 
     seller_name VARCHAR(190) NOT NULL,
+    seller_tax_id_type VARCHAR(20)
+        NOT NULL DEFAULT 'NIP',
     seller_tax_id VARCHAR(40) NULL,
+
     seller_street VARCHAR(190) NULL,
     seller_postal_code VARCHAR(40) NULL,
     seller_city VARCHAR(120) NULL,
-    seller_country VARCHAR(120) NOT NULL DEFAULT 'Polska',
+    seller_country VARCHAR(120)
+        NOT NULL DEFAULT 'Polska',
 
-    buyer_type VARCHAR(20) NOT NULL DEFAULT 'PERSON',
+    seller_email VARCHAR(190) NULL,
+    seller_phone VARCHAR(60) NULL,
+
+    seller_bank_account_holder VARCHAR(190) NULL,
+    seller_bank_account_number VARCHAR(80) NULL,
+
+    buyer_type VARCHAR(20)
+        NOT NULL DEFAULT 'PERSON',
+
     buyer_name VARCHAR(190) NOT NULL,
-    buyer_tax_id_type VARCHAR(20) NOT NULL DEFAULT 'NONE',
+
+    buyer_tax_id_type VARCHAR(20)
+        NOT NULL DEFAULT 'NONE',
     buyer_tax_id VARCHAR(40) NULL,
+
     buyer_street VARCHAR(190) NULL,
     buyer_postal_code VARCHAR(40) NULL,
     buyer_city VARCHAR(120) NULL,
     buyer_country VARCHAR(120) NULL,
     buyer_email VARCHAR(190) NULL,
 
-    net_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    vat_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    gross_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    net_total DECIMAL(12, 2)
+        NOT NULL DEFAULT 0.00,
+    vat_total DECIMAL(12, 2)
+        NOT NULL DEFAULT 0.00,
+    gross_total DECIMAL(12, 2)
+        NOT NULL DEFAULT 0.00,
 
     tax_exemption_basis VARCHAR(255) NULL,
+
     notes TEXT NULL,
 
     ksef_status VARCHAR(30) NULL,
     ksef_number VARCHAR(120) NULL,
     ksef_sent_at DATETIME NULL,
 
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at DATETIME NOT NULL
+        DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
 
-    UNIQUE KEY invoices_number_unique (
+    UNIQUE KEY invoices_seller_number_unique (
+        seller_id,
         invoice_number
     ),
 
     UNIQUE KEY invoices_sequence_unique (
+        seller_id,
         series,
         sequence_year,
+        sequence_month,
         sequence_number
     ),
 
     INDEX invoices_reservation_index (
         reservation_id
+    ),
+
+    INDEX invoices_seller_index (
+        seller_id
     ),
 
     INDEX invoices_issue_date_index (
@@ -235,7 +334,12 @@ CREATE TABLE IF NOT EXISTS invoices (
     CONSTRAINT invoices_reservation_foreign
         FOREIGN KEY (reservation_id)
         REFERENCES reservations(id)
-        ON DELETE SET NULL
+        ON DELETE SET NULL,
+
+    CONSTRAINT invoices_seller_foreign
+        FOREIGN KEY (seller_id)
+        REFERENCES invoice_sellers(id)
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
