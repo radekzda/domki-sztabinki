@@ -55,6 +55,11 @@ $syncNewBlocks = isset($_GET['new_blocks'])
         ? (int) $_GET['new_blocks']
         : 0;
 
+$syncDeactivated = isset($_GET['deactivated'])
+    && ctype_digit((string) $_GET['deactivated'])
+        ? (int) $_GET['deactivated']
+        : 0;
+
 $actionLabels = [
     'EXISTING_ICAL' =>
         'Już zapisane iCal',
@@ -301,6 +306,13 @@ $actionLabels = [
                             Konflikty:
                             <?= htmlspecialchars(
                                 (string) $syncConflicts,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>.
+
+                            Dezaktywowano:
+                            <?= htmlspecialchars(
+                                (string) $syncDeactivated,
                                 ENT_QUOTES,
                                 'UTF-8'
                             ) ?>.

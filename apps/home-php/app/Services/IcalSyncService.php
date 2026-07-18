@@ -71,7 +71,20 @@ final class IcalSyncService
                 'NEW_BLOCK' => 0,
             ];
 
+            $seenUids = [];
+
             foreach ($events as $event) {
+                $uid = trim(
+                    (string) (
+                        $event['uid']
+                        ?? ''
+                    )
+                );
+
+                if ($uid !== '') {
+                    $seenUids[] = $uid;
+                }
+
                 $result =
                     IcalEventRepository::classifyAndStore(
                         $cabinId,
@@ -94,6 +107,13 @@ final class IcalSyncService
                 }
             }
 
+            $deactivated =
+                IcalEventRepository::deactivateMissingForCabin(
+                    $cabinId,
+                    $source,
+                    $seenUids
+                );
+
             CabinRepository::recordIcalSyncResult(
                 $cabinId,
                 'SUCCESS'
@@ -109,6 +129,8 @@ final class IcalSyncService
                     $counts['CONFLICT'],
                 'new_blocks' =>
                     $counts['NEW_BLOCK'],
+                'deactivated' =>
+                    $deactivated,
             ];
         } catch (Throwable $exception) {
             try {

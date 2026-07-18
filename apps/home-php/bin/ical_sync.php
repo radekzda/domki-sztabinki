@@ -88,6 +88,7 @@ $totalMatched = 0;
 $totalNewBlocks = 0;
 $totalConflicts = 0;
 $totalExisting = 0;
+$totalDeactivated = 0;
 
 try {
     $cabins =
@@ -155,6 +156,11 @@ try {
                 ?? 0
             );
 
+            $totalDeactivated += (int) (
+                $result['deactivated']
+                ?? 0
+            );
+
             echo
                 '  OK'
                 . ' | wydarzenia: '
@@ -182,6 +188,11 @@ try {
                 . ' | znane: '
                 . (int) (
                     $result['existing_ical']
+                    ?? 0
+                )
+                . ' | dezaktywowane: '
+                . (int) (
+                    $result['deactivated']
                     ?? 0
                 )
                 . PHP_EOL;
@@ -248,6 +259,8 @@ echo
     . $totalConflicts
     . ' | znane: '
     . $totalExisting
+    . ' | dezaktywowane: '
+    . $totalDeactivated
     . PHP_EOL;
 
 flock(

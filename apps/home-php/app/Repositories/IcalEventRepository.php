@@ -459,6 +459,12 @@ final class IcalEventRepository
             )
             : null;
 
+        $isActive = (
+            $eventStatus === 'CANCELLED'
+        )
+            ? 0
+            : 1;
+
         $existing = self::findByUid(
             $cabinId,
             $uid
@@ -490,7 +496,7 @@ final class IcalEventRepository
                     summary = :summary,
                     description = :description,
                     event_status = :event_status,
-                    is_active = 1,
+                    is_active = :is_active,
                     last_seen_at = NOW()
                 WHERE id = :id'
             );
@@ -505,6 +511,7 @@ final class IcalEventRepository
                 'summary' => $summary,
                 'description' => $description,
                 'event_status' => $eventStatus,
+                'is_active' => $isActive,
             ]);
 
             return (int) $existing['id'];
@@ -533,7 +540,7 @@ final class IcalEventRepository
                 :summary,
                 :description,
                 :event_status,
-                1,
+                :is_active,
                 NOW()
             )'
         );
@@ -549,6 +556,7 @@ final class IcalEventRepository
             'summary' => $summary,
             'description' => $description,
             'event_status' => $eventStatus,
+            'is_active' => $isActive,
         ]);
 
         return (int) $connection->lastInsertId();
@@ -633,6 +641,93 @@ final class IcalEventRepository
                     'conflicting_reservation'
                 ],
         ];
+    }
+
+    /**
+     * Dezaktywuje wydarzenia, które były zapisane wcześniej,
+     * ale nie występują już w aktualnie pobranym kalendarzu.
+     *
+     * @param array<int, string> $seenUids
+     */
+    public static function deactivateMissingForCabin(
+        int $cabinId,
+        string $source,
+        array $seenUids
+    ): int {
+        self::ensureTable();
+
+        if ($cabinId < 1) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowy identyfikator domku.'
+            );
+        }
+
+        $source = strtoupper(
+            trim(
+                $source
+            )
+        );
+
+        if ($source === '') {
+            $source = 'BOOKING';
+        }
+
+        $seenUids = array_values(
+            array_unique(
+                array_filter(
+                    array_map(
+                        static fn (mixed $uid): string =>
+                            trim((string) $uid),
+                        $seenUids
+                    ),
+                    static fn (string $uid): bool =>
+                        $uid !== ''
+                )
+            )
+        );
+
+        $connection = Database::connection();
+
+        $params = [
+            'cabin_id' => $cabinId,
+            'source' => $source,
+        ];
+
+        $sql = 'UPDATE ical_events
+            SET is_active = 0
+            WHERE cabin_id = :cabin_id
+            AND source = :source
+            AND is_active = 1';
+
+        if ($seenUids !== []) {
+            $placeholders = [];
+
+            foreach (
+                $seenUids
+                as $index => $uid
+            ) {
+                $key = 'uid_' . $index;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $uid;
+            }
+
+            $sql .= ' AND ical_uid NOT IN ('
+                . implode(
+                    ', ',
+                    $placeholders
+                )
+                . ')';
+        }
+
+        $statement = $connection->prepare(
+            $sql
+        );
+
+        $statement->execute(
+            $params
+        );
+
+        return $statement->rowCount();
     }
 
     private static function validateEventData(

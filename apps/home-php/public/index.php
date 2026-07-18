@@ -721,6 +721,8 @@ $router->post('/admin/domki/ical-synchronizuj', function (): void {
                 $result['conflicts'],
             'new_blocks' =>
                 $result['new_blocks'],
+            'deactivated' =>
+                $result['deactivated'] ?? 0,
         ]);
 
         Response::redirect(
