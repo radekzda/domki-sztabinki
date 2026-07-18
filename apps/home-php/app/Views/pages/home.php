@@ -2539,12 +2539,112 @@ if (isset($settings) && is_array($settings)) {
                             rel="noopener noreferrer"
                             aria-label="Otwórz dojazd do Domków Sztabinki w Google Maps"
                         >
-                            <iframe
-                                src="https://www.google.com/maps?q=Domki%20Sztabinki%20%C5%BBegary&output=embed"
-                                loading="lazy"
-                                referrerpolicy="no-referrer-when-downgrade"
-                                title="Mapa dojazdu do Domków Sztabinki"
-                            ></iframe>
+                            <div
+                                class="public-map-static"
+                                aria-hidden="true"
+                            >
+                                <svg
+                                    viewBox="0 0 800 360"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    role="img"
+                                    aria-label="Schematyczna mapa lokalizacji Domków Sztabinki"
+                                >
+                                    <rect
+                                        width="800"
+                                        height="360"
+                                        fill="#e8f1e5"
+                                    />
+
+                                    <path
+                                        d="M0 275 C110 220 190 250 290 215 C390 180 470 215 565 175 C650 140 710 145 800 100"
+                                        fill="none"
+                                        stroke="#ffffff"
+                                        stroke-width="34"
+                                    />
+
+                                    <path
+                                        d="M0 275 C110 220 190 250 290 215 C390 180 470 215 565 175 C650 140 710 145 800 100"
+                                        fill="none"
+                                        stroke="#d2d8d0"
+                                        stroke-width="3"
+                                    />
+
+                                    <path
+                                        d="M500 0 C470 80 500 130 465 200 C435 260 450 310 430 360"
+                                        fill="none"
+                                        stroke="#ffffff"
+                                        stroke-width="22"
+                                    />
+
+                                    <path
+                                        d="M500 0 C470 80 500 130 465 200 C435 260 450 310 430 360"
+                                        fill="none"
+                                        stroke="#ffffff"
+                                        stroke-width="22"
+                                    />
+
+                                    <path
+                                        d="M500 0 C470 80 500 130 465 200 C435 260 450 310 430 360"
+                                        fill="none"
+                                        stroke="#d2d8d0"
+                                        stroke-width="3"
+                                    />
+
+                                    <path
+                                        d="M90 30 C150 55 170 100 145 145 C120 190 55 205 25 165 C-5 125 20 55 90 30Z"
+                                        fill="#a9d5e8"
+                                    />
+
+                                    <g
+                                        transform="translate(505 115)"
+                                    >
+                                        <path
+                                            d="M0 0 C-38 0 -68 30 -68 68 C-68 117 0 180 0 180 C0 180 68 117 68 68 C68 30 38 0 0 0Z"
+                                            fill="#b45309"
+                                        />
+
+                                        <circle
+                                            cx="0"
+                                            cy="66"
+                                            r="25"
+                                            fill="#ffffff"
+                                        />
+                                    </g>
+
+                                    <rect
+                                        x="535"
+                                        y="255"
+                                        width="220"
+                                        height="58"
+                                        rx="12"
+                                        fill="#ffffff"
+                                        fill-opacity="0.94"
+                                    />
+
+                                    <text
+                                        x="645"
+                                        y="280"
+                                        text-anchor="middle"
+                                        font-family="Arial, sans-serif"
+                                        font-size="18"
+                                        font-weight="700"
+                                        fill="#1f2937"
+                                    >
+                                        Domki Sztabinki
+                                    </text>
+
+                                    <text
+                                        x="645"
+                                        y="302"
+                                        text-anchor="middle"
+                                        font-family="Arial, sans-serif"
+                                        font-size="14"
+                                        fill="#64748b"
+                                    >
+                                        okolice Sejn
+                                    </text>
+                                </svg>
+                            </div>
 
                             <span class="public-map-card__caption">
                                 <strong>Domki Sztabinki</strong>
