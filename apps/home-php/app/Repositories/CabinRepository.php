@@ -569,6 +569,49 @@ final class CabinRepository
         self::$operationalColumnsEnsured = true;
     }
 
+    public static function recordIcalSyncResult(
+        int $id,
+        string $status
+    ): void {
+        self::ensureOperationalColumns();
+
+        $status = strtoupper(
+            trim(
+                $status
+            )
+        );
+
+        if (
+            !in_array(
+                $status,
+                [
+                    'SUCCESS',
+                    'ERROR',
+                ],
+                true
+            )
+        ) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowy status synchronizacji iCal.'
+            );
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'UPDATE cabins
+            SET
+                ical_last_sync_at = NOW(),
+                ical_last_sync_status = :status
+            WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+            'status' => $status,
+        ]);
+    }
+
     public static function setCleaningStatus(
         int $id,
         string $status

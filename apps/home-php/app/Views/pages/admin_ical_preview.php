@@ -25,6 +25,36 @@ $source = (string) (
     ?? 'BOOKING'
 );
 
+$syncCompleted = (
+    isset($_GET['synced'])
+    && $_GET['synced'] === '1'
+);
+
+$syncTotal = isset($_GET['total'])
+    && ctype_digit((string) $_GET['total'])
+        ? (int) $_GET['total']
+        : 0;
+
+$syncExisting = isset($_GET['existing'])
+    && ctype_digit((string) $_GET['existing'])
+        ? (int) $_GET['existing']
+        : 0;
+
+$syncMatched = isset($_GET['matched'])
+    && ctype_digit((string) $_GET['matched'])
+        ? (int) $_GET['matched']
+        : 0;
+
+$syncConflicts = isset($_GET['conflicts'])
+    && ctype_digit((string) $_GET['conflicts'])
+        ? (int) $_GET['conflicts']
+        : 0;
+
+$syncNewBlocks = isset($_GET['new_blocks'])
+    && ctype_digit((string) $_GET['new_blocks'])
+        ? (int) $_GET['new_blocks']
+        : 0;
+
 $actionLabels = [
     'EXISTING_ICAL' =>
         'Już zapisane iCal',
@@ -191,6 +221,40 @@ $actionLabels = [
                         </div>
 
                         <div class="page-header__actions">
+                            <?php if (
+                                trim(
+                                    (string) (
+                                        $cabin['ical_url']
+                                        ?? ''
+                                    )
+                                ) !== ''
+                            ): ?>
+                                <form
+                                    method="post"
+                                    action="/admin/domki/ical-synchronizuj"
+                                    style="margin: 0;"
+                                >
+                                    <?= csrfField() ?>
+
+                                    <input
+                                        type="hidden"
+                                        name="id"
+                                        value="<?= htmlspecialchars(
+                                            (string) $cabinId,
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>"
+                                    >
+
+                                    <button
+                                        class="button button--primary"
+                                        type="submit"
+                                    >
+                                        Synchronizuj teraz
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+
                             <a
                                 class="button button--secondary"
                                 href="/admin/domki/edytuj?id=<?= htmlspecialchars(
@@ -203,6 +267,52 @@ $actionLabels = [
                             </a>
                         </div>
                     </div>
+
+                    <?php if ($syncCompleted): ?>
+                        <div
+                            class="alert alert--success"
+                            style="margin-bottom: 16px;"
+                        >
+                            <strong>
+                                Synchronizacja zakończona.
+                            </strong>
+
+                            Pobrano:
+                            <?= htmlspecialchars(
+                                (string) $syncTotal,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>.
+
+                            Powiązano z rezerwacjami:
+                            <?= htmlspecialchars(
+                                (string) $syncMatched,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>.
+
+                            Nowe blokady:
+                            <?= htmlspecialchars(
+                                (string) $syncNewBlocks,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>.
+
+                            Konflikty:
+                            <?= htmlspecialchars(
+                                (string) $syncConflicts,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>.
+
+                            Już znane:
+                            <?= htmlspecialchars(
+                                (string) $syncExisting,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>.
+                        </div>
+                    <?php endif; ?>
 
                     <div
                         class="alert alert--warning"

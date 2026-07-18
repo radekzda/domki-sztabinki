@@ -22,6 +22,7 @@ require dirname(__DIR__) . '/app/Core/Mailer.php';
 require dirname(__DIR__) . '/app/Services/InquiryMailer.php';
 require dirname(__DIR__) . '/app/Services/IcalParser.php';
 require dirname(__DIR__) . '/app/Services/IcalCalendarClient.php';
+require dirname(__DIR__) . '/app/Services/IcalSyncService.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Services/MessageTemplateRenderer.php';
 require dirname(__DIR__) . '/app/Support/PublicFormGuard.php';
@@ -665,6 +666,77 @@ $router->get('/admin/domki/edytuj', function (): void {
         ]), 500);
     }
 });
+
+$router->post('/admin/domki/ical-synchronizuj', function (): void {
+    Auth::requireAdmin();
+    requireValidCsrf();
+
+    $id = cabinIdFromPost();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowe dane',
+            'message' => 'Nie można uruchomić synchronizacji iCal, ponieważ identyfikator domku jest nieprawidłowy.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Nie można uruchomić synchronizacji iCal bez połączenia z bazą danych.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $cabin = CabinRepository::find(
+            $id
+        );
+
+        if ($cabin === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono domku',
+                'message' => 'Domek o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        $result = IcalSyncService::syncCabin(
+            $cabin
+        );
+
+        $query = http_build_query([
+            'id' => $id,
+            'synced' => '1',
+            'total' => $result['total'],
+            'existing' =>
+                $result['existing_ical'],
+            'matched' =>
+                $result['matched_reservations'],
+            'conflicts' =>
+                $result['conflicts'],
+            'new_blocks' =>
+                $result['new_blocks'],
+        ]);
+
+        Response::redirect(
+            '/admin/domki/ical-podglad?'
+            . $query
+        );
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Synchronizacja iCal nie powiodła się',
+            'message' => AppErrorHandler::safeMessage(
+                $exception
+            ),
+        ]), 500);
+    }
+});
+
 
 $router->get('/admin/domki/ical-podglad', function (): void {
     Auth::requireAdmin();
