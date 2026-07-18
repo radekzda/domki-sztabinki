@@ -130,6 +130,56 @@ CREATE TABLE IF NOT EXISTS reservations (
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS ical_events (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    cabin_id INT UNSIGNED NOT NULL,
+    matched_reservation_id INT UNSIGNED NULL,
+    ical_uid VARCHAR(191) NOT NULL,
+    source VARCHAR(40) NOT NULL DEFAULT 'BOOKING',
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    summary VARCHAR(255) NULL,
+    description TEXT NULL,
+    event_status VARCHAR(40) NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    last_seen_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY ical_events_cabin_uid_unique (
+        cabin_id,
+        ical_uid
+    ),
+    INDEX ical_events_cabin_index (
+        cabin_id
+    ),
+    INDEX ical_events_reservation_index (
+        matched_reservation_id
+    ),
+    INDEX ical_events_source_index (
+        source
+    ),
+    INDEX ical_events_start_date_index (
+        start_date
+    ),
+    INDEX ical_events_end_date_index (
+        end_date
+    ),
+    CONSTRAINT ical_events_cabin_foreign
+        FOREIGN KEY (cabin_id)
+        REFERENCES cabins(id)
+        ON DELETE CASCADE,
+ end_date
+    ),
+    CONSTRAINT ical_events_cabin_foreign
+        FOREIGN KEY (    CONSTRAINT ical_events_reservation_foreign
+        FOREIGN KEY (matched_reservation_id)
+        REFERENCES reservations(id)
+        ON DELETE SET NULL
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS inquiries (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     full_name VARCHAR(190) NOT NULL,
