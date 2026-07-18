@@ -21,6 +21,7 @@ require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Core/Mailer.php';
 require dirname(__DIR__) . '/app/Services/InquiryMailer.php';
 require dirname(__DIR__) . '/app/Services/IcalParser.php';
+require dirname(__DIR__) . '/app/Services/IcalCalendarClient.php';
 require dirname(__DIR__) . '/app/Support/helpers.php';
 require dirname(__DIR__) . '/app/Services/MessageTemplateRenderer.php';
 require dirname(__DIR__) . '/app/Support/PublicFormGuard.php';
@@ -664,6 +665,143 @@ $router->get('/admin/domki/edytuj', function (): void {
         ]), 500);
     }
 });
+
+$router->get('/admin/domki/ical-podglad', function (): void {
+    Auth::requireAdmin();
+
+    $id = cabinIdFromQuery();
+
+    if ($id === null) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nieprawidłowy adres',
+            'message' => 'Brakuje prawidłowego identyfikatora domku.',
+        ]), 400);
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Brak połączenia z bazą',
+            'message' => 'Nie można pobrać konfiguracji kalendarza iCal.',
+        ]), 422);
+
+        return;
+    }
+
+    try {
+        $cabin = CabinRepository::find(
+            $id
+        );
+
+        if ($cabin === null) {
+            Response::html(View::render('pages/error', [
+                'title' => 'Nie znaleziono domku',
+                'message' => 'Domek o podanym identyfikatorze nie istnieje.',
+            ]), 404);
+
+            return;
+        }
+
+        $rows = [];
+
+        $counts = [
+            'EXISTING_ICAL' => 0,
+            'MATCH_RESERVATION' => 0,
+            'CONFLICT' => 0,
+            'NEW_BLOCK' => 0,
+        ];
+
+        $errorMessage = null;
+
+        $icalUrl = trim(
+            (string) (
+                $cabin['ical_url']
+                ?? ''
+            )
+        );
+
+        if ($icalUrl === '') {
+            $errorMessage =
+                'Ten domek nie ma jeszcze ustawionego adresu URL kalendarza iCal.';
+        } else {
+            try {
+                $content =
+                    IcalCalendarClient::fetch(
+                        $icalUrl
+                    );
+
+                $events =
+                    IcalParser::parse(
+                        $content
+                    );
+
+                foreach ($events as $event) {
+                    $classification =
+                        IcalEventRepository::classifyEvent(
+                            $id,
+                            $event
+                        );
+
+                    $action = (string) (
+                        $classification['action']
+                        ?? ''
+                    );
+
+                    if (
+                        array_key_exists(
+                            $action,
+                            $counts
+                        )
+                    ) {
+                        $counts[$action]++;
+                    }
+
+                    $rows[] = [
+                        'event' => $event,
+                        'action' => $action,
+                        'matched_reservation' =>
+                            $classification[
+                                'matched_reservation'
+                            ]
+                            ?? null,
+                        'conflicting_reservation' =>
+                            $classification[
+                                'conflicting_reservation'
+                            ]
+                            ?? null,
+                    ];
+                }
+            } catch (Throwable $exception) {
+                $errorMessage =
+                    AppErrorHandler::safeMessage(
+                        $exception
+                    );
+            }
+        }
+
+        Response::html(View::render(
+            'pages/admin_ical_preview',
+            [
+                'title' =>
+                    'Podgląd synchronizacji iCal',
+                'cabin' => $cabin,
+                'rows' => $rows,
+                'counts' => $counts,
+                'errorMessage' =>
+                    $errorMessage,
+            ]
+        ));
+    } catch (Throwable $exception) {
+        Response::html(View::render('pages/error', [
+            'title' => 'Nie udało się otworzyć podglądu iCal',
+            'message' => AppErrorHandler::safeMessage(
+                $exception
+            ),
+        ]), 500);
+    }
+});
+
 
 $router->post('/admin/domki/edytuj', function (): void {
     Auth::requireAdmin();

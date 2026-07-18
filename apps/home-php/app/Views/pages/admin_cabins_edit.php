@@ -30,6 +30,26 @@ declare(strict_types=1);
                         </div>
 
                         <div class="page-header__actions">
+                            <?php if (
+                                trim(
+                                    (string) (
+                                        $form['ical_url']
+                                        ?? ''
+                                    )
+                                ) !== ''
+                            ): ?>
+                                <a
+                                    class="button button--primary"
+                                    href="/admin/domki/ical-podglad?id=<?= htmlspecialchars(
+                                        (string) $id,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>"
+                                >
+                                    Podgląd iCal
+                                </a>
+                            <?php endif; ?>
+
                             <a class="button button--secondary" href="/admin/domki">
                                 Wróć do listy
                             </a>
