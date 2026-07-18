@@ -28,6 +28,9 @@ require $projectRoot
     . '/app/Repositories/IcalEventRepository.php';
 
 require $projectRoot
+    . '/app/Repositories/IcalSyncLogRepository.php';
+
+require $projectRoot
     . '/app/Services/IcalParser.php';
 
 require $projectRoot

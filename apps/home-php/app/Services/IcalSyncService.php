@@ -42,6 +42,8 @@ final class IcalSyncService
             );
         }
 
+        $startedAt = new DateTimeImmutable();
+
         $source = strtoupper(
             trim(
                 (string) (
@@ -119,6 +121,34 @@ final class IcalSyncService
                 'SUCCESS'
             );
 
+            $finishedAt = new DateTimeImmutable();
+
+            IcalSyncLogRepository::create([
+                'cabin_id' => $cabinId,
+                'source' => $source,
+                'sync_status' => 'SUCCESS',
+                'total_events' => count($events),
+                'matched_reservations' =>
+                    $counts['MATCH_RESERVATION'],
+                'conflicts' =>
+                    $counts['CONFLICT'],
+                'new_blocks' =>
+                    $counts['NEW_BLOCK'],
+                'existing_ical' =>
+                    $counts['EXISTING_ICAL'],
+                'deactivated' =>
+                    $deactivated,
+                'error_message' => null,
+                'started_at' =>
+                    $startedAt->format(
+                        'Y-m-d H:i:s'
+                    ),
+                'finished_at' =>
+                    $finishedAt->format(
+                        'Y-m-d H:i:s'
+                    ),
+            ]);
+
             return [
                 'total' => count($events),
                 'existing_ical' =>
@@ -133,6 +163,39 @@ final class IcalSyncService
                     $deactivated,
             ];
         } catch (Throwable $exception) {
+            $finishedAt = new DateTimeImmutable();
+
+            try {
+                IcalSyncLogRepository::create([
+                    'cabin_id' => $cabinId,
+                    'source' => $source,
+                    'sync_status' => 'ERROR',
+                    'total_events' => 0,
+                    'matched_reservations' => 0,
+                    'conflicts' => 0,
+                    'new_blocks' => 0,
+                    'existing_ical' => 0,
+                    'deactivated' => 0,
+                    'error_message' =>
+                        $exception->getMessage(),
+                    'started_at' =>
+                        $startedAt->format(
+                            'Y-m-d H:i:s'
+                        ),
+                    'finished_at' =>
+                        $finishedAt->format(
+                            'Y-m-d H:i:s'
+                        ),
+                ]);
+            } catch (Throwable $logException) {
+                error_log(
+                    'Nie udało się zapisać logu synchronizacji iCal domku #'
+                    . $cabinId
+                    . ': '
+                    . $logException->getMessage()
+                );
+            }
+
             try {
                 CabinRepository::recordIcalSyncResult(
                     $cabinId,

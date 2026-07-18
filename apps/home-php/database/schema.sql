@@ -130,6 +130,33 @@ CREATE TABLE IF NOT EXISTS reservations (
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS ical_sync_logs (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    cabin_id INT UNSIGNED NOT NULL,
+    source VARCHAR(40) NOT NULL DEFAULT 'BOOKING',
+    sync_status VARCHAR(40) NOT NULL,
+    total_events INT UNSIGNED NOT NULL DEFAULT 0,
+    matched_reservations INT UNSIGNED NOT NULL DEFAULT 0,
+    conflicts INT UNSIGNED NOT NULL DEFAULT 0,
+    new_blocks INT UNSIGNED NOT NULL DEFAULT 0,
+    existing_ical INT UNSIGNED NOT NULL DEFAULT 0,
+    deactivated INT UNSIGNED NOT NULL DEFAULT 0,
+    error_message TEXT NULL,
+    started_at DATETIME NOT NULL,
+    finished_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX ical_sync_logs_cabin_index (cabin_id),
+    INDEX ical_sync_logs_status_index (sync_status),
+    INDEX ical_sync_logs_created_at_index (created_at),
+    CONSTRAINT ical_sync_logs_cabin_foreign
+        FOREIGN KEY (cabin_id)
+        REFERENCES cabins(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS ical_events (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     cabin_id INT UNSIGNED NOT NULL,
