@@ -133,6 +133,83 @@ final class CabinRepository
      *     created_at: string
      * }|null
      */
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public static function allIcalEnabled(): array
+    {
+        self::ensureOperationalColumns();
+
+        $connection = Database::connection();
+
+        $statement = $connection->query(
+            'SELECT
+                id,
+                name,
+                ical_url,
+                ical_enabled,
+                ical_source,
+                ical_last_sync_at,
+                ical_last_sync_status
+            FROM cabins
+            WHERE ical_enabled = 1
+            AND ical_url IS NOT NULL
+            AND TRIM(ical_url) <> ""
+            ORDER BY sort_order ASC, id ASC'
+        );
+
+        if ($statement === false) {
+            return [];
+        }
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        return array_map(
+            static function (array $row): array {
+                return [
+                    'id' => (int) (
+                        $row['id']
+                        ?? 0
+                    ),
+                    'name' => (string) (
+                        $row['name']
+                        ?? ''
+                    ),
+                    'ical_url' => isset(
+                        $row['ical_url']
+                    )
+                        ? (string) $row['ical_url']
+                        : null,
+                    'ical_enabled' => (int) (
+                        $row['ical_enabled']
+                        ?? 0
+                    ),
+                    'ical_source' => (string) (
+                        $row['ical_source']
+                        ?? 'BOOKING'
+                    ),
+                    'ical_last_sync_at' => isset(
+                        $row['ical_last_sync_at']
+                    )
+                        ? (string) $row['ical_last_sync_at']
+                        : null,
+                    'ical_last_sync_status' => isset(
+                        $row['ical_last_sync_status']
+                    )
+                        ? (string) $row[
+                            'ical_last_sync_status'
+                        ]
+                        : null,
+                ];
+            },
+            $rows
+        );
+    }
+
     public static function find(int $id): ?array
     {
         self::ensureOperationalColumns();
