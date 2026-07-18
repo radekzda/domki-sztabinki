@@ -304,6 +304,12 @@ $adminEmail = $isLoggedIn
             <p>
                 © <?= date('Y') ?> Domki Sztabinki
             </p>
+
+            <p>
+                <a href="/polityka-prywatnosci">
+                    Polityka prywatności
+                </a>
+            </p>
         </div>
     </footer>
 </body>

@@ -149,6 +149,23 @@ $router->get('/', function (): void {
     ]));
 });
 
+$router->get(
+    '/polityka-prywatnosci',
+    function (): void {
+        Response::html(
+            View::render(
+                'pages/privacy_policy',
+                [
+                    'title' =>
+                        'Polityka prywatności',
+                    'metaDescription' =>
+                        'Polityka prywatności i informacje o przetwarzaniu danych osobowych w Domkach Sztabinki.',
+                ]
+            )
+        );
+    }
+);
+
 $router->post('/zapytanie', function (): void {
     requireValidCsrf();
     PublicFormGuard::validate($_POST);

@@ -2506,6 +2506,24 @@ if (isset($settings) && is_array($settings)) {
                                 Wyślij zapytanie
                             </button>
                         </div>
+
+                        <p
+                            style="
+                                margin: 14px 0 0;
+                                color: var(--public-muted);
+                                font-size: 13px;
+                                line-height: 1.6;
+                            "
+                        >
+                            Wysyłając zapytanie, przekazujesz nam dane
+                            potrzebne do jego obsługi i ewentualnej
+                            rezerwacji. Administratorem danych jest
+                            Radosław Zdancewicz.
+                            Szczegółowe informacje znajdziesz w
+                            <a href="/polityka-prywatnosci">
+                                Polityce prywatności
+                            </a>.
+                        </p>
                     </form>
                 </div>
 
