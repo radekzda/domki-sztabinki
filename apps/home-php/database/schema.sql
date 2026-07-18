@@ -131,6 +131,150 @@ CREATE TABLE IF NOT EXISTS reservations (
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS invoice_sequences (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    series VARCHAR(40) NOT NULL DEFAULT 'FV',
+    sequence_year SMALLINT UNSIGNED NOT NULL,
+    last_number INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY invoice_sequences_series_year_unique (
+        series,
+        sequence_year
+    )
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS invoices (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    reservation_id INT UNSIGNED NULL,
+
+    invoice_number VARCHAR(100) NOT NULL,
+    series VARCHAR(40) NOT NULL DEFAULT 'FV',
+    sequence_year SMALLINT UNSIGNED NOT NULL,
+    sequence_number INT UNSIGNED NOT NULL,
+
+    issue_date DATE NOT NULL,
+    sale_date DATE NOT NULL,
+    due_date DATE NULL,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+
+    currency CHAR(3) NOT NULL DEFAULT 'PLN',
+
+    payment_method VARCHAR(30) NULL,
+    payment_status VARCHAR(30) NOT NULL DEFAULT 'UNPAID',
+
+    seller_name VARCHAR(190) NOT NULL,
+    seller_tax_id VARCHAR(40) NULL,
+    seller_street VARCHAR(190) NULL,
+    seller_postal_code VARCHAR(40) NULL,
+    seller_city VARCHAR(120) NULL,
+    seller_country VARCHAR(120) NOT NULL DEFAULT 'Polska',
+
+    buyer_type VARCHAR(20) NOT NULL DEFAULT 'PERSON',
+    buyer_name VARCHAR(190) NOT NULL,
+    buyer_tax_id_type VARCHAR(20) NOT NULL DEFAULT 'NONE',
+    buyer_tax_id VARCHAR(40) NULL,
+    buyer_street VARCHAR(190) NULL,
+    buyer_postal_code VARCHAR(40) NULL,
+    buyer_city VARCHAR(120) NULL,
+    buyer_country VARCHAR(120) NULL,
+    buyer_email VARCHAR(190) NULL,
+
+    net_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    vat_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    gross_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+
+    tax_exemption_basis VARCHAR(255) NULL,
+    notes TEXT NULL,
+
+    ksef_status VARCHAR(30) NULL,
+    ksef_number VARCHAR(120) NULL,
+    ksef_sent_at DATETIME NULL,
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY invoices_number_unique (
+        invoice_number
+    ),
+
+    UNIQUE KEY invoices_sequence_unique (
+        series,
+        sequence_year,
+        sequence_number
+    ),
+
+    INDEX invoices_reservation_index (
+        reservation_id
+    ),
+
+    INDEX invoices_issue_date_index (
+        issue_date
+    ),
+
+    INDEX invoices_status_index (
+        status
+    ),
+
+    INDEX invoices_buyer_tax_id_index (
+        buyer_tax_id
+    ),
+
+    INDEX invoices_ksef_status_index (
+        ksef_status
+    ),
+
+    CONSTRAINT invoices_reservation_foreign
+        FOREIGN KEY (reservation_id)
+        REFERENCES reservations(id)
+        ON DELETE SET NULL
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS invoice_items (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    invoice_id INT UNSIGNED NOT NULL,
+
+    name VARCHAR(255) NOT NULL,
+
+    quantity DECIMAL(12, 3) NOT NULL DEFAULT 1.000,
+    unit VARCHAR(30) NOT NULL DEFAULT 'usł.',
+
+    unit_net DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+
+    vat_rate_code VARCHAR(20) NOT NULL DEFAULT 'NP',
+
+    net_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    vat_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    gross_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+
+    sort_order INT NOT NULL DEFAULT 0,
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    INDEX invoice_items_invoice_index (
+        invoice_id
+    ),
+
+    CONSTRAINT invoice_items_invoice_foreign
+        FOREIGN KEY (invoice_id)
+        REFERENCES invoices(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS ical_sync_logs (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     cabin_id INT UNSIGNED NOT NULL,
