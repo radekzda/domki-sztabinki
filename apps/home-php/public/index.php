@@ -149,6 +149,38 @@ $router->get('/', function (): void {
     ]));
 });
 
+$router->get('/regulamin', function (): void {
+    $settings = defaultSettingsForm();
+
+    if (Database::canAttemptConnection()) {
+        try {
+            $settings = SettingsRepository::all();
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udalo sie pobrac ustawien dla regulaminu: '
+                . $exception->getMessage()
+            );
+        }
+    }
+
+    Response::html(
+        View::render(
+            'pages/regulations',
+            [
+                'title' =>
+                    'Regulamin',
+                'metaDescription' =>
+                    'Regulamin rezerwacji i pobytu w Domkach Sztabinki.',
+                'bookingRules' =>
+                    (string) (
+                        $settings['booking_rules']
+                        ?? ''
+                    ),
+            ]
+        )
+    );
+});
+
 $router->get(
     '/polityka-prywatnosci',
     function (): void {

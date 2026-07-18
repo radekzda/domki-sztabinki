@@ -2523,6 +2523,10 @@ if (isset($settings) && is_array($settings)) {
                             <a href="/polityka-prywatnosci">
                                 Polityce prywatności
                             </a>.
+                            Zasady rezerwacji i pobytu określa
+                            <a href="/regulamin">
+                                Regulamin
+                            </a>.
                         </p>
                     </form>
                 </div>

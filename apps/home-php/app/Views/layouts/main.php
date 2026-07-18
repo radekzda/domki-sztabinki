@@ -306,6 +306,14 @@ $adminEmail = $isLoggedIn
             </p>
 
             <p>
+                <a href="/regulamin">
+                    Regulamin
+                </a>
+
+                <span aria-hidden="true">
+                    ·
+                </span>
+
                 <a href="/polityka-prywatnosci">
                     Polityka prywatności
                 </a>
