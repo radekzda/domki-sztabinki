@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /admin/
+Disallow: /logowanie
+Disallow: /ical/
+
+Sitemap: https://domkisztabinki.pl/sitemap.xml
