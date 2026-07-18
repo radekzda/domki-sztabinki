@@ -31,6 +31,7 @@ require dirname(__DIR__) . '/app/Support/ImageUploader.php';
 require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/CabinImageRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
+require dirname(__DIR__) . '/app/Repositories/InvoiceSellerRepository.php';
 require dirname(__DIR__) . '/app/Repositories/IcalEventRepository.php';
 require dirname(__DIR__) . '/app/Repositories/IcalSyncLogRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReportRepository.php';
