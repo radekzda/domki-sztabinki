@@ -349,6 +349,292 @@ final class IcalEventRepository
         ];
     }
 
+    /**
+     * Zapisuje lub aktualizuje wydarzenie iCal.
+     *
+     * Nie tworzy rezerwacji i nie zmienia danych
+     * istniejącej rezerwacji.
+     *
+     * @param array{
+     *     uid: string,
+     *     start_date: string,
+     *     end_date: string,
+     *     summary?: string,
+     *     description?: string,
+     *     status?: string
+     * } $event
+     */
+    public static function saveObservedEvent(
+        int $cabinId,
+        string $source,
+        array $event,
+        ?int $matchedReservationId = null
+    ): int {
+        self::ensureTable();
+
+        $uid = trim(
+            (string) (
+                $event['uid']
+                ?? ''
+            )
+        );
+
+        $startDate = trim(
+            (string) (
+                $event['start_date']
+                ?? ''
+            )
+        );
+
+        $endDate = trim(
+            (string) (
+                $event['end_date']
+                ?? ''
+            )
+        );
+
+        self::validateEventData(
+            $cabinId,
+            $uid,
+            $startDate,
+            $endDate
+        );
+
+        $source = strtoupper(
+            trim(
+                $source
+            )
+        );
+
+        if ($source === '') {
+            $source = 'BOOKING';
+        }
+
+        $source = substr(
+            $source,
+            0,
+            40
+        );
+
+        $summary = trim(
+            (string) (
+                $event['summary']
+                ?? ''
+            )
+        );
+
+        $description = trim(
+            (string) (
+                $event['description']
+                ?? ''
+            )
+        );
+
+        $eventStatus = strtoupper(
+            trim(
+                (string) (
+                    $event['status']
+                    ?? ''
+                )
+            )
+        );
+
+        $summary = $summary !== ''
+            ? substr(
+                $summary,
+                0,
+                255
+            )
+            : null;
+
+        $description = $description !== ''
+            ? $description
+            : null;
+
+        $eventStatus = $eventStatus !== ''
+            ? substr(
+                $eventStatus,
+                0,
+                40
+            )
+            : null;
+
+        $existing = self::findByUid(
+            $cabinId,
+            $uid
+        );
+
+        $connection = Database::connection();
+
+        if ($existing !== null) {
+            $existingMatchedReservationId =
+                isset(
+                    $existing['matched_reservation_id']
+                )
+                && $existing['matched_reservation_id'] !== null
+                    ? (int) $existing['matched_reservation_id']
+                    : null;
+
+            $finalMatchedReservationId =
+                $matchedReservationId
+                ?? $existingMatchedReservationId;
+
+            $statement = $connection->prepare(
+                'UPDATE ical_events
+                SET
+                    matched_reservation_id =
+                        :matched_reservation_id,
+                    source = :source,
+                    start_date = :start_date,
+                    end_date = :end_date,
+                    summary = :summary,
+                    description = :description,
+                    event_status = :event_status,
+                    is_active = 1,
+                    last_seen_at = NOW()
+                WHERE id = :id'
+            );
+
+            $statement->execute([
+                'id' => (int) $existing['id'],
+                'matched_reservation_id' =>
+                    $finalMatchedReservationId,
+                'source' => $source,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'summary' => $summary,
+                'description' => $description,
+                'event_status' => $eventStatus,
+            ]);
+
+            return (int) $existing['id'];
+        }
+
+        $statement = $connection->prepare(
+            'INSERT INTO ical_events (
+                cabin_id,
+                matched_reservation_id,
+                ical_uid,
+                source,
+                start_date,
+                end_date,
+                summary,
+                description,
+                event_status,
+                is_active,
+                last_seen_at
+            ) VALUES (
+                :cabin_id,
+                :matched_reservation_id,
+                :ical_uid,
+                :source,
+                :start_date,
+                :end_date,
+                :summary,
+                :description,
+                :event_status,
+                1,
+                NOW()
+            )'
+        );
+
+        $statement->execute([
+            'cabin_id' => $cabinId,
+            'matched_reservation_id' =>
+                $matchedReservationId,
+            'ical_uid' => $uid,
+            'source' => $source,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'summary' => $summary,
+            'description' => $description,
+            'event_status' => $eventStatus,
+        ]);
+
+        return (int) $connection->lastInsertId();
+    }
+
+    /**
+     * Klasyfikuje wydarzenie iCal i zapisuje je
+     * w tabeli ical_events.
+     *
+     * Nie tworzy automatycznie rezerwacji.
+     *
+     * @param array{
+     *     uid: string,
+     *     start_date: string,
+     *     end_date: string,
+     *     summary?: string,
+     *     description?: string,
+     *     status?: string
+     * } $event
+     *
+     * @return array{
+     *     action: string,
+     *     ical_event_id: int,
+     *     existing_ical_event: array<string, mixed>|null,
+     *     matched_reservation: array<string, mixed>|null,
+     *     conflicting_reservation: array<string, mixed>|null
+     * }
+     */
+    public static function classifyAndStore(
+        int $cabinId,
+        string $source,
+        array $event
+    ): array {
+        $classification = self::classifyEvent(
+            $cabinId,
+            $event
+        );
+
+        $matchedReservationId = null;
+
+        if (
+            $classification['action']
+            === 'MATCH_RESERVATION'
+            && is_array(
+                $classification['matched_reservation']
+            )
+        ) {
+            $matchedReservationId = (int) (
+                $classification[
+                    'matched_reservation'
+                ]['id']
+                ?? 0
+            );
+
+            if ($matchedReservationId < 1) {
+                $matchedReservationId = null;
+            }
+        }
+
+        $icalEventId = self::saveObservedEvent(
+            $cabinId,
+            $source,
+            $event,
+            $matchedReservationId
+        );
+
+        return [
+            'action' =>
+                $classification['action'],
+            'ical_event_id' =>
+                $icalEventId,
+            'existing_ical_event' =>
+                $classification[
+                    'existing_ical_event'
+                ],
+            'matched_reservation' =>
+                $classification[
+                    'matched_reservation'
+                ],
+            'conflicting_reservation' =>
+                $classification[
+                    'conflicting_reservation'
+                ],
+        ];
+    }
+
     private static function validateEventData(
         int $cabinId,
         string $uid,
