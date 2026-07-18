@@ -643,6 +643,54 @@ final class IcalEventRepository
         ];
     }
 
+    public static function hasBlockingOverlap(
+        int $cabinId,
+        string $startDate,
+        string $endDate,
+        ?int $ignoreReservationId = null
+    ): bool {
+        self::ensureTable();
+
+        $connection = Database::connection();
+
+        $sql = 'SELECT COUNT(*)
+            FROM ical_events
+            WHERE cabin_id = :cabin_id
+            AND is_active = 1
+            AND (
+                event_status IS NULL
+                OR event_status <> "CANCELLED"
+            )
+            AND start_date < :end_date
+            AND end_date > :start_date';
+
+        $params = [
+            'cabin_id' => $cabinId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ];
+
+        if ($ignoreReservationId !== null) {
+            $sql .= ' AND (
+                matched_reservation_id IS NULL
+                OR matched_reservation_id <> :ignore_reservation_id
+            )';
+
+            $params['ignore_reservation_id'] =
+                $ignoreReservationId;
+        }
+
+        $statement = $connection->prepare(
+            $sql
+        );
+
+        $statement->execute(
+            $params
+        );
+
+        return (int) $statement->fetchColumn() > 0;
+    }
+
     /**
      * Dezaktywuje wydarzenia, które były zapisane wcześniej,
      * ale nie występują już w aktualnie pobranym kalendarzu.

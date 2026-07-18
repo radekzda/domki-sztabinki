@@ -368,13 +368,31 @@ final class ReservationRepository
 
         if ($ignoreReservationId !== null) {
             $sql .= ' AND id <> :ignore_reservation_id';
-            $params['ignore_reservation_id'] = $ignoreReservationId;
+
+            $params['ignore_reservation_id'] =
+                $ignoreReservationId;
         }
 
-        $statement = $connection->prepare($sql);
-        $statement->execute($params);
+        $statement = $connection->prepare(
+            $sql
+        );
 
-        return (int) $statement->fetchColumn() > 0;
+        $statement->execute(
+            $params
+        );
+
+        if (
+            (int) $statement->fetchColumn() > 0
+        ) {
+            return true;
+        }
+
+        return IcalEventRepository::hasBlockingOverlap(
+            $cabinId,
+            $startDate,
+            $endDate,
+            $ignoreReservationId
+        );
     }
 
     /**
