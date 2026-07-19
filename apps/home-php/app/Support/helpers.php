@@ -59,10 +59,34 @@ function requireValidCsrf(): void
 }
 
 
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function invoiceSellersForCabinForm(): array
+{
+    if (!Database::canAttemptConnection()) {
+        return [];
+    }
+
+    try {
+        return InvoiceSellerRepository::all();
+    } catch (Throwable $exception) {
+        error_log(
+            'Nie udało się pobrać sprzedawców '
+            . 'do formularza domku: '
+            . $exception->getMessage()
+        );
+
+        return [];
+    }
+}
+
+
 function defaultCabinForm(): array
 {
     return [
         'name' => '',
+        'invoice_seller_id' => '',
         'short_name' => '',
         'description' => '',
         'max_guests' => '6',
@@ -129,6 +153,11 @@ function cabinFormFromCabin(array $cabin): array
 {
     return [
         'name' => $cabin['name'],
+        'invoice_seller_id' => isset(
+            $cabin['invoice_seller_id']
+        )
+            ? (string) $cabin['invoice_seller_id']
+            : '',
         'short_name' => $cabin['short_name'] ?? '',
         'description' => $cabin['description'],
         'max_guests' => (string) $cabin['max_guests'],
@@ -166,6 +195,17 @@ function validateCabinForm(array $form): array
 
     if ($form['description'] === '') {
         $errors['description'] = 'Podaj opis domku.';
+    }
+
+    if (
+        $form['invoice_seller_id'] !== ''
+        && (
+            !ctype_digit($form['invoice_seller_id'])
+            || (int) $form['invoice_seller_id'] < 1
+        )
+    ) {
+        $errors['invoice_seller_id'] =
+            'Wybierz prawidłowego sprzedawcę faktur.';
     }
 
     $integerFields = [
@@ -260,6 +300,10 @@ function cabinDataFromForm(array $form): array
 {
     return [
         'name' => $form['name'],
+        'invoice_seller_id' =>
+            $form['invoice_seller_id'] !== ''
+                ? (int) $form['invoice_seller_id']
+                : null,
         'short_name' => $form['short_name'] !== '' ? $form['short_name'] : null,
         'description' => $form['description'],
         'max_guests' => (int) $form['max_guests'],

@@ -9,6 +9,9 @@ declare(strict_types=1);
  * @var string|null $databaseMessage
  * @var bool $canSave
  */
+
+$invoiceSellers =
+    invoiceSellersForCabinForm();
 ?>
 <section class="page-section">
     <div class="container">
@@ -52,6 +55,8 @@ declare(strict_types=1);
                     View::partial('partials/cabin_form', [
                         'form' => $form,
                         'errors' => $errors,
+                        'invoiceSellers' =>
+                            $invoiceSellers,
                         'canSave' => $canSave,
                         'action' => '/admin/domki/nowy',
                         'submitLabel' => 'Zapisz domek',

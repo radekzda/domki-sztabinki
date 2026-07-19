@@ -5,6 +5,7 @@ declare(strict_types=1);
 /**
  * @var array<string, string> $form
  * @var array<string, string> $errors
+ * @var array<int, array<string, mixed>> $invoiceSellers
  * @var bool $canSave
  * @var string $action
  * @var string $submitLabel
@@ -12,6 +13,10 @@ declare(strict_types=1);
 
 $actionValue = isset($action) && is_string($action) ? $action : '';
 $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabel : 'Zapisz';
+$invoiceSellers = isset($invoiceSellers)
+    && is_array($invoiceSellers)
+        ? $invoiceSellers
+        : [];
 ?>
 <form class="form form--wide" method="post" action="<?= htmlspecialchars($actionValue, ENT_QUOTES, 'UTF-8') ?>">
     <?= csrfField() ?>
@@ -28,6 +33,98 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
 
             <?php if (isset($errors['name'])): ?>
                 <span class="form-error"><?= htmlspecialchars($errors['name'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field form-field--full">
+            <label for="invoice_seller_id">
+                Sprzedawca faktur
+            </label>
+
+            <select
+                id="invoice_seller_id"
+                name="invoice_seller_id"
+            >
+                <option value="">
+                    — Nie przypisano —
+                </option>
+
+                <?php foreach (
+                    $invoiceSellers
+                    as $invoiceSeller
+                ): ?>
+                    <?php
+                    $invoiceSellerId = (int) (
+                        $invoiceSeller['id']
+                        ?? 0
+                    );
+
+                    if ($invoiceSellerId < 1) {
+                        continue;
+                    }
+
+                    $invoiceSellerName = trim(
+                        (string) (
+                            $invoiceSeller['name']
+                            ?? ''
+                        )
+                    );
+
+                    $invoiceSellerActive = (int) (
+                        $invoiceSeller['is_active']
+                        ?? 0
+                    ) === 1;
+
+                    $invoiceSellerLabel =
+                        $invoiceSellerName;
+
+                    if (!$invoiceSellerActive) {
+                        $invoiceSellerLabel .=
+                            ' — nieaktywny';
+                    }
+                    ?>
+
+                    <option
+                        value="<?= $invoiceSellerId ?>"
+                        <?= (
+                            $form[
+                                'invoice_seller_id'
+                            ]
+                            ?? ''
+                        ) === (string) $invoiceSellerId
+                            ? 'selected'
+                            : '' ?>
+                    >
+                        <?= htmlspecialchars(
+                            $invoiceSellerLabel,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
+            <?php if (
+                isset(
+                    $errors['invoice_seller_id']
+                )
+            ): ?>
+                <span class="form-error">
+                    <?= htmlspecialchars(
+                        $errors[
+                            'invoice_seller_id'
+                        ],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>
+                </span>
+            <?php endif; ?>
+
+            <?php if ($invoiceSellers === []): ?>
+                <small>
+                    Najpierw dodaj sprzedawcę
+                    w module „Sprzedawcy faktur”.
+                </small>
             <?php endif; ?>
         </div>
 

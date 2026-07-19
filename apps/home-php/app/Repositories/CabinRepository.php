@@ -36,6 +36,7 @@ final class CabinRepository
         $statement = $connection->query(
             'SELECT
                 id,
+                invoice_seller_id,
                 name,
                 short_name,
                 max_guests,
@@ -77,6 +78,9 @@ final class CabinRepository
         return array_map(static function (array $row): array {
             return [
                 'id' => (int) ($row['id'] ?? 0),
+                'invoice_seller_id' => isset($row['invoice_seller_id'])
+                    ? (int) $row['invoice_seller_id']
+                    : null,
                 'name' => (string) ($row['name'] ?? ''),
                 'short_name' => isset($row['short_name']) ? (string) $row['short_name'] : null,
                 'max_guests' => (int) ($row['max_guests'] ?? 0),
@@ -223,6 +227,7 @@ final class CabinRepository
         $statement = $connection->prepare(
             'SELECT
                 id,
+                invoice_seller_id,
                 name,
                 short_name,
                 description,
@@ -265,6 +270,9 @@ final class CabinRepository
 
         return [
             'id' => (int) ($row['id'] ?? 0),
+            'invoice_seller_id' => isset($row['invoice_seller_id'])
+                ? (int) $row['invoice_seller_id']
+                : null,
             'name' => (string) ($row['name'] ?? ''),
             'short_name' => isset($row['short_name']) ? (string) $row['short_name'] : null,
             'description' => (string) ($row['description'] ?? ''),
@@ -332,6 +340,7 @@ final class CabinRepository
         $statement = $connection->prepare(
             'INSERT INTO cabins (
                 name,
+                invoice_seller_id,
                 short_name,
                 description,
                 max_guests,
@@ -352,6 +361,7 @@ final class CabinRepository
                 sort_order
             ) VALUES (
                 :name,
+                :invoice_seller_id,
                 :short_name,
                 :description,
                 :max_guests,
@@ -375,6 +385,8 @@ final class CabinRepository
 
         $statement->execute([
             'name' => $data['name'],
+            'invoice_seller_id' =>
+                $data['invoice_seller_id'] ?? null,
             'short_name' => $data['short_name'],
             'description' => $data['description'],
             'max_guests' => $data['max_guests'],
@@ -428,6 +440,8 @@ final class CabinRepository
             'UPDATE cabins
             SET
                 name = :name,
+                invoice_seller_id =
+                    :invoice_seller_id,
                 short_name = :short_name,
                 description = :description,
                 max_guests = :max_guests,
@@ -452,6 +466,8 @@ final class CabinRepository
         $statement->execute([
             'id' => $id,
             'name' => $data['name'],
+            'invoice_seller_id' =>
+                $data['invoice_seller_id'] ?? null,
             'short_name' => $data['short_name'],
             'description' => $data['description'],
             'max_guests' => $data['max_guests'],
@@ -538,6 +554,23 @@ final class CabinRepository
                     }
                 }
             }
+        }
+
+        if (
+            !in_array(
+                'invoice_seller_id',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE cabins
+                ADD COLUMN invoice_seller_id
+                    INT UNSIGNED NULL
+                AFTER external_id'
+            );
+
+            $columns[] = 'invoice_seller_id';
         }
 
         if (
