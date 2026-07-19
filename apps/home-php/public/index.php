@@ -32,6 +32,7 @@ require dirname(__DIR__) . '/app/Repositories/CabinRepository.php';
 require dirname(__DIR__) . '/app/Repositories/CabinImageRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InvoiceSellerRepository.php';
+require dirname(__DIR__) . '/app/Controllers/InvoiceSellerController.php';
 require dirname(__DIR__) . '/app/Repositories/IcalEventRepository.php';
 require dirname(__DIR__) . '/app/Repositories/IcalSyncLogRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReportRepository.php';
@@ -3246,6 +3247,48 @@ $router->post('/admin/szablony/usun', function (): void {
         );
     }
 });
+
+$router->get(
+    '/admin/sprzedawcy-faktur',
+    function (): void {
+        InvoiceSellerController::index();
+    }
+);
+
+$router->get(
+    '/admin/sprzedawcy-faktur/nowy',
+    function (): void {
+        InvoiceSellerController::create();
+    }
+);
+
+$router->post(
+    '/admin/sprzedawcy-faktur/nowy',
+    function (): void {
+        InvoiceSellerController::store();
+    }
+);
+
+$router->get(
+    '/admin/sprzedawcy-faktur/edytuj',
+    function (): void {
+        InvoiceSellerController::edit();
+    }
+);
+
+$router->post(
+    '/admin/sprzedawcy-faktur/edytuj',
+    function (): void {
+        InvoiceSellerController::update();
+    }
+);
+
+$router->post(
+    '/admin/sprzedawcy-faktur/status',
+    function (): void {
+        InvoiceSellerController::changeStatus();
+    }
+);
 
 $router->get('/admin/ustawienia', function (): void {
     Auth::requireAdmin();

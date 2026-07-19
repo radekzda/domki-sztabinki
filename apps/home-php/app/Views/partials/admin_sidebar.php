@@ -55,6 +55,11 @@ $items = [
         'active' => 'reports',
     ],
     [
+        'href' => '/admin/sprzedawcy-faktur',
+        'label' => 'Sprzedawcy faktur',
+        'active' => 'invoice_sellers',
+    ],
+    [
         'href' => '/admin/ustawienia',
         'label' => 'Ustawienia',
         'active' => 'settings',
