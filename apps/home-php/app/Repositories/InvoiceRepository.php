@@ -101,6 +101,9 @@ final class InvoiceRepository
                 payment_status VARCHAR(30)
                     NOT NULL DEFAULT "UNPAID",
 
+                paid_amount DECIMAL(12, 2)
+                    NOT NULL DEFAULT 0.00,
+
                 seller_name VARCHAR(190) NOT NULL,
 
                 seller_tax_id_type VARCHAR(20)
@@ -218,6 +221,10 @@ final class InvoiceRepository
             ) ENGINE=InnoDB
             DEFAULT CHARSET=utf8mb4
             COLLATE=utf8mb4_unicode_ci'
+        );
+
+        self::ensureInvoicePaidAmountColumn(
+            $connection
         );
 
         $connection->exec(
@@ -352,6 +359,104 @@ final class InvoiceRepository
         return $invoice;
     }
 
+    public static function lastSequenceNumber(
+        int $sellerId,
+        string $series,
+        string $issueDate
+    ): int {
+        if ($sellerId < 1) {
+            return 0;
+        }
+
+        self::ensureStructure();
+
+        $normalizedSeries =
+            self::normalizeSeries(
+                $series
+            );
+
+        $normalizedDate =
+            self::normalizeDate(
+                $issueDate,
+                'Data wystawienia'
+            );
+
+        $year = (int) substr(
+            $normalizedDate,
+            0,
+            4
+        );
+
+        $month = (int) substr(
+            $normalizedDate,
+            5,
+            2
+        );
+
+        $connection = Database::connection();
+
+        $sequenceStatement =
+            $connection->prepare(
+                'SELECT last_number
+                FROM invoice_sequences
+                WHERE seller_id = :seller_id
+                AND series = :series
+                AND sequence_year = :sequence_year
+                AND sequence_month = :sequence_month
+                LIMIT 1'
+            );
+
+        $sequenceStatement->execute([
+            'seller_id' =>
+                $sellerId,
+            'series' =>
+                $normalizedSeries,
+            'sequence_year' =>
+                $year,
+            'sequence_month' =>
+                $month,
+        ]);
+
+        $sequenceLast = (int) (
+            $sequenceStatement->fetchColumn()
+            ?: 0
+        );
+
+        $invoiceStatement =
+            $connection->prepare(
+                'SELECT COALESCE(
+                    MAX(sequence_number),
+                    0
+                )
+                FROM invoices
+                WHERE seller_id = :seller_id
+                AND series = :series
+                AND sequence_year = :sequence_year
+                AND sequence_month = :sequence_month'
+            );
+
+        $invoiceStatement->execute([
+            'seller_id' =>
+                $sellerId,
+            'series' =>
+                $normalizedSeries,
+            'sequence_year' =>
+                $year,
+            'sequence_month' =>
+                $month,
+        ]);
+
+        $invoiceLast = (int) (
+            $invoiceStatement->fetchColumn()
+            ?: 0
+        );
+
+        return max(
+            0,
+            $sequenceLast,
+            $invoiceLast
+        );
+    }
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -461,13 +566,28 @@ final class InvoiceRepository
         $connection->beginTransaction();
 
         try {
+            $previousSequenceNumber =
+                isset(
+                    $data[
+                        'previous_sequence_number'
+                    ]
+                )
+                    ? max(
+                        0,
+                        (int) $data[
+                            'previous_sequence_number'
+                        ]
+                    )
+                    : null;
+
             $sequenceNumber =
                 self::nextSequenceNumber(
                     $connection,
                     $sellerId,
                     $series,
                     $year,
-                    $month
+                    $month,
+                    $previousSequenceNumber
                 );
 
             $invoiceNumber =
@@ -499,6 +619,7 @@ final class InvoiceRepository
                     currency,
                     payment_method,
                     payment_status,
+                    paid_amount,
                     seller_name,
                     seller_tax_id_type,
                     seller_tax_id,
@@ -539,6 +660,7 @@ final class InvoiceRepository
                     :currency,
                     :payment_method,
                     :payment_status,
+                    :paid_amount,
                     :seller_name,
                     :seller_tax_id_type,
                     :seller_tax_id,
@@ -626,6 +748,17 @@ final class InvoiceRepository
                     self::normalizePaymentStatus(
                         $data['payment_status']
                         ?? 'UNPAID'
+                    ),
+
+                'paid_amount' =>
+                    self::decimal(
+                        max(
+                            0.0,
+                            self::money(
+                                $data['paid_amount']
+                                ?? 0
+                            )
+                        )
                     ),
 
                 'seller_name' =>
@@ -785,6 +918,65 @@ final class InvoiceRepository
         }
     }
 
+    public static function delete(
+        int $id
+    ): void {
+        if ($id < 1) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowy identyfikator faktury.'
+            );
+        }
+
+        self::ensureStructure();
+
+        $invoice = self::find($id);
+
+        if ($invoice === null) {
+            throw new RuntimeException(
+                'Nie znaleziono faktury.'
+            );
+        }
+
+        $ksefNumber = trim(
+            (string) (
+                $invoice['ksef_number']
+                ?? ''
+            )
+        );
+
+        $ksefSentAt = trim(
+            (string) (
+                $invoice['ksef_sent_at']
+                ?? ''
+            )
+        );
+
+        if (
+            $ksefNumber !== ''
+            || $ksefSentAt !== ''
+        ) {
+            throw new RuntimeException(
+                'Nie można usunąć faktury '
+                . 'wysłanej do KSeF.'
+            );
+        }
+
+        $statement =
+            Database::connection()->prepare(
+                'DELETE FROM invoices
+                WHERE id = :id'
+            );
+
+        $statement->execute([
+            'id' => $id,
+        ]);
+
+        if ($statement->rowCount() !== 1) {
+            throw new RuntimeException(
+                'Nie udało się usunąć faktury.'
+            );
+        }
+    }
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -818,12 +1010,63 @@ final class InvoiceRepository
             : [];
     }
 
+    private static function ensureInvoicePaidAmountColumn(
+        PDO $connection
+    ): void {
+        $columnStatement =
+            $connection->query(
+                'SHOW COLUMNS
+                FROM invoices
+                LIKE "paid_amount"'
+            );
+
+        $columnExists =
+            $columnStatement !== false
+            && $columnStatement->fetch() !== false;
+
+        if ($columnExists) {
+            return;
+        }
+
+        $connection->exec(
+            'ALTER TABLE invoices
+            ADD COLUMN paid_amount
+                DECIMAL(12, 2)
+                NOT NULL DEFAULT 0.00
+            AFTER payment_status'
+        );
+
+        $connection->exec(
+            'UPDATE invoices
+            LEFT JOIN reservations
+                ON reservations.id =
+                    invoices.reservation_id
+            SET invoices.paid_amount =
+                CASE
+                    WHEN invoices.payment_status = "PAID"
+                        THEN invoices.gross_total
+                    ELSE LEAST(
+                        invoices.gross_total,
+                        GREATEST(
+                            0.00,
+                            COALESCE(
+                                reservations.paid_amount,
+                                0.00
+                            )
+                        )
+                    )
+                END
+            WHERE invoices.reservation_id IS NOT NULL'
+        );
+    }
+
     private static function nextSequenceNumber(
         PDO $connection,
         int $sellerId,
         string $series,
         int $year,
-        int $month
+        int $month,
+        ?int $previousSequenceNumber = null
     ): int {
         $statement = $connection->prepare(
             'SELECT
@@ -850,23 +1093,122 @@ final class InvoiceRepository
 
         $row = $statement->fetch();
 
-        if (is_array($row)) {
-            $nextNumber =
-                (int) ($row['last_number'] ?? 0)
-                + 1;
-
-            $update = $connection->prepare(
-                'UPDATE invoice_sequences
-                SET last_number = :last_number
-                WHERE id = :id'
+        $invoiceMaxStatement =
+            $connection->prepare(
+                'SELECT COALESCE(
+                    MAX(sequence_number),
+                    0
+                )
+                FROM invoices
+                WHERE seller_id = :seller_id
+                AND series = :series
+                AND sequence_year = :sequence_year
+                AND sequence_month = :sequence_month'
             );
 
-            $update->execute([
-                'last_number' =>
+        $invoiceMaxStatement->execute([
+            'seller_id' =>
+                $sellerId,
+            'series' =>
+                $series,
+            'sequence_year' =>
+                $year,
+            'sequence_month' =>
+                $month,
+        ]);
+
+        $invoiceLast = (int) (
+            $invoiceMaxStatement->fetchColumn()
+            ?: 0
+        );
+
+        $sequenceLast = is_array($row)
+            ? (int) (
+                $row['last_number']
+                ?? 0
+            )
+            : 0;
+
+        $currentLast = max(
+            $sequenceLast,
+            $invoiceLast
+        );
+
+        $nextNumber =
+            $previousSequenceNumber !== null
+                ? $previousSequenceNumber + 1
+                : $currentLast + 1;
+
+        if ($nextNumber < 1) {
+            throw new InvalidArgumentException(
+                'Numer faktury musi być większy od zera.'
+            );
+        }
+
+        $usedStatement =
+            $connection->prepare(
+                'SELECT COUNT(*)
+                FROM invoices
+                WHERE seller_id = :seller_id
+                AND series = :series
+                AND sequence_year = :sequence_year
+                AND sequence_month = :sequence_month
+                AND sequence_number = :sequence_number'
+            );
+
+        $usedStatement->execute([
+            'seller_id' =>
+                $sellerId,
+            'series' =>
+                $series,
+            'sequence_year' =>
+                $year,
+            'sequence_month' =>
+                $month,
+            'sequence_number' =>
+                $nextNumber,
+        ]);
+
+        if (
+            (int) $usedStatement->fetchColumn()
+            > 0
+        ) {
+            throw new InvalidArgumentException(
+                'Numer faktury '
+                . self::formatInvoiceNumber(
+                    $series,
                     $nextNumber,
-                'id' =>
-                    (int) $row['id'],
-            ]);
+                    $month,
+                    $year
+                )
+                . ' jest już zajęty. '
+                . 'Wybierz inny numer poprzedniej faktury.'
+            );
+        }
+
+        $newSequenceLast = max(
+            $currentLast,
+            $nextNumber
+        );
+
+        if (is_array($row)) {
+            if (
+                $newSequenceLast
+                > $sequenceLast
+            ) {
+                $update = $connection->prepare(
+                    'UPDATE invoice_sequences
+                    SET last_number = :last_number
+                    WHERE id = :id'
+                );
+
+                $update->execute([
+                    'last_number' =>
+                        $newSequenceLast,
+                    'id' =>
+                        (int) $row['id'],
+                ]);
+            }
 
             return $nextNumber;
         }
@@ -883,7 +1225,7 @@ final class InvoiceRepository
                 :series,
                 :sequence_year,
                 :sequence_month,
-                1
+                :last_number
             )'
         );
 
@@ -896,9 +1238,11 @@ final class InvoiceRepository
                 $year,
             'sequence_month' =>
                 $month,
+            'last_number' =>
+                $newSequenceLast,
         ]);
 
-        return 1;
+        return $nextNumber;
     }
 
     private static function formatInvoiceNumber(

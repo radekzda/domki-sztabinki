@@ -311,6 +311,55 @@ $error = static function (
                             </div>
 
                             <div class="form-field">
+                                <label for="previous_sequence_number">
+                                    Numer poprzedniej faktury
+                                    w tym miesiącu
+                                </label>
+
+                                <input
+                                    id="previous_sequence_number"
+                                    name="previous_sequence_number"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value="<?= $value(
+                                        'previous_sequence_number'
+                                    ) ?>"
+                                    required
+                                >
+
+                                <small>
+                                    Wpisz część liczbową numeru
+                                    poprzedniej faktury.
+                                    Możesz wpisać także wcześniejszy
+                                    numer, aby ponownie wykorzystać
+                                    numer faktury usuniętej z systemu.
+                                    Numer, który nadal istnieje,
+                                    nie może zostać użyty ponownie.
+                                </small>
+
+                                <div
+                                    id="invoice_number_preview"
+                                    style="margin-top: 6px; font-size: 12px; color: #4b5563;"
+                                ></div>
+
+                                <?php if (
+                                    $error(
+                                        'previous_sequence_number'
+                                    )
+                                ): ?>
+                                    <span class="form-error">
+                                        <?= htmlspecialchars(
+                                            (string) $error(
+                                                'previous_sequence_number'
+                                            ),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="form-field">
                                 <label>
                                     Domek
                                 </label>
@@ -338,11 +387,11 @@ $error = static function (
                             <?php foreach (
                                 [
                                     'issue_date' =>
-                                        'Data wystawienia',
+                                        'Data i miejsce wystawienia',
                                     'sale_date' =>
-                                        'Data sprzedaży',
+                                        'Data wykonania usługi',
                                     'due_date' =>
-                                        'Termin płatności',
+                                        'Termin płatności (data)',
                                 ]
                                 as $key => $label
                             ): ?>
@@ -364,6 +413,25 @@ $error = static function (
                                             ? 'required'
                                             : '' ?>
                                     >
+
+                                    <?php if (
+                                        $key === 'issue_date'
+                                        && trim(
+                                            (string) (
+                                                $seller['city']
+                                                ?? ''
+                                            )
+                                        ) !== ''
+                                    ): ?>
+                                        <small>
+                                            Miejsce wystawienia:
+                                            <?= htmlspecialchars(
+                                                (string) $seller['city'],
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
+                                        </small>
+                                    <?php endif; ?>
 
                                     <?php if (
                                         $error($key)
@@ -760,7 +828,7 @@ $error = static function (
                                 >
                                     <div>
                                         <small>
-                                            Cena brutto / noc
+                                            Cena brutto
                                         </small>
                                         <div>
                                             <strong id="invoice_unit_gross">
@@ -867,22 +935,149 @@ $error = static function (
                                         — wybierz —
                                     </option>
 
-                                    <option value="TRANSFER">
+                                    <option
+                                        value="TRANSFER"
+                                        <?= $form[
+                                            'payment_method'
+                                        ] === 'TRANSFER'
+                                            ? 'selected'
+                                            : '' ?>
+                                    >
                                         Przelew
                                     </option>
 
-                                    <option value="CASH">
+                                    <option
+                                        value="CASH"
+                                        <?= $form[
+                                            'payment_method'
+                                        ] === 'CASH'
+                                            ? 'selected'
+                                            : '' ?>
+                                    >
                                         Gotówka
                                     </option>
 
-                                    <option value="CARD">
+                                    <option
+                                        value="CARD"
+                                        <?= $form[
+                                            'payment_method'
+                                        ] === 'CARD'
+                                            ? 'selected'
+                                            : '' ?>
+                                    >
                                         Karta
                                     </option>
 
-                                    <option value="PLATFORM">
+                                    <option
+                                        value="PLATFORM"
+                                        <?= $form[
+                                            'payment_method'
+                                        ] === 'PLATFORM'
+                                            ? 'selected'
+                                            : '' ?>
+                                    >
                                         Platforma rezerwacyjna
                                     </option>
                                 </select>
+
+                                <?php if (
+                                    $error('payment_method')
+                                ): ?>
+                                    <span class="form-error">
+                                        <?= htmlspecialchars(
+                                            (string) $error(
+                                                'payment_method'
+                                            ),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+
+                            <div
+                                class="form-field"
+                                id="payment_days_field"
+                                hidden
+                            >
+                                <label for="payment_days">
+                                    Termin płatności (dni)
+                                </label>
+
+                                <input
+                                    id="payment_days"
+                                    name="payment_days"
+                                    type="number"
+                                    min="0"
+                                    max="3650"
+                                    step="1"
+                                    value="<?= $value(
+                                        'payment_days'
+                                    ) ?>"
+                                >
+
+                                <small>
+                                    0 oznacza płatność
+                                    w dniu wystawienia.
+                                </small>
+
+                                <?php if (
+                                    $error('payment_days')
+                                ): ?>
+                                    <span class="form-error">
+                                        <?= htmlspecialchars(
+                                            (string) $error(
+                                                'payment_days'
+                                            ),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="form-field">
+                                <label for="paid_amount">
+                                    Zapłacono
+                                </label>
+
+                                <input
+                                    id="paid_amount"
+                                    name="paid_amount"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value="<?= $value(
+                                        'paid_amount'
+                                    ) ?>"
+                                    required
+                                >
+
+                                <?php if (
+                                    $error('paid_amount')
+                                ): ?>
+                                    <span class="form-error">
+                                        <?= htmlspecialchars(
+                                            (string) $error(
+                                                'paid_amount'
+                                            ),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="remaining_amount">
+                                    Pozostało do zapłaty
+                                </label>
+
+                                <input
+                                    id="remaining_amount"
+                                    type="text"
+                                    value="0,00 zł"
+                                    readonly
+                                >
                             </div>
 
                             <div class="form-field">
@@ -890,9 +1085,17 @@ $error = static function (
                                     Status płatności
                                 </label>
 
+                                <input
+                                    type="hidden"
+                                    name="payment_status"
+                                    value="<?= $value(
+                                        'payment_status'
+                                    ) ?>"
+                                >
+
                                 <select
                                     id="payment_status"
-                                    name="payment_status"
+                                    disabled
                                 >
                                     <option
                                         value="UNPAID"
@@ -933,7 +1136,7 @@ $error = static function (
                                 class="form-field form-field--full"
                             >
                                 <label for="notes">
-                                    Uwagi
+                                    Informacje dodatkowe
                                 </label>
 
                                 <textarea
@@ -972,25 +1175,45 @@ $error = static function (
 <script>
 (function () {
     const grossInput =
-        document.getElementById('gross_amount');
+        document.getElementById(
+            'gross_amount'
+        );
+
+    const paidInput =
+        document.getElementById(
+            'paid_amount'
+        );
+
+    const remainingInput =
+        document.getElementById(
+            'remaining_amount'
+        );
 
     const vatSelect =
-        document.getElementById('vat_rate_code');
+        document.getElementById(
+            'vat_rate_code'
+        );
 
-    if (!grossInput || !vatSelect) {
+    const paymentStatusInput =
+        document.querySelector(
+            'input[name="payment_status"]'
+        );
+
+    const paymentStatusSelect =
+        document.getElementById(
+            'payment_status'
+        );
+
+    if (
+        !grossInput
+        || !paidInput
+        || !remainingInput
+        || !vatSelect
+        || !paymentStatusInput
+        || !paymentStatusSelect
+    ) {
         return;
     }
-
-    const quantity = Math.max(
-        1,
-        <?= (int) max(
-            1,
-            (int) (
-                $reservation['nights']
-                ?? 1
-            )
-        ) ?>
-    );
 
     const unitGrossOutput =
         document.getElementById(
@@ -1017,8 +1240,19 @@ $error = static function (
             'invoice_gross'
         );
 
+    function numberValue(input) {
+        return Number.parseFloat(
+            String(
+                input.value
+            ).replace(',', '.')
+        ) || 0;
+    }
+
     function formatMoney(value) {
-        return value.toLocaleString(
+        return Math.max(
+            0,
+            value
+        ).toLocaleString(
             'pl-PL',
             {
                 minimumFractionDigits: 2,
@@ -1027,13 +1261,14 @@ $error = static function (
         ) + ' zł';
     }
 
-    function calculate() {
+    function calculateAmounts() {
         const gross =
-            Number.parseFloat(
-                String(
-                    grossInput.value
-                ).replace(',', '.')
-            ) || 0;
+            Math.max(
+                0,
+                numberValue(
+                    grossInput
+                )
+            );
 
         const vatCode =
             vatSelect.value;
@@ -1047,7 +1282,9 @@ $error = static function (
             || vatCode === '5'
         ) {
             const rate =
-                Number.parseFloat(vatCode);
+                Number.parseFloat(
+                    vatCode
+                );
 
             net =
                 gross
@@ -1060,38 +1297,400 @@ $error = static function (
                 gross - net;
         }
 
-        const unitGross =
-            gross / quantity;
-
         unitGrossOutput.textContent =
-            formatMoney(unitGross);
+            formatMoney(
+                gross
+            );
 
         netOutput.textContent =
-            formatMoney(net);
+            formatMoney(
+                net
+            );
 
         vatRateOutput.textContent =
-            /^\d+$/.test(vatCode)
+            /^\d+$/.test(
+                vatCode
+            )
                 ? vatCode + '%'
                 : vatCode;
 
         vatOutput.textContent =
-            formatMoney(vat);
+            formatMoney(
+                vat
+            );
 
         grossOutput.textContent =
-            formatMoney(gross);
+            formatMoney(
+                gross
+            );
+    }
+
+    function calculatePayment() {
+        const gross =
+            Math.max(
+                0,
+                numberValue(
+                    grossInput
+                )
+            );
+
+        const paid =
+            Math.max(
+                0,
+                numberValue(
+                    paidInput
+                )
+            );
+
+        const remaining =
+            Math.max(
+                0,
+                gross - paid
+            );
+
+        paidInput.max =
+            gross.toFixed(2);
+
+        remainingInput.value =
+            formatMoney(
+                remaining
+            );
+
+        let paymentStatus =
+            'UNPAID';
+
+        if (
+            gross > 0
+            && paid >= gross
+        ) {
+            paymentStatus =
+                'PAID';
+        } else if (paid > 0) {
+            paymentStatus =
+                'PARTIALLY_PAID';
+        }
+
+        paymentStatusInput.value =
+            paymentStatus;
+
+        paymentStatusSelect.value =
+            paymentStatus;
+    }
+
+    function syncPaidToGross() {
+        const gross =
+            Math.max(
+                0,
+                numberValue(
+                    grossInput
+                )
+            );
+
+        paidInput.value =
+            gross.toFixed(2);
+
+        calculatePayment();
     }
 
     grossInput.addEventListener(
         'input',
-        calculate
+        function () {
+            calculateAmounts();
+            syncPaidToGross();
+        }
     );
 
     vatSelect.addEventListener(
         'change',
-        calculate
+        calculateAmounts
     );
 
-    calculate();
+    paidInput.addEventListener(
+        'input',
+        calculatePayment
+    );
+
+    calculateAmounts();
+
+    if (
+        String(
+            paidInput.value
+        ).trim() === ''
+    ) {
+        syncPaidToGross();
+    } else {
+        calculatePayment();
+    }
 })();
 </script>
+<script>
+(function () {
+    const paymentMethod =
+        document.getElementById(
+            'payment_method'
+        );
 
+    const paymentDaysField =
+        document.getElementById(
+            'payment_days_field'
+        );
+
+    const paymentDaysInput =
+        document.getElementById(
+            'payment_days'
+        );
+
+    const issueDateInput =
+        document.getElementById(
+            'issue_date'
+        );
+
+    const dueDateInput =
+        document.getElementById(
+            'due_date'
+        );
+
+    if (
+        !paymentMethod
+        || !paymentDaysField
+        || !paymentDaysInput
+        || !issueDateInput
+        || !dueDateInput
+    ) {
+        return;
+    }
+
+    function parseDate(value) {
+        const parts =
+            String(value)
+                .split('-')
+                .map(Number);
+
+        if (
+            parts.length !== 3
+            || !parts[0]
+            || !parts[1]
+            || !parts[2]
+        ) {
+            return null;
+        }
+
+        return new Date(
+            parts[0],
+            parts[1] - 1,
+            parts[2],
+            12,
+            0,
+            0
+        );
+    }
+
+    function formatDate(date) {
+        const year =
+            String(
+                date.getFullYear()
+            );
+
+        const month =
+            String(
+                date.getMonth() + 1
+            ).padStart(2, '0');
+
+        const day =
+            String(
+                date.getDate()
+            ).padStart(2, '0');
+
+        return year
+            + '-'
+            + month
+            + '-'
+            + day;
+    }
+
+    function syncDueDate() {
+        if (
+            paymentMethod.value
+            !== 'TRANSFER'
+        ) {
+            return;
+        }
+
+        const issueDate =
+            parseDate(
+                issueDateInput.value
+            );
+
+        if (!issueDate) {
+            return;
+        }
+
+        let days =
+            Number.parseInt(
+                paymentDaysInput.value,
+                10
+            );
+
+        if (
+            !Number.isInteger(days)
+            || days < 0
+        ) {
+            days = 0;
+        }
+
+        paymentDaysInput.value =
+            String(days);
+
+        issueDate.setDate(
+            issueDate.getDate()
+            + days
+        );
+
+        dueDateInput.value =
+            formatDate(
+                issueDate
+            );
+    }
+
+    function updatePaymentDaysVisibility() {
+        const isTransfer =
+            paymentMethod.value
+            === 'TRANSFER';
+
+        paymentDaysField.hidden =
+            !isTransfer;
+
+        dueDateInput.readOnly =
+            isTransfer;
+
+        if (isTransfer) {
+            if (
+                String(
+                    paymentDaysInput.value
+                ).trim() === ''
+            ) {
+                paymentDaysInput.value =
+                    '0';
+            }
+
+            syncDueDate();
+        }
+    }
+
+    paymentMethod.addEventListener(
+        'change',
+        updatePaymentDaysVisibility
+    );
+
+    paymentDaysInput.addEventListener(
+        'input',
+        syncDueDate
+    );
+
+    issueDateInput.addEventListener(
+        'change',
+        syncDueDate
+    );
+
+    updatePaymentDaysVisibility();
+})();
+</script>
+<script>
+(function () {
+    const seriesInput =
+        document.getElementById(
+            'series'
+        );
+
+    const issueDateInput =
+        document.getElementById(
+            'issue_date'
+        );
+
+    const previousNumberInput =
+        document.getElementById(
+            'previous_sequence_number'
+        );
+
+    const preview =
+        document.getElementById(
+            'invoice_number_preview'
+        );
+
+    if (
+        !seriesInput
+        || !issueDateInput
+        || !previousNumberInput
+        || !preview
+    ) {
+        return;
+    }
+
+    function updatePreview() {
+        const series =
+            String(
+                seriesInput.value
+            ).trim().toUpperCase();
+
+        const dateParts =
+            String(
+                issueDateInput.value
+            ).split('-');
+
+        let previousNumber =
+            Number.parseInt(
+                previousNumberInput.value,
+                10
+            );
+
+        if (
+            !Number.isInteger(
+                previousNumber
+            )
+            || previousNumber < 0
+        ) {
+            previousNumber = 0;
+        }
+
+        if (
+            series === ''
+            || dateParts.length !== 3
+        ) {
+            preview.textContent = '';
+            return;
+        }
+
+        const year = dateParts[0];
+        const month = dateParts[1];
+        const nextNumber =
+            previousNumber + 1;
+
+        preview.textContent =
+            'Następna faktura: '
+            + series
+            + '/'
+            + nextNumber
+            + '/'
+            + month
+            + '/'
+            + year;
+    }
+
+    seriesInput.addEventListener(
+        'input',
+        updatePreview
+    );
+
+    issueDateInput.addEventListener(
+        'change',
+        updatePreview
+    );
+
+    previousNumberInput.addEventListener(
+        'input',
+        updatePreview
+    );
+
+    updatePreview();
+})();
+</script>

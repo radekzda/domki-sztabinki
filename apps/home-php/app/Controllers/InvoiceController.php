@@ -88,8 +88,46 @@ final class InvoiceController
 
         $form = self::formFromPost();
 
+        if ($form['payment_method'] === 'TRANSFER') {
+            $paymentDays = filter_var(
+                $form['payment_days'],
+                FILTER_VALIDATE_INT,
+                [
+                    'options' => [
+                        'min_range' => 0,
+                        'max_range' => 3650,
+                    ],
+                ]
+            );
+
+            if (
+                is_int($paymentDays)
+                && self::isValidDate(
+                    $form['issue_date']
+                )
+            ) {
+                $issueDate =
+                    DateTimeImmutable::createFromFormat(
+                        '!Y-m-d',
+                        $form['issue_date']
+                    );
+
+                if ($issueDate !== false) {
+                    $form['due_date'] =
+                        $issueDate
+                            ->modify(
+                                '+'
+                                . $paymentDays
+                                . ' days'
+                            )
+                            ->format('Y-m-d');
+                }
+            }
+        }
+
         $errors = self::validateForm(
-            $form
+            $form,
+            $context
         );
 
         if ($errors !== []) {
@@ -119,6 +157,29 @@ final class InvoiceController
                 $form['vat_rate_code']
             );
 
+            $paidAmount = min(
+                self::money($amounts['gross']),
+                max(
+                    0.0,
+                    self::money(
+                        $form['paid_amount']
+                    )
+                )
+            );
+
+            $form['payment_status'] = match (true) {
+                $paidAmount <= 0.0 =>
+                    'UNPAID',
+
+                $paidAmount >= self::money(
+                    $amounts['gross']
+                ) =>
+                    'PAID',
+
+                default =>
+                    'PARTIALLY_PAID',
+            };
+
             $invoiceId = InvoiceRepository::create(
                 [
                     'reservation_id' =>
@@ -131,6 +192,11 @@ final class InvoiceController
 
                     'series' =>
                         $form['series'],
+
+                    'previous_sequence_number' =>
+                        (int) $form[
+                            'previous_sequence_number'
+                        ],
 
                     'issue_date' =>
                         $form['issue_date'],
@@ -156,6 +222,14 @@ final class InvoiceController
                         $form[
                             'payment_status'
                         ],
+
+                    'paid_amount' =>
+                        number_format(
+                            $paidAmount,
+                            2,
+                            '.',
+                            ''
+                        ),
 
                     'buyer_type' =>
                         $form['buyer_type'],
@@ -210,8 +284,9 @@ final class InvoiceController
                     [
                         'name' =>
                             'wynajem domku wczasowego – '
-                            . $quantity
-                            . ' nocy',
+                            . self::formatNights(
+                                $quantity
+                            ),
 
                         'quantity' =>
                             1,
@@ -371,9 +446,64 @@ final class InvoiceController
             ? $context['guest']
             : null;
 
-        $address = self::parseGuestAddress(
+        $guestAddress = self::parseGuestAddress(
             $guest
         );
+
+        $address = [
+            'street' =>
+                trim(
+                    (string) (
+                        $reservation['street']
+                        ?? ''
+                    )
+                ),
+
+            'postal_code' =>
+                trim(
+                    (string) (
+                        $reservation['postal_code']
+                        ?? ''
+                    )
+                ),
+
+            'city' =>
+                trim(
+                    (string) (
+                        $reservation['city']
+                        ?? ''
+                    )
+                ),
+
+            'country' =>
+                trim(
+                    (string) (
+                        $reservation['country']
+                        ?? ''
+                    )
+                ),
+        ];
+
+        foreach (
+            [
+                'street',
+                'postal_code',
+                'city',
+            ]
+            as $addressKey
+        ) {
+            if ($address[$addressKey] === '') {
+                $address[$addressKey] =
+                    $guestAddress[$addressKey];
+            }
+        }
+
+        if ($address['country'] === '') {
+            $address['country'] =
+                $guestAddress['country'] !== ''
+                    ? $guestAddress['country']
+                    : 'Polska';
+        }
 
         $buyerName = trim(
             (string) (
@@ -418,49 +548,54 @@ final class InvoiceController
             }
         }
 
-        $today = date('Y-m-d');
-
-        $paymentStatus = strtoupper(
+        $checkoutDate = substr(
             (string) (
-                $reservation[
-                    'payment_status'
-                ]
-                ?? 'UNPAID'
-            )
+                $reservation['end_date']
+                ?? ''
+            ),
+            0,
+            10
         );
 
-        if (
-            !in_array(
-                $paymentStatus,
-                [
-                    'UNPAID',
-                    'PARTIALLY_PAID',
-                    'PAID',
-                ],
-                true
-            )
-        ) {
-            $paymentStatus = 'UNPAID';
+        if (!self::isValidDate($checkoutDate)) {
+            $checkoutDate = date('Y-m-d');
         }
+
+        $paymentStatus = 'PAID';
+
+        $series = (string) (
+            $seller['invoice_series']
+            ?? 'FV'
+        );
+
+        $previousSequenceNumber =
+            InvoiceRepository::lastSequenceNumber(
+                (int) (
+                    $seller['id']
+                    ?? 0
+                ),
+                $series,
+                $checkoutDate
+            );
 
         return [
             'series' =>
-                (string) (
-                    $seller['invoice_series']
-                    ?? 'FV'
-                ),
+                $series,
+
+            'previous_sequence_number' =>
+                (string) $previousSequenceNumber,
 
             'issue_date' =>
-                $today,
+                $checkoutDate,
 
             'sale_date' =>
-                (string) (
-                    $reservation['end_date']
-                    ?? $today
-                ),
+                $checkoutDate,
 
             'due_date' =>
-                $today,
+                $checkoutDate,
+
+            'payment_days' =>
+                '0',
 
             'buyer_type' =>
                 'PERSON',
@@ -501,6 +636,14 @@ final class InvoiceController
                     ?? '0'
                 ),
 
+            'paid_amount' =>
+                self::normalizeMoneyForForm(
+                    $reservation[
+                        'total_price'
+                    ]
+                    ?? '0'
+                ),
+
             'vat_rate_code' =>
                 '8',
 
@@ -528,6 +671,7 @@ final class InvoiceController
     {
         $keys = [
             'series',
+            'previous_sequence_number',
             'issue_date',
             'sale_date',
             'due_date',
@@ -542,9 +686,11 @@ final class InvoiceController
             'buyer_email',
             'item_name',
             'gross_amount',
+            'paid_amount',
             'vat_rate_code',
             'tax_exemption_basis',
             'payment_method',
+            'payment_days',
             'payment_status',
             'notes',
         ];
@@ -578,6 +724,11 @@ final class InvoiceController
                 $form['vat_rate_code']
             );
 
+        $form['payment_method'] =
+            strtoupper(
+                $form['payment_method']
+            );
+
         $form['payment_status'] =
             strtoupper(
                 $form['payment_status']
@@ -595,7 +746,8 @@ final class InvoiceController
      * @return array<string, string>
      */
     private static function validateForm(
-        array $form
+        array $form,
+        array $context
     ): array {
         $errors = [];
 
@@ -609,12 +761,28 @@ final class InvoiceController
                 'Podaj prawidłową serię faktury.';
         }
 
+        $previousSequenceNumber = filter_var(
+            $form['previous_sequence_number'],
+            FILTER_VALIDATE_INT,
+            [
+                'options' => [
+                    'min_range' => 0,
+                    'max_range' => 999999999,
+                ],
+            ]
+        );
+
+        if (!is_int($previousSequenceNumber)) {
+            $errors['previous_sequence_number'] =
+                'Podaj prawidłowy numer poprzedniej '
+                . 'faktury, co najmniej 0.';
+        }
         foreach (
             [
                 'issue_date' =>
-                    'Data wystawienia',
+                    'Data i miejsce wystawienia',
                 'sale_date' =>
-                    'Data sprzedaży',
+                    'Data wykonania usługi',
             ]
             as $field => $label
         ) {
@@ -637,6 +805,17 @@ final class InvoiceController
         ) {
             $errors['due_date'] =
                 'Termin płatności jest nieprawidłowy.';
+        } elseif (
+            $form['due_date'] !== ''
+            && self::isValidDate(
+                $form['issue_date']
+            )
+            && $form['due_date']
+                < $form['issue_date']
+        ) {
+            $errors['due_date'] =
+                'Termin płatności nie może być wcześniejszy '
+                . 'niż data wystawienia.';
         }
 
         if (
@@ -691,6 +870,37 @@ final class InvoiceController
                 'Kwota faktury musi być większa od zera.';
         }
 
+        $paidAmountRaw = str_replace(
+            ',',
+            '.',
+            $form['paid_amount']
+        );
+
+        if (
+            $paidAmountRaw === ''
+            || !is_numeric($paidAmountRaw)
+        ) {
+            $errors['paid_amount'] =
+                'Podaj prawidłową kwotę zapłaconą.';
+        } else {
+            $paidAmount =
+                self::money(
+                    $form['paid_amount']
+                );
+
+            if ($paidAmount < 0) {
+                $errors['paid_amount'] =
+                    'Kwota zapłacona nie może być ujemna.';
+            } elseif (
+                $gross > 0
+                && $paidAmount > $gross
+            ) {
+                $errors['paid_amount'] =
+                    'Kwota zapłacona nie może być '
+                    . 'większa od kwoty brutto faktury.';
+            }
+        }
+
         if (
             !in_array(
                 $form['vat_rate_code'],
@@ -727,6 +937,39 @@ final class InvoiceController
             ] =
                 'Podaj podstawę lub informację '
                 . 'dotyczącą zastosowanego oznaczenia.';
+        }
+
+        if ($form['payment_method'] === 'TRANSFER') {
+            $paymentDays = filter_var(
+                $form['payment_days'],
+                FILTER_VALIDATE_INT,
+                [
+                    'options' => [
+                        'min_range' => 0,
+                        'max_range' => 3650,
+                    ],
+                ]
+            );
+
+            if (!is_int($paymentDays)) {
+                $errors['payment_days'] =
+                    'Podaj liczbę dni od 0 do 3650.';
+            }
+        }
+        if (
+            !in_array(
+                $form['payment_method'],
+                [
+                    'TRANSFER',
+                    'CASH',
+                    'CARD',
+                    'PLATFORM',
+                ],
+                true
+            )
+        ) {
+            $errors['payment_method'] =
+                'Wybierz metodę płatności.';
         }
 
         if (
@@ -846,6 +1089,31 @@ final class InvoiceController
             'country' =>
                 $country,
         ];
+    }
+
+    private static function formatNights(
+        int $nights
+    ): string {
+        $nights = max(1, $nights);
+        $lastTwo = $nights % 100;
+        $last = $nights % 10;
+
+        if ($nights === 1) {
+            return '1 noc';
+        }
+
+        if (
+            $last >= 2
+            && $last <= 4
+            && !(
+                $lastTwo >= 12
+                && $lastTwo <= 14
+            )
+        ) {
+            return $nights . ' noce';
+        }
+
+        return $nights . ' nocy';
     }
 
     /**

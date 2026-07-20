@@ -6,6 +6,7 @@ declare(strict_types=1);
  * @var string $title
  * @var array<int, array<string, mixed>> $invoices
  * @var string|null $databaseMessage
+ * @var string|null $successMessage
  */
 
 $statusLabels = [
@@ -279,6 +280,19 @@ $paymentLabels = [
                         </div>
                     </div>
 
+                    <?php if (
+                        isset($successMessage)
+                        && is_string($successMessage)
+                        && $successMessage !== ''
+                    ): ?>
+                        <div class="alert alert--success">
+                            <?= htmlspecialchars(
+                                $successMessage,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>
+                        </div>
+                    <?php endif; ?>
                     <?php if (
                         isset($databaseMessage)
                         && is_string($databaseMessage)

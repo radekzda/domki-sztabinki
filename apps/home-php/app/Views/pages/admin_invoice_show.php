@@ -108,6 +108,20 @@ $paymentLabels = [
         'Opłacona',
 ];
 
+$paymentMethodLabels = [
+    'TRANSFER' =>
+        'Przelew',
+
+    'CASH' =>
+        'Gotówka',
+
+    'CARD' =>
+        'Karta',
+
+    'PLATFORM' =>
+        'Platforma rezerwacyjna',
+];
+
 $status = strtoupper(
     (string) (
         $invoice['status']
@@ -138,6 +152,23 @@ $paymentText =
             : '—'
     );
 
+$paymentMethod = strtoupper(
+    trim(
+        (string) (
+            $invoice['payment_method']
+            ?? ''
+        )
+    )
+);
+
+$paymentMethodText =
+    $paymentMethodLabels[$paymentMethod]
+    ?? (
+        $paymentMethod !== ''
+            ? $paymentMethod
+            : '—'
+    );
+
 $currency = strtoupper(
     (string) (
         $invoice['currency']
@@ -149,6 +180,20 @@ $reservationId = (int) (
     $invoice['reservation_id']
     ?? 0
 );
+
+$canDeleteInvoice =
+    trim(
+        (string) (
+            $invoice['ksef_number']
+            ?? ''
+        )
+    ) === ''
+    && trim(
+        (string) (
+            $invoice['ksef_sent_at']
+            ?? ''
+        )
+    ) === '';
 
 $items = is_array(
     $invoice['items']
@@ -203,7 +248,17 @@ if ($sellerCityLine !== '') {
         $sellerCityLine;
 }
 
-if ($sellerCountry !== '') {
+if (
+    $sellerCountry !== ''
+    && !in_array(
+        strtolower($sellerCountry),
+        [
+            'polska',
+            'poland',
+        ],
+        true
+    )
+) {
     $sellerAddressParts[] =
         $sellerCountry;
 }
@@ -566,6 +621,51 @@ if ($buyerCountry !== '') {
 
                         <div class="page-header__actions">
                             <a
+                                class="button button--primary"
+                                href="/admin/faktury/drukuj?id=<?= urlencode(
+                                    (string) (
+                                        $invoice[
+                                            'id'
+                                        ]
+                                        ?? 0
+                                    )
+                                ) ?>"
+                                target="_blank"
+                                rel="noopener"
+                            >
+                                Drukuj / PDF
+                            </a>
+
+                            <?php if (
+                                $canDeleteInvoice
+                            ): ?>
+                                <form
+                                    method="post"
+                                    action="/admin/faktury/usun"
+                                    style="margin: 0;"
+                                    onsubmit="return confirm('Czy na pewno usunąć tę fakturę? Tej operacji nie można cofnąć.');"
+                                >
+                                    <?= csrfField() ?>
+
+                                    <input
+                                        type="hidden"
+                                        name="id"
+                                        value="<?= (int) (
+                                            $invoice['id']
+                                            ?? 0
+                                        ) ?>"
+                                    >
+
+                                    <button
+                                        class="button button--secondary"
+                                        type="submit"
+                                        style="border-color: #fecaca; color: #b91c1c;"
+                                    >
+                                        Usuń fakturę
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                            <a
                                 class="button button--secondary"
                                 href="/admin/faktury"
                             >
@@ -659,7 +759,7 @@ if ($buyerCountry !== '') {
                                         invoice-show-detail__label
                                     "
                                 >
-                                    Data wystawienia
+                                    Data i miejsce wystawienia
                                 </span>
 
                                 <span
@@ -674,6 +774,23 @@ if ($buyerCountry !== '') {
                                             ]
                                             ?? ''
                                         )
+                                        . (
+                                            trim(
+                                                (string) (
+                                                    $invoice[
+                                                        'seller_city'
+                                                    ]
+                                                    ?? ''
+                                                )
+                                            ) !== ''
+                                                ? ', '
+                                                    . trim(
+                                                        (string) $invoice[
+                                                            'seller_city'
+                                                        ]
+                                                    )
+                                                : ''
+                                        )
                                     ) ?>
                                 </span>
                             </div>
@@ -684,7 +801,7 @@ if ($buyerCountry !== '') {
                                         invoice-show-detail__label
                                     "
                                 >
-                                    Data sprzedaży
+                                    Data wykonania usługi
                                 </span>
 
                                 <span
@@ -763,18 +880,7 @@ if ($buyerCountry !== '') {
                                     "
                                 >
                                     <?= $escape(
-                                        trim(
-                                            (string) (
-                                                $invoice[
-                                                    'payment_method'
-                                                ]
-                                                ?? ''
-                                            )
-                                        ) !== ''
-                                            ? $invoice[
-                                                'payment_method'
-                                            ]
-                                            : '—'
+                                        $paymentMethodText
                                     ) ?>
                                 </span>
                             </div>
@@ -1334,7 +1440,7 @@ if ($buyerCountry !== '') {
                     ): ?>
                         <div class="invoice-notes">
                             <h2>
-                                Uwagi
+                                Informacje dodatkowe
                             </h2>
 
                             <p><?= $escape(

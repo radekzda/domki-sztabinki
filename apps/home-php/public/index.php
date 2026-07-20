@@ -1606,6 +1606,11 @@ $router->get('/admin/faktury', function (): void {
 
     $invoices = [];
     $databaseMessage = null;
+    $successMessage = isset(
+        $_GET['deleted']
+    )
+        ? 'Faktura została usunięta.'
+        : null;
 
     if (!Database::canAttemptConnection()) {
         $databaseMessage =
@@ -1638,6 +1643,9 @@ $router->get('/admin/faktury', function (): void {
 
                 'databaseMessage' =>
                     $databaseMessage,
+
+                'successMessage' =>
+                    $successMessage,
             ]
         )
     );
@@ -1755,6 +1763,229 @@ $router->get(
                     ]
                 ),
                 500
+            );
+        }
+    }
+);
+
+$router->get(
+    '/admin/faktury/drukuj',
+    function (): void {
+        Auth::requireAdmin();
+
+        $id = filter_var(
+            $_GET['id'] ?? null,
+            FILTER_VALIDATE_INT
+        );
+
+        if (
+            !is_int($id)
+            || $id < 1
+        ) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Nieprawidłowy adres',
+
+                        'message' =>
+                            'Brakuje prawidłowego '
+                            . 'identyfikatora faktury.',
+                    ]
+                ),
+                400
+            );
+
+            return;
+        }
+
+        if (!Database::canAttemptConnection()) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Brak połączenia z bazą',
+
+                        'message' =>
+                            'Baza danych nie jest '
+                            . 'jeszcze skonfigurowana. '
+                            . 'Nie można przygotować '
+                            . 'faktury do wydruku.',
+                    ]
+                ),
+                422
+            );
+
+            return;
+        }
+
+        try {
+            $invoice =
+                InvoiceRepository::find(
+                    $id
+                );
+
+            if ($invoice === null) {
+                Response::html(
+                    View::render(
+                        'pages/error',
+                        [
+                            'title' =>
+                                'Nie znaleziono faktury',
+
+                            'message' =>
+                                'Faktura o podanym '
+                                . 'identyfikatorze '
+                                . 'nie istnieje.',
+                        ]
+                    ),
+                    404
+                );
+
+                return;
+            }
+
+            $printViewPath =
+                dirname(__DIR__)
+                . '/app/Views/pages/'
+                . 'admin_invoice_print.php';
+
+            if (!is_file($printViewPath)) {
+                throw new RuntimeException(
+                    'Nie znaleziono widoku '
+                    . 'wydruku faktury.'
+                );
+            }
+
+            $bufferLevel =
+                ob_get_level();
+
+            ob_start();
+
+            try {
+                require $printViewPath;
+
+                $html =
+                    ob_get_clean();
+            } catch (Throwable $exception) {
+                while (
+                    ob_get_level()
+                    > $bufferLevel
+                ) {
+                    ob_end_clean();
+                }
+
+                throw $exception;
+            }
+
+            if (!is_string($html)) {
+                throw new RuntimeException(
+                    'Nie udało się przygotować '
+                    . 'widoku wydruku faktury.'
+                );
+            }
+
+            Response::html(
+                $html
+            );
+        } catch (Throwable $exception) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Nie udało się '
+                            . 'przygotować wydruku',
+
+                        'message' =>
+                            AppErrorHandler::safeMessage(
+                                $exception
+                            ),
+                    ]
+                ),
+                500
+            );
+        }
+    }
+);
+
+$router->post(
+    '/admin/faktury/usun',
+    function (): void {
+        Auth::requireAdmin();
+        requireValidCsrf();
+
+        $id = filter_var(
+            $_POST['id'] ?? null,
+            FILTER_VALIDATE_INT
+        );
+
+        if (
+            !is_int($id)
+            || $id < 1
+        ) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Nieprawidłowe dane',
+
+                        'message' =>
+                            'Nie można ustalić '
+                            . 'faktury do usunięcia.',
+                    ]
+                ),
+                400
+            );
+
+            return;
+        }
+
+        if (!Database::canAttemptConnection()) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Brak połączenia z bazą',
+
+                        'message' =>
+                            'Nie można usunąć faktury '
+                            . 'bez połączenia z bazą danych.',
+                    ]
+                ),
+                422
+            );
+
+            return;
+        }
+
+        try {
+            InvoiceRepository::delete(
+                $id
+            );
+
+            Response::redirect(
+                '/admin/faktury?deleted=1'
+            );
+        } catch (Throwable $exception) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Nie udało się usunąć faktury',
+
+                        'message' =>
+                            AppErrorHandler::safeMessage(
+                                $exception
+                            ),
+                    ]
+                ),
+                422
             );
         }
     }
