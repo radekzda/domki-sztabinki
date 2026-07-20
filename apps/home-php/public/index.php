@@ -33,6 +33,7 @@ require dirname(__DIR__) . '/app/Repositories/CabinImageRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InvoiceSellerRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InvoiceRepository.php';
+require dirname(__DIR__) . '/app/Controllers/InvoiceController.php';
 require dirname(__DIR__) . '/app/Controllers/InvoiceSellerController.php';
 require dirname(__DIR__) . '/app/Repositories/IcalEventRepository.php';
 require dirname(__DIR__) . '/app/Repositories/IcalSyncLogRepository.php';
@@ -1599,6 +1600,20 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
         ]), 500);
     }
 });
+
+$router->get(
+    '/admin/faktury/nowa',
+    function (): void {
+        InvoiceController::createFromReservation();
+    }
+);
+
+$router->post(
+    '/admin/faktury/nowa',
+    function (): void {
+        InvoiceController::storeFromReservation();
+    }
+);
 
 $router->get('/admin/rezerwacje/pokaz', function (): void {
     Auth::requireAdmin();

@@ -198,6 +198,17 @@ $displayDateTime = static function (mixed $value): string {
                             <?php endif; ?>
                             <a
                                 class="button button--primary"
+                                href="/admin/faktury/nowa?reservation_id=<?= htmlspecialchars(
+                                    (string) $reservation['id'],
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>"
+                            >
+                                Wystaw fakturę
+                            </a>
+
+                            <a
+                                class="button button--primary"
                                 href="/admin/rezerwacje/edytuj?id=<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?><?= $canReturnToCalendar ? '&return=' . urlencode($returnUrl) : '' ?>"
                             >
                                 Edytuj
@@ -209,6 +220,14 @@ $displayDateTime = static function (mixed $value): string {
                         </div>
                     </div>
 
+
+                    <?php if (
+                        isset($_GET['invoice_created'])
+                    ): ?>
+                        <div class="alert alert--success">
+                            Faktura została wystawiona poprawnie.
+                        </div>
+                    <?php endif; ?>
 
                     <!-- M13.65 reservation action panel -->
                     <div class="reservation-action-panel">

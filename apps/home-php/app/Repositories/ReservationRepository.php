@@ -45,6 +45,12 @@ final class ReservationRepository
                 reservations.guest_name,
                 reservations.email,
                 reservations.phone,
+                reservations.first_name,
+                reservations.last_name,
+                reservations.street,
+                reservations.postal_code,
+                reservations.city,
+                reservations.country,
                 reservations.start_date,
                 reservations.end_date,
                 reservations.check_in_at,
@@ -195,6 +201,24 @@ final class ReservationRepository
             'guest_name' => (string) ($row['guest_name'] ?? ''),
             'email' => (string) ($row['email'] ?? ''),
             'phone' => isset($row['phone']) ? (string) $row['phone'] : null,
+            'first_name' => isset($row['first_name'])
+                ? (string) $row['first_name']
+                : null,
+            'last_name' => isset($row['last_name'])
+                ? (string) $row['last_name']
+                : null,
+            'street' => isset($row['street'])
+                ? (string) $row['street']
+                : null,
+            'postal_code' => isset($row['postal_code'])
+                ? (string) $row['postal_code']
+                : null,
+            'city' => isset($row['city'])
+                ? (string) $row['city']
+                : null,
+            'country' => isset($row['country'])
+                ? (string) $row['country']
+                : null,
             'start_date' => (string) ($row['start_date'] ?? ''),
             'end_date' => (string) ($row['end_date'] ?? ''),
               'check_in_at' => isset($row['check_in_at']) ? (string) $row['check_in_at'] : null,
