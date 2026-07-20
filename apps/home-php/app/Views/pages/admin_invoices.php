@@ -182,7 +182,13 @@ $paymentLabels = [
         color: #6b7280;
     }
 
+    .invoice-actions {
+        display: grid;
+        gap: 7px;
+    }
+
     .invoice-actions .button {
+        width: 100%;
         min-height: 34px;
         padding: 7px 10px;
         border-radius: 8px;
@@ -646,6 +652,23 @@ $paymentLabels = [
                                                 <div
                                                     class="invoice-actions"
                                                 >
+                                                    <a
+                                                        class="
+                                                            button
+                                                            button--primary
+                                                        "
+                                                        href="/admin/faktury/pokaz?id=<?= urlencode(
+                                                            (string) (
+                                                                $invoice[
+                                                                    'id'
+                                                                ]
+                                                                ?? 0
+                                                            )
+                                                        ) ?>"
+                                                    >
+                                                        Podgląd
+                                                    </a>
+
                                                     <?php if (
                                                         $reservationId > 0
                                                     ): ?>
@@ -660,14 +683,6 @@ $paymentLabels = [
                                                         >
                                                             Rezerwacja
                                                         </a>
-                                                    <?php else: ?>
-                                                        <span
-                                                            class="
-                                                                invoice-meta
-                                                            "
-                                                        >
-                                                            —
-                                                        </span>
                                                     <?php endif; ?>
                                                 </div>
                                             </td>

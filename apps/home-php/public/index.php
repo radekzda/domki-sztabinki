@@ -1644,6 +1644,123 @@ $router->get('/admin/faktury', function (): void {
 });
 
 $router->get(
+    '/admin/faktury/pokaz',
+    function (): void {
+        Auth::requireAdmin();
+
+        $id = filter_var(
+            $_GET['id'] ?? null,
+            FILTER_VALIDATE_INT
+        );
+
+        if (
+            !is_int($id)
+            || $id < 1
+        ) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Nieprawidłowy adres',
+
+                        'message' =>
+                            'Brakuje prawidłowego '
+                            . 'identyfikatora faktury.',
+                    ]
+                ),
+                400
+            );
+
+            return;
+        }
+
+        if (!Database::canAttemptConnection()) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Brak połączenia z bazą',
+
+                        'message' =>
+                            'Baza danych nie jest '
+                            . 'jeszcze skonfigurowana. '
+                            . 'Nie można pokazać faktury.',
+                    ]
+                ),
+                422
+            );
+
+            return;
+        }
+
+        try {
+            $invoice =
+                InvoiceRepository::find(
+                    $id
+                );
+
+            if ($invoice === null) {
+                Response::html(
+                    View::render(
+                        'pages/error',
+                        [
+                            'title' =>
+                                'Nie znaleziono faktury',
+
+                            'message' =>
+                                'Faktura o podanym '
+                                . 'identyfikatorze '
+                                . 'nie istnieje.',
+                        ]
+                    ),
+                    404
+                );
+
+                return;
+            }
+
+            Response::html(
+                View::render(
+                    'pages/admin_invoice_show',
+                    [
+                        'title' =>
+                            'Faktura '
+                            . (
+                                $invoice[
+                                    'invoice_number'
+                                ]
+                                ?? ''
+                            ),
+
+                        'invoice' =>
+                            $invoice,
+                    ]
+                )
+            );
+        } catch (Throwable $exception) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Nie udało się '
+                            . 'pobrać faktury',
+
+                        'message' =>
+                            AppErrorHandler::safeMessage(
+                                $exception
+                            ),
+                    ]
+                ),
+                500
+            );
+        }
+    }
+);
+
+$router->get(
     '/admin/faktury/nowa',
     function (): void {
         InvoiceController::createFromReservation();
