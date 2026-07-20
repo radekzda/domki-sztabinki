@@ -30,6 +30,11 @@ $items = [
         'active' => 'reservations',
     ],
     [
+        'href' => '/admin/faktury',
+        'label' => 'Faktury',
+        'active' => 'invoices',
+    ],
+    [
         'href' => '/admin/goscie',
         'label' => 'Goście',
         'active' => 'guests',

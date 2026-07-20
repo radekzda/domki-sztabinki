@@ -337,6 +337,62 @@ final class ReservationRepository
     }
 
     /**
+     * Rezerwacje z wymeldowaniem w podanym dniu,
+     * dla których nie wystawiono jeszcze faktury.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function departuresWithoutInvoiceForDate(
+        string $date
+    ): array {
+        $dateObject = DateTimeImmutable::createFromFormat(
+            '!Y-m-d',
+            $date
+        );
+
+        if (
+            $dateObject === false
+            || $dateObject->format('Y-m-d') !== $date
+        ) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowa data przypomnienia o fakturach.'
+            );
+        }
+
+        $statement = Database::connection()->prepare(
+            'SELECT
+                reservations.id,
+                reservations.guest_name,
+                reservations.end_date,
+                reservations.total_price,
+                reservations.status,
+                cabins.name AS cabin_name
+            FROM reservations
+            LEFT JOIN cabins
+                ON cabins.id = reservations.cabin_id
+            WHERE reservations.end_date = :end_date
+            AND reservations.status <> "CANCELLED"
+            AND NOT EXISTS (
+                SELECT 1
+                FROM invoices
+                WHERE invoices.reservation_id = reservations.id
+            )
+            ORDER BY
+                cabins.name ASC,
+                reservations.id ASC'
+        );
+
+        $statement->execute([
+            'end_date' => $date,
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        return is_array($rows)
+            ? $rows
+            : [];
+    }
+    /**
      * Rezerwacje PMS eksportowane do zewnętrznego kalendarza.
      *
      * @return array<int, array<string, mixed>>
