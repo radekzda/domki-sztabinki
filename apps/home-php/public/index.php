@@ -1601,6 +1601,48 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
     }
 });
 
+$router->get('/admin/faktury', function (): void {
+    Auth::requireAdmin();
+
+    $invoices = [];
+    $databaseMessage = null;
+
+    if (!Database::canAttemptConnection()) {
+        $databaseMessage =
+            'Baza danych nie jest jeszcze '
+            . 'skonfigurowana. Lista faktur '
+            . 'będzie dostępna po ustawieniu '
+            . 'połączenia z MySQL.';
+    } else {
+        try {
+            $invoices =
+                InvoiceRepository::all();
+        } catch (Throwable $exception) {
+            $databaseMessage =
+                'Nie udało się pobrać listy faktur: '
+                . AppErrorHandler::safeMessage(
+                    $exception
+                );
+        }
+    }
+
+    Response::html(
+        View::render(
+            'pages/admin_invoices',
+            [
+                'title' =>
+                    'Faktury',
+
+                'invoices' =>
+                    $invoices,
+
+                'databaseMessage' =>
+                    $databaseMessage,
+            ]
+        )
+    );
+});
+
 $router->get(
     '/admin/faktury/nowa',
     function (): void {
