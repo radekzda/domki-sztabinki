@@ -2471,14 +2471,38 @@ if (isset($settings) && is_array($settings)) {
                                 <?php endif; ?>
                             </label>
 
+                            <label class="public-label" for="street">
+                                Ulica i numer
+                                <input
+                                    class="public-input"
+                                    id="street"
+                                    name="street"
+                                    type="text"
+                                    placeholder="ul. Słoneczna 12"
+                                    value="<?= htmlspecialchars($form['street'], ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                            </label>
+
+                            <label class="public-label" for="postal_code">
+                                Kod pocztowy
+                                <input
+                                    class="public-input"
+                                    id="postal_code"
+                                    name="postal_code"
+                                    type="text"
+                                    placeholder="53-000"
+                                    value="<?= htmlspecialchars($form['postal_code'], ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                            </label>
+
                             <label class="public-label" for="city">
-                                
+                                Miejscowość
                                 <input
                                     class="public-input"
                                     id="city"
                                     name="city"
                                     type="text"
-                                    placeholder="ul. Słoneczna 12, 53-000 Wrocław"
+                                    placeholder="Wrocław"
                                     value="<?= htmlspecialchars($form['city'], ENT_QUOTES, 'UTF-8') ?>"
                                 >
                             </label>

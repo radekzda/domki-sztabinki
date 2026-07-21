@@ -21,6 +21,8 @@ final class InquiryRepository
      *     guests: int,
      *     adults: int,
      *     children: int,
+     *     street: string|null,
+     *     postal_code: string|null,
      *     city: string|null,
      *     country: string|null,
      *     notes: string|null,
@@ -52,6 +54,8 @@ final class InquiryRepository
                 inquiries.guests,
                 inquiries.adults,
                 inquiries.children,
+                inquiries.street,
+                inquiries.postal_code,
                 inquiries.city,
                 inquiries.country,
                 inquiries.notes,
@@ -95,6 +99,8 @@ final class InquiryRepository
      *     guests: int,
      *     adults: int,
      *     children: int,
+     *     street: string|null,
+     *     postal_code: string|null,
      *     city: string|null,
      *     country: string|null,
      *     notes: string|null,
@@ -126,6 +132,8 @@ final class InquiryRepository
                 inquiries.guests,
                 inquiries.adults,
                 inquiries.children,
+                inquiries.street,
+                inquiries.postal_code,
                 inquiries.city,
                 inquiries.country,
                 inquiries.notes,
@@ -165,6 +173,8 @@ final class InquiryRepository
      *     guests: int,
      *     adults: int,
      *     children: int,
+     *     street: string|null,
+     *     postal_code: string|null,
      *     city: string|null,
      *     country: string|null,
      *     notes: string|null,
@@ -206,6 +216,8 @@ final class InquiryRepository
                 guests,
                 adults,
                 children,
+                street,
+                postal_code,
                 city,
                 country,
                 notes,
@@ -224,6 +236,8 @@ final class InquiryRepository
                 :guests,
                 :adults,
                 :children,
+                :street,
+                :postal_code,
                 :city,
                 :country,
                 :notes,
@@ -245,6 +259,8 @@ final class InquiryRepository
             'guests' => $data['guests'],
             'adults' => $data['adults'],
             'children' => $data['children'],
+            'street' => $data['street'],
+            'postal_code' => $data['postal_code'],
             'city' => $data['city'],
             'country' => $data['country'],
             'notes' => $data['notes'],
@@ -309,6 +325,8 @@ final class InquiryRepository
                 guests INT NOT NULL DEFAULT 1,
                 adults INT NOT NULL DEFAULT 1,
                 children INT NOT NULL DEFAULT 0,
+                street VARCHAR(190) NULL,
+                postal_code VARCHAR(40) NULL,
                 city VARCHAR(100) NULL,
                 country VARCHAR(100) NULL,
                 notes TEXT NULL,
@@ -324,6 +342,7 @@ final class InquiryRepository
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
 
+        self::ensureAddressStructure($connection);
         self::ensureReservationLinkStructure($connection);
     }
 
@@ -408,6 +427,49 @@ final class InquiryRepository
         );
     }
 
+    private static function ensureAddressStructure(
+        PDO $connection
+    ): void {
+        $columnStatement = $connection->query(
+            'SHOW COLUMNS FROM inquiries'
+        );
+
+        $columns = [];
+
+        if ($columnStatement !== false) {
+            $rows = $columnStatement->fetchAll();
+
+            if (is_array($rows)) {
+                foreach ($rows as $row) {
+                    if (
+                        is_array($row)
+                        && isset($row['Field'])
+                    ) {
+                        $columns[] = (string) $row['Field'];
+                    }
+                }
+            }
+        }
+
+        if (!in_array('street', $columns, true)) {
+            $connection->exec(
+                'ALTER TABLE inquiries
+                ADD COLUMN street VARCHAR(190) NULL
+                AFTER children'
+            );
+
+            $columns[] = 'street';
+        }
+
+        if (!in_array('postal_code', $columns, true)) {
+            $connection->exec(
+                'ALTER TABLE inquiries
+                ADD COLUMN postal_code VARCHAR(40) NULL
+                AFTER street'
+            );
+        }
+    }
+
     private static function ensureReservationLinkStructure(
         PDO $connection
     ): void {
@@ -485,6 +547,8 @@ final class InquiryRepository
      *     guests: int,
      *     adults: int,
      *     children: int,
+     *     street: string|null,
+     *     postal_code: string|null,
      *     city: string|null,
      *     country: string|null,
      *     notes: string|null,
@@ -511,6 +575,8 @@ final class InquiryRepository
             'guests' => (int) ($row['guests'] ?? 0),
             'adults' => (int) ($row['adults'] ?? 0),
             'children' => (int) ($row['children'] ?? 0),
+            'street' => isset($row['street']) ? (string) $row['street'] : null,
+            'postal_code' => isset($row['postal_code']) ? (string) $row['postal_code'] : null,
             'city' => isset($row['city']) ? (string) $row['city'] : null,
             'country' => isset($row['country']) ? (string) $row['country'] : null,
             'notes' => isset($row['notes']) ? (string) $row['notes'] : null,

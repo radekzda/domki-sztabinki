@@ -20,6 +20,8 @@ declare(strict_types=1);
  *     guests: int,
  *     adults: int,
  *     children: int,
+ *     street: string|null,
+ *     postal_code: string|null,
  *     city: string|null,
  *     country: string|null,
  *     notes: string|null,
@@ -101,6 +103,16 @@ $linkedReservationId = (int) (
                         <div class="status-row">
                             <span>E-mail</span>
                             <strong><?= htmlspecialchars($inquiry['email'] ?? '—', ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Ulica i numer</span>
+                            <strong><?= htmlspecialchars($inquiry['street'] ?? '—', ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Kod pocztowy</span>
+                            <strong><?= htmlspecialchars($inquiry['postal_code'] ?? '—', ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">

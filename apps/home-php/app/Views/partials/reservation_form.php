@@ -70,8 +70,14 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                     <option
                         value="<?= htmlspecialchars((string) $guest['id'], ENT_QUOTES, 'UTF-8') ?>"
                         data-guest-name="<?= htmlspecialchars(trim($guest['first_name'] . ' ' . $guest['last_name']), ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-first-name="<?= htmlspecialchars($guest['first_name'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-last-name="<?= htmlspecialchars($guest['last_name'], ENT_QUOTES, 'UTF-8') ?>"
                         data-guest-email="<?= htmlspecialchars($guest['email'], ENT_QUOTES, 'UTF-8') ?>"
                         data-guest-phone="<?= htmlspecialchars($guest['phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-street="<?= htmlspecialchars($guest['street'] ?? $guest['full_address'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-postal-code="<?= htmlspecialchars($guest['postal_code'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-city="<?= htmlspecialchars($guest['city'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                        data-guest-country="<?= htmlspecialchars($guest['country'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                         <?= $form['guest_id'] === (string) $guest['id'] ? 'selected' : '' ?>
                     >
                         <?= htmlspecialchars($guest['first_name'] . ' ' . $guest['last_name'] . ' — ' . $guest['email'], ENT_QUOTES, 'UTF-8') ?>
@@ -166,29 +172,43 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
             <?php endif; ?>
         </div>
 
-        <div class="form-field form-field--full">
-            <label for="guest_name">Imię i nazwisko gościa</label>
+        <div class="form-field">
+            <label for="first_name">Imię gościa</label>
             <input
-                id="guest_name"
-                name="guest_name"
+                id="first_name"
+                name="first_name"
                 type="text"
-                value="<?= htmlspecialchars($form['guest_name'], ENT_QUOTES, 'UTF-8') ?>"
+                value="<?= htmlspecialchars($form['first_name'], ENT_QUOTES, 'UTF-8') ?>"
                 required
             >
 
-            <?php if (isset($errors['guest_name'])): ?>
-                <span class="form-error"><?= htmlspecialchars($errors['guest_name'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php if (isset($errors['first_name'])): ?>
+                <span class="form-error"><?= htmlspecialchars($errors['first_name'], ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </div>
 
         <div class="form-field">
-            <label for="email">E-mail</label>
+            <label for="last_name">Nazwisko gościa</label>
+            <input
+                id="last_name"
+                name="last_name"
+                type="text"
+                value="<?= htmlspecialchars($form['last_name'], ENT_QUOTES, 'UTF-8') ?>"
+                required
+            >
+
+            <?php if (isset($errors['last_name'])): ?>
+                <span class="form-error"><?= htmlspecialchars($errors['last_name'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-field">
+            <label for="email">E-mail (opcjonalnie)</label>
             <input
                 id="email"
                 name="email"
                 type="email"
                 value="<?= htmlspecialchars($form['email'], ENT_QUOTES, 'UTF-8') ?>"
-                required
             >
 
             <?php if (isset($errors['email'])): ?>
@@ -203,6 +223,46 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 name="phone"
                 type="text"
                 value="<?= htmlspecialchars($form['phone'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field form-field--full">
+            <label for="street">Ulica i numer</label>
+            <input
+                id="street"
+                name="street"
+                type="text"
+                value="<?= htmlspecialchars($form['street'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="postal_code">Kod pocztowy</label>
+            <input
+                id="postal_code"
+                name="postal_code"
+                type="text"
+                value="<?= htmlspecialchars($form['postal_code'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="city">Miejscowość</label>
+            <input
+                id="city"
+                name="city"
+                type="text"
+                value="<?= htmlspecialchars($form['city'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field form-field--full">
+            <label for="country">Kraj</label>
+            <input
+                id="country"
+                name="country"
+                type="text"
+                value="<?= htmlspecialchars($form['country'], ENT_QUOTES, 'UTF-8') ?>"
             >
         </div>
 
@@ -374,9 +434,14 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
             return;
         }
 
-        var guestNameInput = document.getElementById('guest_name');
+        var firstNameInput = document.getElementById('first_name');
+        var lastNameInput = document.getElementById('last_name');
         var emailInput = document.getElementById('email');
         var phoneInput = document.getElementById('phone');
+        var streetInput = document.getElementById('street');
+        var postalCodeInput = document.getElementById('postal_code');
+        var cityInput = document.getElementById('city');
+        var countryInput = document.getElementById('country');
 
         guestSelect.addEventListener('change', function () {
             var selectedOption = guestSelect.options[guestSelect.selectedIndex];
@@ -385,16 +450,44 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 return;
             }
 
-            if (guestNameInput && selectedOption.dataset.guestName) {
-                guestNameInput.value = selectedOption.dataset.guestName;
+            if (firstNameInput) {
+                firstNameInput.value =
+                    selectedOption.dataset.guestFirstName || '';
             }
 
-            if (emailInput && selectedOption.dataset.guestEmail) {
-                emailInput.value = selectedOption.dataset.guestEmail;
+            if (lastNameInput) {
+                lastNameInput.value =
+                    selectedOption.dataset.guestLastName || '';
             }
 
-            if (phoneInput && selectedOption.dataset.guestPhone) {
-                phoneInput.value = selectedOption.dataset.guestPhone;
+            if (emailInput) {
+                emailInput.value =
+                    selectedOption.dataset.guestEmail || '';
+            }
+
+            if (phoneInput) {
+                phoneInput.value =
+                    selectedOption.dataset.guestPhone || '';
+            }
+
+            if (streetInput) {
+                streetInput.value =
+                    selectedOption.dataset.guestStreet || '';
+            }
+
+            if (postalCodeInput) {
+                postalCodeInput.value =
+                    selectedOption.dataset.guestPostalCode || '';
+            }
+
+            if (cityInput) {
+                cityInput.value =
+                    selectedOption.dataset.guestCity || '';
+            }
+
+            if (countryInput) {
+                countryInput.value =
+                    selectedOption.dataset.guestCountry || '';
             }
         });
     });

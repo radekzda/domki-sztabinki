@@ -1622,7 +1622,25 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             $form['email'],
             $form['phone'] !== '' ? $form['phone'] : null,
             $form['source'],
-            $form['notes'] !== '' ? $form['notes'] : null
+            $form['notes'] !== '' ? $form['notes'] : null,
+            $form['first_name'] !== ''
+                ? $form['first_name']
+                : null,
+            $form['last_name'] !== ''
+                ? $form['last_name']
+                : null,
+            $form['street'] !== ''
+                ? $form['street']
+                : null,
+            $form['postal_code'] !== ''
+                ? $form['postal_code']
+                : null,
+            $form['city'] !== ''
+                ? $form['city']
+                : null,
+            $form['country'] !== ''
+                ? $form['country']
+                : null
         );
 
         $reservationId = ReservationRepository::create(
@@ -2383,7 +2401,25 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             $form['email'],
             $form['phone'] !== '' ? $form['phone'] : null,
             $form['source'],
-            $form['notes'] !== '' ? $form['notes'] : null
+            $form['notes'] !== '' ? $form['notes'] : null,
+            $form['first_name'] !== ''
+                ? $form['first_name']
+                : null,
+            $form['last_name'] !== ''
+                ? $form['last_name']
+                : null,
+            $form['street'] !== ''
+                ? $form['street']
+                : null,
+            $form['postal_code'] !== ''
+                ? $form['postal_code']
+                : null,
+            $form['city'] !== ''
+                ? $form['city']
+                : null,
+            $form['country'] !== ''
+                ? $form['country']
+                : null
         );
 
         ReservationRepository::update($id, reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice, $guestId));

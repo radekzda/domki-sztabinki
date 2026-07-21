@@ -415,8 +415,14 @@ function defaultReservationForm(): array
         'guest_id' => '',
         'cabin_id' => '',
         'guest_name' => '',
+        'first_name' => '',
+        'last_name' => '',
         'email' => '',
         'phone' => '',
+        'street' => '',
+        'postal_code' => '',
+        'city' => '',
+        'country' => 'Polska',
         'start_date' => '',
         'end_date' => '',
         'check_in_time' => '15:00',
@@ -433,11 +439,6 @@ function defaultReservationForm(): array
         'notes' => '',
     ];
 }
-
-/**
- * @return array<string, string>
- */
-
 
 function reservationNormalizeTime(mixed $value, string $fallback): string
 {
@@ -481,6 +482,65 @@ function reservationTimeFromDateTime(mixed $value, string $fallback): string
     }
 }
 
+/**
+ * @return array{
+ *     first_name: string,
+ *     last_name: string,
+ *     guest_name: string
+ * }
+ */
+function reservationGuestNameParts(
+    mixed $firstNameValue,
+    mixed $lastNameValue,
+    mixed $guestNameValue
+): array {
+    $firstName = trim((string) ($firstNameValue ?? ''));
+    $lastName = trim((string) ($lastNameValue ?? ''));
+    $guestName = trim((string) ($guestNameValue ?? ''));
+
+    if (
+        ($firstName === '' || $lastName === '')
+        && $guestName !== ''
+    ) {
+        $parts = preg_split('/\s+/', $guestName) ?: [];
+
+        if ($firstName === '') {
+            $firstName = (string) ($parts[0] ?? '');
+        }
+
+        if ($lastName === '') {
+            $lastName = trim(
+                implode(
+                    ' ',
+                    array_slice($parts, 1)
+                )
+            );
+        }
+    }
+
+    if ($lastName === '' && $firstName !== '') {
+        $lastName = '—';
+    }
+
+    if ($guestName === '') {
+        $guestName = trim(
+            $firstName
+            . ' '
+            . (
+                $lastName === '—'
+                    ? ''
+                    : $lastName
+            )
+        );
+    }
+
+    return [
+        'first_name' => $firstName,
+        'last_name' => $lastName,
+        'guest_name' => $guestName,
+    ];
+}
+
 function reservationFormFromPost(): array
 {
     $defaults = defaultReservationForm();
@@ -491,90 +551,71 @@ function reservationFormFromPost(): array
         $form[$key] = is_string($value) ? trim($value) : $defaultValue;
     }
 
-    $form['check_in_time'] = reservationNormalizeTime($_POST['check_in_time'] ?? null, '15:00');
-    $form['check_out_time'] = reservationNormalizeTime($_POST['check_out_time'] ?? null, '11:00');
+    $nameParts = reservationGuestNameParts(
+        $form['first_name'],
+        $form['last_name'],
+        $form['guest_name']
+    );
+
+    $form['first_name'] = $nameParts['first_name'];
+    $form['last_name'] = $nameParts['last_name'];
+    $form['guest_name'] = $nameParts['guest_name'];
+    $form['check_in_time'] = reservationNormalizeTime(
+        $_POST['check_in_time'] ?? null,
+        '15:00'
+    );
+    $form['check_out_time'] = reservationNormalizeTime(
+        $_POST['check_out_time'] ?? null,
+        '11:00'
+    );
 
     return $form;
 }
 
-/**
- * @param array{
- *     id: int,
- *     cabin_id: int,
- *     guest_id: int|null,
- *     cabin_name: string|null,
- *     linked_guest_name: string|null,
- *     guest_name: string,
- *     email: string,
- *     phone: string|null,
- *     start_date: string,
- *     end_date: string,
- *     nights: int,
- *     guests: int,
- *     adults: int,
- *     children: int,
- *     status: string,
- *     source: string,
- *     payment_status: string|null,
- *     total_price: string|null,
- *     paid_amount: string|null,
- *     notes: string|null,
- *     created_at: string
- * } $reservation
- * @return array<string, string>
- */
 function reservationFormFromReservation(array $reservation): array
 {
+    $nameParts = reservationGuestNameParts(
+        $reservation['first_name'] ?? null,
+        $reservation['last_name'] ?? null,
+        $reservation['guest_name'] ?? ''
+    );
+
     return [
-        'guest_id' => $reservation['guest_id'] !== null ? (string) $reservation['guest_id'] : '',
+        'guest_id' => $reservation['guest_id'] !== null
+            ? (string) $reservation['guest_id']
+            : '',
         'cabin_id' => (string) $reservation['cabin_id'],
-        'guest_name' => $reservation['guest_name'],
+        'guest_name' => $nameParts['guest_name'],
+        'first_name' => $nameParts['first_name'],
+        'last_name' => $nameParts['last_name'],
         'email' => $reservation['email'],
         'phone' => $reservation['phone'] ?? '',
+        'street' => $reservation['street'] ?? '',
+        'postal_code' => $reservation['postal_code'] ?? '',
+        'city' => $reservation['city'] ?? '',
+        'country' => $reservation['country'] ?? 'Polska',
         'start_date' => substr($reservation['start_date'], 0, 10),
         'end_date' => substr($reservation['end_date'], 0, 10),
-        'check_in_time' => reservationTimeFromDateTime($reservation['check_in_at'] ?? null, '15:00'),
-        'check_out_time' => reservationTimeFromDateTime($reservation['check_out_at'] ?? null, '11:00'),
+        'check_in_time' => reservationTimeFromDateTime(
+            $reservation['check_in_at'] ?? null,
+            '15:00'
+        ),
+        'check_out_time' => reservationTimeFromDateTime(
+            $reservation['check_out_at'] ?? null,
+            '11:00'
+        ),
         'adults' => (string) $reservation['adults'],
         'children' => (string) $reservation['children'],
         'status' => $reservation['status'],
         'payment_status' => $reservation['payment_status'] ?? 'PENDING',
-        'paid_amount' => $reservation['paid_amount'] !== null ? (string) (int) $reservation['paid_amount'] : '0',
+        'paid_amount' => $reservation['paid_amount'] !== null
+            ? (string) (int) $reservation['paid_amount']
+            : '0',
         'source' => $reservation['source'],
         'notes' => $reservation['notes'] ?? '',
     ];
 }
 
-/**
- * @param array{
- *     id: int,
- *     full_name: string,
- *     first_name: string|null,
- *     last_name: string|null,
- *     phone: string,
- *     email: string|null,
- *     cabin_id: int|null,
- *     cabin_name: string|null,
- *     linked_cabin_name: string|null,
- *     date_from: string,
- *     date_to: string,
- *     guests: int,
- *     adults: int,
- *     children: int,
- *     city: string|null,
- *     country: string|null,
- *     notes: string|null,
- *     status: string,
- *     source: string,
- *     created_at: string
- * } $inquiry
- * @return array<string, string>
- */
-
-/**
- * @param array<string, string> $form
- * @return array<string, string>
- */
 function reservationFormFromCalendarQuery(array $form): array
 {
     $cabinId = $_GET['cabin_id'] ?? null;
@@ -606,13 +647,31 @@ function reservationFormFromInquiry(array $inquiry): array
 {
     $form = defaultReservationForm();
 
-    $adults = $inquiry['adults'] > 0 ? $inquiry['adults'] : max(1, $inquiry['guests']);
-    $children = $inquiry['children'] >= 0 ? $inquiry['children'] : 0;
+    $adults = $inquiry['adults'] > 0
+        ? $inquiry['adults']
+        : max(1, $inquiry['guests']);
+    $children = $inquiry['children'] >= 0
+        ? $inquiry['children']
+        : 0;
 
-    $form['cabin_id'] = $inquiry['cabin_id'] !== null ? (string) $inquiry['cabin_id'] : '';
-    $form['guest_name'] = $inquiry['full_name'];
+    $nameParts = reservationGuestNameParts(
+        $inquiry['first_name'] ?? null,
+        $inquiry['last_name'] ?? null,
+        $inquiry['full_name'] ?? ''
+    );
+
+    $form['cabin_id'] = $inquiry['cabin_id'] !== null
+        ? (string) $inquiry['cabin_id']
+        : '';
+    $form['guest_name'] = $nameParts['guest_name'];
+    $form['first_name'] = $nameParts['first_name'];
+    $form['last_name'] = $nameParts['last_name'];
     $form['email'] = $inquiry['email'] ?? '';
     $form['phone'] = $inquiry['phone'];
+    $form['street'] = $inquiry['street'] ?? '';
+    $form['postal_code'] = $inquiry['postal_code'] ?? '';
+    $form['city'] = $inquiry['city'] ?? '';
+    $form['country'] = $inquiry['country'] ?? 'Polska';
     $form['start_date'] = substr($inquiry['date_from'], 0, 10);
     $form['end_date'] = substr($inquiry['date_to'], 0, 10);
     $form['adults'] = (string) $adults;
@@ -620,16 +679,14 @@ function reservationFormFromInquiry(array $inquiry): array
     $form['status'] = 'PENDING';
     $form['payment_status'] = 'PENDING';
     $form['paid_amount'] = '0';
-    $form['source'] = $inquiry['source'] !== '' ? $inquiry['source'] : 'WWW';
+    $form['source'] = $inquiry['source'] !== ''
+        ? $inquiry['source']
+        : 'WWW';
     $form['notes'] = $inquiry['notes'] ?? '';
 
     return $form;
 }
 
-/**
- * @param array<string, string> $form
- * @return array<string, string>
- */
 function validateReservationForm(array $form): array
 {
     $errors = [];
@@ -642,12 +699,23 @@ function validateReservationForm(array $form): array
         $errors['cabin_id'] = 'Wybierz domek.';
     }
 
-    if ($form['guest_name'] === '') {
-        $errors['guest_name'] = 'Podaj imię i nazwisko gościa.';
+    if ($form['first_name'] === '') {
+        $errors['first_name'] = 'Podaj imię gościa.';
     }
 
-    if ($form['email'] === '' || filter_var($form['email'], FILTER_VALIDATE_EMAIL) === false) {
-        $errors['email'] = 'Podaj prawidłowy adres e-mail.';
+    if ($form['last_name'] === '') {
+        $errors['last_name'] = 'Podaj nazwisko gościa.';
+    }
+
+    if (
+        $form['email'] !== ''
+        && filter_var(
+            $form['email'],
+            FILTER_VALIDATE_EMAIL
+        ) === false
+    ) {
+        $errors['email'] =
+            'Podaj prawidłowy adres e-mail albo zostaw pole puste.';
     }
 
     if ($form['start_date'] === '') {
@@ -658,51 +726,92 @@ function validateReservationForm(array $form): array
         $errors['end_date'] = 'Podaj datę zakończenia pobytu.';
     }
 
-    if (!isset($form['check_in_time']) || preg_match('/^\d{2}:\d{2}$/', $form['check_in_time']) !== 1) {
+    if (
+        !isset($form['check_in_time'])
+        || preg_match(
+            '/^\d{2}:\d{2}$/',
+            $form['check_in_time']
+        ) !== 1
+    ) {
         $errors['check_in_time'] = 'Podaj godzinę przyjazdu.';
     }
 
-    if (!isset($form['check_out_time']) || preg_match('/^\d{2}:\d{2}$/', $form['check_out_time']) !== 1) {
+    if (
+        !isset($form['check_out_time'])
+        || preg_match(
+            '/^\d{2}:\d{2}$/',
+            $form['check_out_time']
+        ) !== 1
+    ) {
         $errors['check_out_time'] = 'Podaj godzinę wyjazdu.';
     }
 
-    $form['check_in_time'] = reservationNormalizeTime($form['check_in_time'] ?? null, '15:00');
-    $form['check_out_time'] = reservationNormalizeTime($form['check_out_time'] ?? null, '11:00');
-
-    $nights = calculateReservationNights($form['start_date'], $form['end_date']);
+    $nights = calculateReservationNights(
+        $form['start_date'],
+        $form['end_date']
+    );
 
     if ($nights === null) {
-        $errors['end_date'] = 'Data zakończenia musi być późniejsza niż data rozpoczęcia.';
+        $errors['end_date'] =
+            'Data zakończenia musi być późniejsza niż data rozpoczęcia.';
     }
 
     if (!ctype_digit($form['adults']) || (int) $form['adults'] < 1) {
-        $errors['adults'] = 'Liczba dorosłych musi być większa od zera.';
+        $errors['adults'] =
+            'Liczba dorosłych musi być większa od zera.';
     }
 
     if (!ctype_digit($form['children'])) {
-        $errors['children'] = 'Liczba dzieci musi być liczbą całkowitą.';
+        $errors['children'] =
+            'Liczba dzieci musi być liczbą całkowitą.';
     }
 
     if (!ctype_digit($form['paid_amount'])) {
-        $errors['paid_amount'] = 'Wpłacona kwota musi być liczbą całkowitą.';
+        $errors['paid_amount'] =
+            'Wpłacona kwota musi być liczbą całkowitą.';
     }
 
-    $allowedStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'];
+    $allowedStatuses = [
+        'PENDING',
+        'CONFIRMED',
+        'CHECKED_IN',
+        'CHECKED_OUT',
+        'CANCELLED',
+    ];
 
     if (!in_array($form['status'], $allowedStatuses, true)) {
         $errors['status'] = 'Nieprawidłowy status rezerwacji.';
     }
 
-    $allowedPaymentStatuses = ['PENDING', 'PAID', 'PARTIAL', 'REFUNDED'];
+    $allowedPaymentStatuses = [
+        'PENDING',
+        'PAID',
+        'PARTIAL',
+        'REFUNDED',
+    ];
 
-    if (!in_array($form['payment_status'], $allowedPaymentStatuses, true)) {
-        $errors['payment_status'] = 'Nieprawidłowy status płatności.';
+    if (
+        !in_array(
+            $form['payment_status'],
+            $allowedPaymentStatuses,
+            true
+        )
+    ) {
+        $errors['payment_status'] =
+            'Nieprawidłowy status płatności.';
     }
 
-    $allowedSources = ['MANUAL', 'WWW', 'BOOKING', 'PHONE', 'AIRBNB'];
+    $allowedSources = [
+        'MANUAL',
+        'WWW',
+        'BOOKING',
+        'PHONE',
+        'AIRBNB',
+    ];
 
     if (!in_array($form['source'], $allowedSources, true)) {
-        $errors['source'] = 'Nieprawidłowe źródło rezerwacji.';
+        $errors['source'] =
+            'Nieprawidłowe źródło rezerwacji.';
     }
 
     return $errors;
@@ -831,8 +940,14 @@ function getReservationNightPriceFromSettings(
  *     cabin_id: int,
  *     guest_id: int|null,
  *     guest_name: string,
+ *     first_name: string|null,
+ *     last_name: string|null,
  *     email: string,
  *     phone: string|null,
+ *     street: string|null,
+ *     postal_code: string|null,
+ *     city: string|null,
+ *     country: string|null,
  *     start_date: string,
  *     end_date: string,
  *     nights: int,
@@ -847,21 +962,58 @@ function getReservationNightPriceFromSettings(
  *     notes: string|null
  * }
  */
-function reservationDataFromForm(array $form, int $nights, int $totalPrice, ?int $guestId): array
-{
+function reservationDataFromForm(
+    array $form,
+    int $nights,
+    int $totalPrice,
+    ?int $guestId
+): array {
     $adults = (int) $form['adults'];
     $children = (int) $form['children'];
+    $nameParts = reservationGuestNameParts(
+        $form['first_name'],
+        $form['last_name'],
+        $form['guest_name']
+    );
 
     return [
         'cabin_id' => (int) $form['cabin_id'],
         'guest_id' => $guestId,
-        'guest_name' => $form['guest_name'],
+        'guest_name' => $nameParts['guest_name'],
+        'first_name' => $nameParts['first_name'] !== ''
+            ? $nameParts['first_name']
+            : null,
+        'last_name' => $nameParts['last_name'] !== ''
+            ? $nameParts['last_name']
+            : null,
         'email' => $form['email'],
-        'phone' => $form['phone'] !== '' ? $form['phone'] : null,
+        'phone' => $form['phone'] !== ''
+            ? $form['phone']
+            : null,
+        'street' => $form['street'] !== ''
+            ? $form['street']
+            : null,
+        'postal_code' => $form['postal_code'] !== ''
+            ? $form['postal_code']
+            : null,
+        'city' => $form['city'] !== ''
+            ? $form['city']
+            : null,
+        'country' => $form['country'] !== ''
+            ? $form['country']
+            : null,
         'start_date' => $form['start_date'],
         'end_date' => $form['end_date'],
-        'check_in_at' => $form['start_date'] . ' ' . $form['check_in_time'] . ':00',
-        'check_out_at' => $form['end_date'] . ' ' . $form['check_out_time'] . ':00',
+        'check_in_at' =>
+            $form['start_date']
+            . ' '
+            . $form['check_in_time']
+            . ':00',
+        'check_out_at' =>
+            $form['end_date']
+            . ' '
+            . $form['check_out_time']
+            . ':00',
         'nights' => $nights,
         'guests' => $adults + $children,
         'adults' => $adults,
@@ -871,7 +1023,9 @@ function reservationDataFromForm(array $form, int $nights, int $totalPrice, ?int
         'payment_status' => $form['payment_status'],
         'total_price' => $totalPrice,
         'paid_amount' => (int) $form['paid_amount'],
-        'notes' => $form['notes'] !== '' ? $form['notes'] : null,
+        'notes' => $form['notes'] !== ''
+            ? $form['notes']
+            : null,
     ];
 }
 
@@ -1404,15 +1558,14 @@ function defaultPublicInquiryForm(): array
         'date_to' => '',
         'adults' => '2',
         'children' => '0',
+        'street' => '',
+        'postal_code' => '',
         'city' => '',
         'country' => 'Polska',
         'notes' => '',
     ];
 }
 
-/**
- * @return array<string, string>
- */
 function publicInquiryFormFromPost(): array
 {
     $defaults = defaultPublicInquiryForm();
@@ -1523,6 +1676,8 @@ function validatePublicInquiryForm(array $form, array $settings): array
  *     guests: int,
  *     adults: int,
  *     children: int,
+ *     street: string|null,
+ *     postal_code: string|null,
  *     city: string|null,
  *     country: string|null,
  *     notes: string|null,
@@ -1530,29 +1685,55 @@ function validatePublicInquiryForm(array $form, array $settings): array
  *     source: string
  * }
  */
-function publicInquiryDataFromForm(array $form, ?array $cabin): array
-{
+function publicInquiryDataFromForm(
+    array $form,
+    ?array $cabin
+): array {
     $firstName = $form['first_name'];
     $lastName = $form['last_name'];
     $adults = (int) $form['adults'];
     $children = (int) $form['children'];
 
     return [
-        'full_name' => trim($firstName . ' ' . $lastName),
-        'first_name' => $firstName !== '' ? $firstName : null,
-        'last_name' => $lastName !== '' ? $lastName : null,
+        'full_name' => trim(
+            $firstName . ' ' . $lastName
+        ),
+        'first_name' => $firstName !== ''
+            ? $firstName
+            : null,
+        'last_name' => $lastName !== ''
+            ? $lastName
+            : null,
         'phone' => $form['phone'],
-        'email' => $form['email'] !== '' ? $form['email'] : null,
-        'cabin_id' => $cabin !== null ? (int) $cabin['id'] : null,
-        'cabin_name' => $cabin !== null ? $cabin['name'] : null,
+        'email' => $form['email'] !== ''
+            ? $form['email']
+            : null,
+        'cabin_id' => $cabin !== null
+            ? (int) $cabin['id']
+            : null,
+        'cabin_name' => $cabin !== null
+            ? $cabin['name']
+            : null,
         'date_from' => $form['date_from'],
         'date_to' => $form['date_to'],
         'guests' => $adults + $children,
         'adults' => $adults,
         'children' => $children,
-        'city' => $form['city'] !== '' ? $form['city'] : null,
-        'country' => $form['country'] !== '' ? $form['country'] : null,
-        'notes' => $form['notes'] !== '' ? $form['notes'] : null,
+        'street' => $form['street'] !== ''
+            ? $form['street']
+            : null,
+        'postal_code' => $form['postal_code'] !== ''
+            ? $form['postal_code']
+            : null,
+        'city' => $form['city'] !== ''
+            ? $form['city']
+            : null,
+        'country' => $form['country'] !== ''
+            ? $form['country']
+            : null,
+        'notes' => $form['notes'] !== ''
+            ? $form['notes']
+            : null,
         'status' => 'NEW',
         'source' => 'WWW',
     ];

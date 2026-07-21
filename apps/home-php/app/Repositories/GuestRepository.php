@@ -21,6 +21,8 @@ final class GuestRepository
                 email,
                 phone,
                 country,
+                street,
+                postal_code,
                 city,
                 full_address,
                 pesel,
@@ -62,6 +64,8 @@ final class GuestRepository
                 email,
                 phone,
                 country,
+                street,
+                postal_code,
                 city,
                 full_address,
                 pesel,
@@ -108,6 +112,8 @@ final class GuestRepository
                 email,
                 phone,
                 country,
+                street,
+                postal_code,
                 city,
                 full_address,
                 pesel,
@@ -153,6 +159,8 @@ final class GuestRepository
                 email,
                 phone,
                 country,
+                street,
+                postal_code,
                 city,
                 full_address,
                 pesel,
@@ -172,6 +180,8 @@ final class GuestRepository
                 :email,
                 :phone,
                 :country,
+                :street,
+                :postal_code,
                 :city,
                 :full_address,
                 :pesel,
@@ -194,6 +204,8 @@ final class GuestRepository
             'email' => $data['email'],
             'phone' => $data['phone'],
             'country' => $data['country'],
+            'street' => $data['street'] ?? null,
+            'postal_code' => $data['postal_code'] ?? null,
             'city' => $data['city'],
             'full_address' => $data['full_address'] ?? null,
             'pesel' => $data['pesel'] ?? null,
@@ -319,7 +331,13 @@ final class GuestRepository
         string $email,
         ?string $phone,
         string $source,
-        ?string $notes
+        ?string $notes,
+        ?string $firstName = null,
+        ?string $lastName = null,
+        ?string $street = null,
+        ?string $postalCode = null,
+        ?string $city = null,
+        ?string $country = null
     ): ?int {
         if ($guestId !== null && $guestId > 0) {
             $guest = self::find($guestId);
@@ -340,33 +358,97 @@ final class GuestRepository
         }
 
         $guestName = trim($guestName);
+        $resolvedFirstName = trim((string) ($firstName ?? ''));
+        $resolvedLastName = trim((string) ($lastName ?? ''));
 
-        if ($guestName === '' && $email === '') {
+        if (
+            ($resolvedFirstName === '' || $resolvedLastName === '')
+            && $guestName !== ''
+        ) {
+            $nameParts = preg_split('/\s+/', $guestName) ?: [];
+
+            if ($resolvedFirstName === '') {
+                $resolvedFirstName = (string) (
+                    $nameParts[0]
+                    ?? 'Gość'
+                );
+            }
+
+            if ($resolvedLastName === '') {
+                $resolvedLastName = trim(
+                    implode(
+                        ' ',
+                        array_slice(
+                            $nameParts,
+                            1
+                        )
+                    )
+                );
+            }
+        }
+
+        if ($resolvedFirstName === '' && $email === '') {
             return null;
         }
 
-        $nameParts = preg_split('/\s+/', $guestName) ?: [];
-        $firstName = $nameParts[0] ?? 'Gość';
-        $lastNameParts = array_slice($nameParts, 1);
-        $lastName = implode(' ', $lastNameParts);
+        if ($resolvedFirstName === '') {
+            $resolvedFirstName = 'Gość';
+        }
 
-        if ($lastName === '') {
-            $lastName = '—';
+        if ($resolvedLastName === '') {
+            $resolvedLastName = '—';
         }
 
         if ($email === '') {
-            $email = 'brak-email-' . uniqid('', true) . '@manual.local';
+            $email =
+                'brak-email-'
+                . uniqid('', true)
+                . '@manual.local';
         }
+
+        $street = trim((string) ($street ?? ''));
+        $postalCode = trim((string) ($postalCode ?? ''));
+        $city = trim((string) ($city ?? ''));
+        $country = trim((string) ($country ?? ''));
+
+        $locality = trim(
+            $postalCode
+            . ' '
+            . $city
+        );
+
+        $fullAddressParts = array_values(
+            array_filter(
+                [
+                    $street,
+                    $locality,
+                ],
+                static fn (string $value): bool =>
+                    $value !== ''
+            )
+        );
 
         return self::create([
             'external_id' => null,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
+            'first_name' => $resolvedFirstName,
+            'last_name' => $resolvedLastName,
             'email' => $email,
             'phone' => $phone,
-            'country' => null,
-            'city' => null,
-            'full_address' => null,
+            'country' => $country !== ''
+                ? $country
+                : null,
+            'street' => $street !== ''
+                ? $street
+                : null,
+            'postal_code' => $postalCode !== ''
+                ? $postalCode
+                : null,
+            'city' => $city !== ''
+                ? $city
+                : null,
+            'full_address' => $fullAddressParts !== []
+                ? implode(', ', $fullAddressParts)
+                : null,
             'pesel' => null,
             'document_number' => null,
             'nationality' => null,
@@ -404,6 +486,38 @@ final class GuestRepository
                     }
                 }
             }
+        }
+
+        if (
+            !in_array(
+                'street',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE guests
+                ADD COLUMN street VARCHAR(190) NULL
+                AFTER country'
+            );
+
+            $columns[] = 'street';
+        }
+
+        if (
+            !in_array(
+                'postal_code',
+                $columns,
+                true
+            )
+        ) {
+            $connection->exec(
+                'ALTER TABLE guests
+                ADD COLUMN postal_code VARCHAR(40) NULL
+                AFTER street'
+            );
+
+            $columns[] = 'postal_code';
         }
 
         if (
@@ -465,6 +579,8 @@ final class GuestRepository
             'email' => (string) ($row['email'] ?? ''),
             'phone' => isset($row['phone']) ? (string) $row['phone'] : null,
             'country' => isset($row['country']) ? (string) $row['country'] : null,
+            'street' => isset($row['street']) ? (string) $row['street'] : null,
+            'postal_code' => isset($row['postal_code']) ? (string) $row['postal_code'] : null,
             'city' => isset($row['city']) ? (string) $row['city'] : null,
             'full_address' => isset($row['full_address']) ? (string) $row['full_address'] : null,
             'pesel' => isset($row['pesel']) ? (string) $row['pesel'] : null,
