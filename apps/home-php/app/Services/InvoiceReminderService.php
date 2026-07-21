@@ -46,6 +46,7 @@ final class InvoiceReminderService
 
         $alreadyNotified =
             self::notifiedReservationIds(
+                $date,
                 $reservationIds
             );
 
@@ -149,7 +150,10 @@ final class InvoiceReminderService
                 created_at DATETIME NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
 
-                PRIMARY KEY (reservation_id),
+                PRIMARY KEY (
+                    reservation_id,
+                    reminder_date
+                ),
 
                 INDEX invoice_reminder_date_index (
                     reminder_date
@@ -164,7 +168,78 @@ final class InvoiceReminderService
             COLLATE=utf8mb4_unicode_ci'
         );
 
+        self::ensureCompositePrimaryKey();
+
         self::$structureEnsured = true;
+    }
+
+    private static function ensureCompositePrimaryKey(): void
+    {
+        $statement = Database::connection()->query(
+            "SELECT COLUMN_NAME, SEQ_IN_INDEX "
+            . "FROM information_schema.STATISTICS "
+            . "WHERE TABLE_SCHEMA = DATABASE() "
+            . "AND TABLE_NAME = 'invoice_reminder_notifications' "
+            . "AND INDEX_NAME = 'PRIMARY' "
+            . "ORDER BY SEQ_IN_INDEX ASC"
+        );
+
+        if ($statement === false) {
+            throw new RuntimeException(
+                'Nie udało się sprawdzić klucza głównego ' .
+                'tabeli przypomnień o fakturach.'
+            );
+        }
+
+        $rows = $statement->fetchAll();
+        $primaryColumns = [];
+
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                $columnName = (string) (
+                    $row['COLUMN_NAME']
+                    ?? $row['Column_name']
+                    ?? ''
+                );
+
+                if ($columnName !== '') {
+                    $primaryColumns[] = $columnName;
+                }
+            }
+        }
+
+        if (
+            $primaryColumns === [
+                'reservation_id',
+                'reminder_date',
+            ]
+        ) {
+            return;
+        }
+
+        if (
+            $primaryColumns !== [
+                'reservation_id',
+            ]
+        ) {
+            throw new RuntimeException(
+                'Nieoczekiwany klucz główny tabeli ' .
+                'invoice_reminder_notifications.'
+            );
+        }
+
+        Database::connection()->exec(
+            'ALTER TABLE invoice_reminder_notifications
+            DROP PRIMARY KEY,
+            ADD PRIMARY KEY (
+                reservation_id,
+                reminder_date
+            )'
+        );
     }
 
     /**
@@ -172,6 +247,7 @@ final class InvoiceReminderService
      * @return array<int, true>
      */
     private static function notifiedReservationIds(
+        string $date,
         array $reservationIds
     ): array {
         if ($reservationIds === []) {
@@ -190,13 +266,19 @@ final class InvoiceReminderService
         $statement = Database::connection()->prepare(
             'SELECT reservation_id
             FROM invoice_reminder_notifications
-            WHERE reservation_id IN ('
+            WHERE reminder_date = ?
+            AND reservation_id IN ('
             . $placeholders
             . ')'
         );
 
         $statement->execute(
-            $reservationIds
+            array_merge(
+                [
+                    $date,
+                ],
+                $reservationIds
+            )
         );
 
         $rows = $statement->fetchAll();

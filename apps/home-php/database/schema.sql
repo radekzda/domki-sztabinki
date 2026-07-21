@@ -416,7 +416,10 @@ CREATE TABLE IF NOT EXISTS invoice_reminder_notifications (
     recipient VARCHAR(190) NOT NULL,
     sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (reservation_id),
+    PRIMARY KEY (
+        reservation_id,
+        reminder_date
+    ),
     INDEX invoice_reminder_date_index (
         reminder_date
     ),

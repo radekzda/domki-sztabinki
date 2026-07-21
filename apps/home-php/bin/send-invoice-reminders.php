@@ -20,6 +20,62 @@ date_default_timezone_set(
     )
 );
 
+$lockDirectory = $basePath
+    . '/storage/logs';
+
+if (
+    !is_dir($lockDirectory)
+    && !mkdir(
+        $lockDirectory,
+        0775,
+        true
+    )
+    && !is_dir($lockDirectory)
+) {
+    fwrite(
+        STDERR,
+        'BŁĄD: nie udało się utworzyć katalogu blokady procesu.'
+        . PHP_EOL
+    );
+
+    exit(1);
+}
+
+$lockPath = $lockDirectory
+    . '/invoice-reminders.lock';
+
+$lockHandle = fopen(
+    $lockPath,
+    'c'
+);
+
+if ($lockHandle === false) {
+    fwrite(
+        STDERR,
+        'BŁĄD: nie udało się otworzyć blokady procesu.'
+        . PHP_EOL
+    );
+
+    exit(1);
+}
+
+if (
+    !flock(
+        $lockHandle,
+        LOCK_EX | LOCK_NB
+    )
+) {
+    fclose($lockHandle);
+
+    fwrite(
+        STDOUT,
+        'OK: przypomnienia o fakturach są już przetwarzane.'
+        . PHP_EOL
+    );
+
+    exit(0);
+}
+
 require $basePath . '/app/Core/Database.php';
 require $basePath . '/app/Core/Mailer.php';
 require $basePath . '/app/Repositories/InvoiceSellerRepository.php';
