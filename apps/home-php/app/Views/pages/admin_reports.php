@@ -98,22 +98,7 @@ $formatReportStatus = static function (
 $formatSource = static function (
     string $source
 ): string {
-    $normalized = strtoupper(
-        trim($source)
-    );
-
-    return match ($normalized) {
-        'WWW' => 'WWW',
-        'BOOKING',
-        'BOOKING.COM' => 'Booking.com',
-        'AIRBNB' => 'Airbnb',
-        'MANUAL' => 'Ręcznie',
-        'PHONE' => 'Telefon',
-        'EMAIL' => 'E-mail',
-        'UNKNOWN',
-        '' => 'Nieznane',
-        default => $source,
-    };
+    return sourceLabelForDisplay($source);
 };
 
 $summaryCards = [

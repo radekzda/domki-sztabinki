@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 final class ReservationHistoryRepository
 {
+    private static bool $tableEnsured = false;
+
     /**
      * @return array<int, array{
      *     id: int,
@@ -170,6 +172,10 @@ final class ReservationHistoryRepository
 
     public static function ensureTable(): void
     {
+        if (self::$tableEnsured) {
+            return;
+        }
+
         $connection = Database::connection();
 
         $connection->exec(
@@ -197,6 +203,8 @@ final class ReservationHistoryRepository
             DEFAULT CHARSET=utf8mb4
             COLLATE=utf8mb4_unicode_ci'
         );
+
+        self::$tableEnsured = true;
     }
 
     /**

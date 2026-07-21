@@ -1413,6 +1413,8 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
     $form = defaultReservationForm();
     $form = reservationFormFromCalendarQuery($form);
     $inquiryId = inquiryIdFromQueryForReservation();
+    $icalEventId = icalEventIdFromQueryForReservation();
+    $sourceIcalEvent = null;
 
     if (!Database::canAttemptConnection()) {
         $databaseMessage = 'Baza danych nie jest jeszcze skonfigurowana. Formularz jest widoczny, ale zapis zostanie odblokowany po ustawieniu MySQL w pliku .env.';
@@ -1421,7 +1423,35 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
             $cabins = CabinRepository::all();
             $guests = GuestRepository::all();
 
-            if ($inquiryId !== null) {
+            if ($icalEventId !== null) {
+                $sourceIcalEvent = IcalEventRepository::find(
+                    $icalEventId
+                );
+
+                if (
+                    $sourceIcalEvent === null
+                    || (int) ($sourceIcalEvent['is_active'] ?? 0) !== 1
+                ) {
+                    $databaseMessage = 'Nie znaleziono aktywnej blokady iCal do utworzenia rezerwacji.';
+                    $sourceIcalEvent = null;
+                } else {
+                    $linkedReservationId = (int) (
+                        $sourceIcalEvent['matched_reservation_id']
+                        ?? 0
+                    );
+
+                    if ($linkedReservationId > 0) {
+                        Response::redirect(
+                            '/admin/rezerwacje/pokaz?id='
+                            . $linkedReservationId
+                        );
+                    }
+
+                    $form = reservationFormFromIcalEvent(
+                        $sourceIcalEvent
+                    );
+                }
+            } elseif ($inquiryId !== null) {
                 $inquiry = InquiryRepository::find($inquiryId);
 
                 if ($inquiry === null) {
@@ -1454,12 +1484,17 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
         'cabins' => $cabins,
         'guests' => $guests,
         'databaseMessage' => $databaseMessage,
-        'canSave' => Database::canAttemptConnection() && $cabins !== [],
+        'canSave' => Database::canAttemptConnection()
+            && $cabins !== []
+            && (
+                $icalEventId === null
+                || $sourceIcalEvent !== null
+            ),
         'calculatedNights' => null,
         'calculatedTotalPrice' => null,
+        'sourceIcalEvent' => $sourceIcalEvent,
     ]));
 });
-
 
 
 function reservationActionReturnUrlFromPost(int $id): string
@@ -1517,20 +1552,24 @@ function reservationReturnUrlFromPost(): string
 $router->post('/admin/rezerwacje/nowa', function (): void {
     $returnUrl = reservationReturnUrlFromPost();
     $inquiryId = inquiryIdFromQueryForReservation();
+    $icalEventId = icalEventIdFromQueryForReservation();
 
     Auth::requireAdmin();
     requireValidCsrf();
 
     $form = reservationFormFromPost();
-    $errors = validateReservationForm($form);
+    $errors = [];
     $cabins = [];
     $guests = [];
     $settings = defaultSettingsForm();
     $databaseMessage = null;
     $calculatedNights = null;
     $calculatedTotalPrice = null;
+    $sourceIcalEvent = null;
 
     if (!Database::canAttemptConnection()) {
+        $errors = validateReservationForm($form);
+
         Response::html(View::render('pages/admin_reservations_new', [
             'title' => 'Dodaj rezerwację',
             'form' => $form,
@@ -1541,6 +1580,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
+            'sourceIcalEvent' => null,
         ]), 422);
 
         return;
@@ -1551,7 +1591,56 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
         $guests = GuestRepository::all();
         $settings = SettingsRepository::all();
 
-        if ($inquiryId !== null) {
+        if ($icalEventId !== null) {
+            $sourceIcalEvent = IcalEventRepository::find(
+                $icalEventId
+            );
+
+            if (
+                $sourceIcalEvent === null
+                || (int) ($sourceIcalEvent['is_active'] ?? 0) !== 1
+            ) {
+                Response::html(
+                    View::render(
+                        'pages/error',
+                        [
+                            'title' => 'Nie znaleziono blokady iCal',
+                            'message' => 'Blokada iCal użyta do utworzenia rezerwacji nie istnieje albo nie jest już aktywna.',
+                        ]
+                    ),
+                    404
+                );
+
+                return;
+            }
+
+            $linkedReservationId = (int) (
+                $sourceIcalEvent['matched_reservation_id']
+                ?? 0
+            );
+
+            if ($linkedReservationId > 0) {
+                Response::redirect(
+                    '/admin/rezerwacje/pokaz?id='
+                    . $linkedReservationId
+                );
+            }
+
+            $icalForm = reservationFormFromIcalEvent(
+                $sourceIcalEvent
+            );
+
+            foreach (
+                [
+                    'cabin_id',
+                    'start_date',
+                    'end_date',
+                    'source',
+                ] as $lockedField
+            ) {
+                $form[$lockedField] = $icalForm[$lockedField];
+            }
+        } elseif ($inquiryId !== null) {
             $sourceInquiry = InquiryRepository::find(
                 $inquiryId
             );
@@ -1587,17 +1676,20 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
         Response::html(View::render('pages/admin_reservations_new', [
             'title' => 'Dodaj rezerwację',
             'form' => $form,
-            'errors' => $errors,
+            'errors' => [],
             'cabins' => [],
             'guests' => [],
             'databaseMessage' => 'Nie udało się pobrać danych do formularza: ' . AppErrorHandler::safeMessage($exception),
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
+            'sourceIcalEvent' => $sourceIcalEvent,
         ]), 500);
 
         return;
     }
+
+    $errors = validateReservationForm($form);
 
     if ($errors === []) {
         $selectedCabin = CabinRepository::find((int) $form['cabin_id']);
@@ -1621,7 +1713,9 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
                 $hasOverlap = ReservationRepository::hasBlockingOverlap(
                     (int) $form['cabin_id'],
                     $form['start_date'],
-                    $form['end_date']
+                    $form['end_date'],
+                    null,
+                    $icalEventId
                 );
 
                 if ($hasOverlap) {
@@ -1648,12 +1742,29 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
+            'sourceIcalEvent' => $sourceIcalEvent,
         ]), 422);
 
         return;
     }
 
+    $connection = Database::connection();
+    $transactionStarted = false;
+
     try {
+        if ($icalEventId !== null) {
+            ReservationHistoryRepository::ensureTable();
+            IcalEventRepository::ensureTable();
+        }
+
+        if (
+            $icalEventId !== null
+            && !$connection->inTransaction()
+        ) {
+            $connection->beginTransaction();
+            $transactionStarted = true;
+        }
+
         $selectedGuestId = $form['guest_id'] !== '' ? (int) $form['guest_id'] : null;
 
         $guestId = GuestRepository::resolveForReservation(
@@ -1692,12 +1803,41 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             )
         );
 
+        if ($icalEventId !== null) {
+            IcalEventRepository::linkReservation(
+                $icalEventId,
+                $reservationId
+            );
+        }
+
         if ($inquiryId !== null) {
             InquiryRepository::linkReservation(
                 $inquiryId,
                 $reservationId
             );
+        }
 
+        if (
+            $transactionStarted
+            && $connection->inTransaction()
+        ) {
+            $connection->commit();
+        }
+
+        if ($icalEventId !== null) {
+            $redirectUrl = '/admin/rezerwacje/pokaz?id='
+                . $reservationId
+                . '&ical_converted=1';
+
+            if ($returnUrl !== '') {
+                $redirectUrl .= '&return='
+                    . urlencode($returnUrl);
+            }
+
+            Response::redirect($redirectUrl);
+        }
+
+        if ($inquiryId !== null) {
             Response::redirect(
                 '/admin/zapytania/pokaz?id='
                 . $inquiryId
@@ -1706,11 +1846,18 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
         }
 
         if ($returnUrl !== '') {
-        Response::redirect($returnUrl);
-    }
+            Response::redirect($returnUrl);
+        }
 
-    Response::redirect('/admin/rezerwacje?created=1');
+        Response::redirect('/admin/rezerwacje?created=1');
     } catch (Throwable $exception) {
+        if (
+            $transactionStarted
+            && $connection->inTransaction()
+        ) {
+            $connection->rollBack();
+        }
+
         Response::html(View::render('pages/admin_reservations_new', [
             'title' => 'Dodaj rezerwację',
             'form' => $form,
@@ -1721,6 +1868,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
+            'sourceIcalEvent' => $sourceIcalEvent,
         ]), 500);
     }
 });

@@ -244,6 +244,9 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
                 <option value="AIRBNB" <?= $form['source'] === 'AIRBNB' ? 'selected' : '' ?>>
                     Airbnb
                 </option>
+                <option value="ICAL_OTHER" <?= $form['source'] === 'ICAL_OTHER' ? 'selected' : '' ?>>
+                    iCal — inne
+                </option>
                 <option value="BASE44" <?= $form['source'] === 'BASE44' ? 'selected' : '' ?>>
                     Base44
                 </option>

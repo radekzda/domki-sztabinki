@@ -71,6 +71,53 @@ final class IcalEventRepository
     /**
      * @return array<string, mixed>|null
      */
+    public static function find(int $id): ?array
+    {
+        self::ensureTable();
+
+        if ($id < 1) {
+            return null;
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                id,
+                cabin_id,
+                matched_reservation_id,
+                ical_uid,
+                source,
+                start_date,
+                end_date,
+                summary,
+                description,
+                event_status,
+                is_active,
+                last_seen_at,
+                created_at,
+                updated_at
+            FROM ical_events
+            WHERE id = :id
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'id' => $id,
+        ]);
+
+        $row = $statement->fetch();
+
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return $row;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
     public static function findByUid(
         int $cabinId,
         string $uid
@@ -715,11 +762,107 @@ final class IcalEventRepository
         ];
     }
 
+    public static function linkReservation(
+        int $icalEventId,
+        int $reservationId
+    ): void {
+        self::ensureTable();
+
+        if (
+            $icalEventId < 1
+            || $reservationId < 1
+        ) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowe powiązanie wydarzenia iCal z rezerwacją.'
+            );
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                ie.id AS ical_event_id,
+                ie.cabin_id AS ical_cabin_id,
+                ie.matched_reservation_id,
+                ie.start_date AS ical_start_date,
+                ie.end_date AS ical_end_date,
+                ie.is_active,
+                r.id AS reservation_id,
+                r.cabin_id AS reservation_cabin_id,
+                r.start_date AS reservation_start_date,
+                r.end_date AS reservation_end_date
+            FROM ical_events ie
+            INNER JOIN reservations r
+                ON r.id = :reservation_id
+            WHERE ie.id = :ical_event_id
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'ical_event_id' => $icalEventId,
+            'reservation_id' => $reservationId,
+        ]);
+
+        $row = $statement->fetch();
+
+        if (!is_array($row)) {
+            throw new RuntimeException(
+                'Nie znaleziono wydarzenia iCal albo rezerwacji do powiązania.'
+            );
+        }
+
+        if ((int) ($row['is_active'] ?? 0) !== 1) {
+            throw new RuntimeException(
+                'Nie można utworzyć rezerwacji z nieaktywnej blokady iCal.'
+            );
+        }
+
+        $existingReservationId = isset(
+            $row['matched_reservation_id']
+        ) && $row['matched_reservation_id'] !== null
+            ? (int) $row['matched_reservation_id']
+            : null;
+
+        if (
+            $existingReservationId !== null
+            && $existingReservationId !== $reservationId
+        ) {
+            throw new RuntimeException(
+                'Ta blokada iCal jest już powiązana z inną rezerwacją.'
+            );
+        }
+
+        if (
+            (int) ($row['ical_cabin_id'] ?? 0)
+                !== (int) ($row['reservation_cabin_id'] ?? 0)
+            || (string) ($row['ical_start_date'] ?? '')
+                !== (string) ($row['reservation_start_date'] ?? '')
+            || (string) ($row['ical_end_date'] ?? '')
+                !== (string) ($row['reservation_end_date'] ?? '')
+        ) {
+            throw new RuntimeException(
+                'Domek i termin rezerwacji muszą odpowiadać blokadzie iCal.'
+            );
+        }
+
+        $update = $connection->prepare(
+            'UPDATE ical_events
+            SET matched_reservation_id = :reservation_id
+            WHERE id = :ical_event_id'
+        );
+
+        $update->execute([
+            'reservation_id' => $reservationId,
+            'ical_event_id' => $icalEventId,
+        ]);
+    }
+
     public static function hasBlockingOverlap(
         int $cabinId,
         string $startDate,
         string $endDate,
-        ?int $ignoreReservationId = null
+        ?int $ignoreReservationId = null,
+        ?int $ignoreIcalEventId = null
     ): bool {
         self::ensureTable();
 
@@ -750,6 +893,12 @@ final class IcalEventRepository
 
             $params['ignore_reservation_id'] =
                 $ignoreReservationId;
+        }
+
+        if ($ignoreIcalEventId !== null) {
+            $sql .= ' AND id <> :ignore_ical_event_id';
+            $params['ignore_ical_event_id'] =
+                $ignoreIcalEventId;
         }
 
         $statement = $connection->prepare(

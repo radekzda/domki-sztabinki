@@ -435,7 +435,8 @@ final class ReservationRepository
         int $cabinId,
         string $startDate,
         string $endDate,
-        ?int $ignoreReservationId = null
+        ?int $ignoreReservationId = null,
+        ?int $ignoreIcalEventId = null
     ): bool {
         $connection = Database::connection();
 
@@ -477,7 +478,8 @@ final class ReservationRepository
             $cabinId,
             $startDate,
             $endDate,
-            $ignoreReservationId
+            $ignoreReservationId,
+            $ignoreIcalEventId
         );
     }
 

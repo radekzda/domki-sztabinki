@@ -2245,18 +2245,39 @@ $summaryCards = [
                                                         <?php if ($isIcalBar): ?>
                                                             <?php
                                                             $icalSource = strtoupper(trim((string) ($bar['source'] ?? 'ICAL')));
-                                                            $icalLabel = $icalSource === '' || $icalSource === 'ICAL'
-                                                                ? 'iCal'
-                                                                : ucfirst(strtolower($icalSource)) . ' / iCal';
+                                                            $icalLabel = match ($icalSource) {
+                                                                'BOOKING' => 'Booking / iCal',
+                                                                'AIRBNB' => 'Airbnb / iCal',
+                                                                'OTHER',
+                                                                'ICAL',
+                                                                '' => 'iCal — inne',
+                                                                default => $icalSource . ' / iCal',
+                                                            };
                                                             $icalStart = (string) ($bar['start_date'] ?? '');
                                                             $icalEnd = (string) ($bar['end_date'] ?? '');
                                                             ?>
 
-                                                            <div
+                                                            <?php
+                                                            $icalEventId = (int) (
+                                                                $bar['ical_event_id']
+                                                                ?? 0
+                                                            );
+
+                                                            $icalReservationUrl =
+                                                                '/admin/rezerwacje/nowa?ical_event_id='
+                                                                . $icalEventId
+                                                                . '&return='
+                                                                . urlencode(
+                                                                    '/admin/kalendarz?month='
+                                                                    . $monthStart->format('Y-m')
+                                                                );
+                                                            ?>
+
+                                                            <a
                                                                 class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
                                                                 style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
-                                                                role="note"
-                                                                aria-label="<?= htmlspecialchars('Zewnętrzna blokada ' . $icalLabel, ENT_QUOTES, 'UTF-8') ?>"
+                                                                href="<?= htmlspecialchars($icalReservationUrl, ENT_QUOTES, 'UTF-8') ?>"
+                                                                aria-label="<?= htmlspecialchars('Uzupełnij dane rezerwacji z ' . $icalLabel, ENT_QUOTES, 'UTF-8') ?>"
                                                             >
                                                                 <span class="pms-calendar-bar__line pms-calendar-bar__guest">
                                                                     <?= htmlspecialchars($icalLabel, ENT_QUOTES, 'UTF-8') ?>
@@ -2267,14 +2288,14 @@ $summaryCards = [
                                                                 </span>
 
                                                                 <span class="pms-calendar-bar__line">
-                                                                    Blokada zewnętrzna
+                                                                    Kliknij i uzupełnij dane
                                                                 </span>
 
                                                                 <span class="pms-calendar-tooltip">
                                                                     <strong><?= htmlspecialchars($icalLabel, ENT_QUOTES, 'UTF-8') ?></strong>
 
                                                                     <small class="pms-calendar-tooltip__subline">
-                                                                        Zewnętrzna blokada dostępności
+                                                                        Kliknij, aby utworzyć pełną rezerwację i dodać dane gościa.
                                                                     </small>
 
                                                                     <span>
@@ -2292,7 +2313,7 @@ $summaryCards = [
                                                                         <b>Blokada iCal</b>
                                                                     </span>
                                                                 </span>
-                                                            </div>
+                                                            </a>
                                                         <?php else: ?>
                                                             <?php
                                                             $barReservation = is_array($bar['reservation'] ?? null)

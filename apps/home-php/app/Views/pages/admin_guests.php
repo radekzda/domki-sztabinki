@@ -373,7 +373,7 @@ declare(strict_types=1);
 
                                             <td>
                                                 <span class="guest-list-muted">
-                                                    <?= htmlspecialchars($guest['source'], ENT_QUOTES, 'UTF-8') ?>
+                                                    <?= htmlspecialchars(sourceLabelForDisplay((string) $guest['source']), ENT_QUOTES, 'UTF-8') ?>
                                                 </span>
                                             </td>
 

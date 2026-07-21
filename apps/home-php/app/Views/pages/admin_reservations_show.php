@@ -266,6 +266,13 @@ $displayDateTime = static function (mixed $value): string {
                     </div>
 
 
+                    <?php if (isset($_GET['ical_converted'])): ?>
+                        <div class="alert alert--success">
+                            Blokada iCal została powiązana z pełną rezerwacją.
+                            Dane gościa i gotowe wiadomości są teraz dostępne w tej rezerwacji.
+                        </div>
+                    <?php endif; ?>
+
                     <?php if (
                         isset($_GET['invoice_created'])
                     ): ?>
@@ -464,7 +471,12 @@ $displayDateTime = static function (mixed $value): string {
                             <span>Powiązany domek</span>
                             <strong>
                                 <a href="/admin/domki/edytuj?id=<?= htmlspecialchars((string) $reservation['cabin_id'], ENT_QUOTES, 'UTF-8') ?>">
-                                    Domek #<?= htmlspecialchars((string) $reservation['cabin_id'], ENT_QUOTES, 'UTF-8') ?>
+                                    <?= htmlspecialchars(
+                                        $reservation['cabin_name']
+                                        ?? 'Domek #' . $reservation['cabin_id'],
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
                                 </a>
                             </strong>
                         </div>
@@ -528,7 +540,7 @@ $displayDateTime = static function (mixed $value): string {
 
                         <div class="status-row">
                             <span>Źródło</span>
-                            <strong><?= htmlspecialchars($reservation['source'], ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars(sourceLabelForDisplay((string) $reservation['source']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">

@@ -39,10 +39,13 @@ declare(strict_types=1);
  * @var bool $canSave
  * @var string $action
  * @var string $submitLabel
+ * @var bool $lockIcalSourceFields
  */
 
 $actionValue = isset($action) && is_string($action) ? $action : '';
 $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabel : 'Zapisz rezerwację';
+$lockIcalSourceFieldsValue = isset($lockIcalSourceFields)
+    && $lockIcalSourceFields === true;
 $returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
 
 if ($returnUrl === '' && isset($_POST['return_url']) && is_string($_POST['return_url'])) {
@@ -96,7 +99,12 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
 
         <div class="form-field form-field--full">
             <label for="cabin_id">Domek</label>
-            <select id="cabin_id" name="cabin_id" required>
+            <select
+                id="cabin_id"
+                name="cabin_id"
+                required
+                <?= $lockIcalSourceFieldsValue ? 'disabled' : '' ?>
+            >
                 <option value="">Wybierz domek</option>
 
                 <?php foreach ($cabins as $cabin): ?>
@@ -117,12 +125,24 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 <?php endforeach; ?>
             </select>
 
+            <?php if ($lockIcalSourceFieldsValue): ?>
+                <input
+                    type="hidden"
+                    name="cabin_id"
+                    value="<?= htmlspecialchars($form['cabin_id'], ENT_QUOTES, 'UTF-8') ?>"
+                >
+            <?php endif; ?>
+
             <?php if (isset($errors['cabin_id'])): ?>
                 <span class="form-error"><?= htmlspecialchars($errors['cabin_id'], ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
 
             <span class="form-hint">
-                Łączna liczba dorosłych i dzieci nie może przekroczyć maksymalnej liczby osób dla wybranego domku.
+                <?php if ($lockIcalSourceFieldsValue): ?>
+                    Domek pochodzi z blokady iCal i nie może być zmieniony podczas jej przekształcania w rezerwację.
+                <?php else: ?>
+                    Łączna liczba dorosłych i dzieci nie może przekroczyć maksymalnej liczby osób dla wybranego domku.
+                <?php endif; ?>
             </span>
         </div>
 
@@ -134,6 +154,7 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 type="date"
                 value="<?= htmlspecialchars($form['start_date'], ENT_QUOTES, 'UTF-8') ?>"
                 required
+                <?= $lockIcalSourceFieldsValue ? 'readonly' : '' ?>
             >
 
             <?php if (isset($errors['start_date'])): ?>
@@ -149,6 +170,7 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 type="date"
                 value="<?= htmlspecialchars($form['end_date'], ENT_QUOTES, 'UTF-8') ?>"
                 required
+                <?= $lockIcalSourceFieldsValue ? 'readonly' : '' ?>
             >
 
             <?php if (isset($errors['end_date'])): ?>
@@ -379,7 +401,11 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
 
         <div class="form-field">
             <label for="source">Źródło</label>
-            <select id="source" name="source">
+            <select
+                id="source"
+                name="source"
+                <?= $lockIcalSourceFieldsValue ? 'disabled' : '' ?>
+            >
                 <option value="MANUAL" <?= $form['source'] === 'MANUAL' ? 'selected' : '' ?>>
                     Ręcznie
                 </option>
@@ -395,7 +421,18 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 <option value="AIRBNB" <?= $form['source'] === 'AIRBNB' ? 'selected' : '' ?>>
                     Airbnb
                 </option>
+                <option value="ICAL_OTHER" <?= $form['source'] === 'ICAL_OTHER' ? 'selected' : '' ?>>
+                    iCal — inne
+                </option>
             </select>
+
+            <?php if ($lockIcalSourceFieldsValue): ?>
+                <input
+                    type="hidden"
+                    name="source"
+                    value="<?= htmlspecialchars($form['source'], ENT_QUOTES, 'UTF-8') ?>"
+                >
+            <?php endif; ?>
 
             <?php if (isset($errors['source'])): ?>
                 <span class="form-error"><?= htmlspecialchars($errors['source'], ENT_QUOTES, 'UTF-8') ?></span>

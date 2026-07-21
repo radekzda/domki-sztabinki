@@ -463,7 +463,7 @@ $paymentLabels = [
 
                                                 <div class="reservation-meta">
                                                     Źródło:
-                                                    <strong><?= htmlspecialchars($reservation['source'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                                    <strong><?= htmlspecialchars(sourceLabelForDisplay((string) $reservation['source']), ENT_QUOTES, 'UTF-8') ?></strong>
                                                 </div>
                                             </td>
 

@@ -643,6 +643,80 @@ function reservationFormFromCalendarQuery(array $form): array
     return $form;
 }
 
+function sourceLabelForDisplay(string $source): string
+{
+    $normalized = strtoupper(
+        trim($source)
+    );
+
+    return match ($normalized) {
+        'MANUAL' => 'Ręcznie',
+        'WWW' => 'Strona WWW',
+        'BOOKING',
+        'BOOKING.COM' => 'Booking.com',
+        'PHONE' => 'Telefon',
+        'AIRBNB' => 'Airbnb',
+        'ICAL_OTHER',
+        'OTHER',
+        'ICAL' => 'iCal — inne',
+        'EMAIL' => 'E-mail',
+        'BASE44' => 'Base44',
+        'UNKNOWN',
+        '' => 'Nieznane',
+        default => $source,
+    };
+}
+
+function reservationFormFromIcalEvent(array $event): array
+{
+    $form = defaultReservationForm();
+
+    $source = strtoupper(
+        trim(
+            (string) (
+                $event['source']
+                ?? 'BOOKING'
+            )
+        )
+    );
+
+    $source = match ($source) {
+        'BOOKING' => 'BOOKING',
+        'AIRBNB' => 'AIRBNB',
+        'OTHER',
+        'ICAL',
+        'ICAL_OTHER' => 'ICAL_OTHER',
+        default => 'ICAL_OTHER',
+    };
+
+    $form['cabin_id'] = (string) (
+        $event['cabin_id']
+        ?? ''
+    );
+    $form['start_date'] = substr(
+        (string) (
+            $event['start_date']
+            ?? ''
+        ),
+        0,
+        10
+    );
+    $form['end_date'] = substr(
+        (string) (
+            $event['end_date']
+            ?? ''
+        ),
+        0,
+        10
+    );
+    $form['status'] = 'CONFIRMED';
+    $form['payment_status'] = 'PENDING';
+    $form['paid_amount'] = '0';
+    $form['source'] = $source;
+
+    return $form;
+}
+
 function reservationFormFromInquiry(array $inquiry): array
 {
     $form = defaultReservationForm();
@@ -807,6 +881,7 @@ function validateReservationForm(array $form): array
         'BOOKING',
         'PHONE',
         'AIRBNB',
+        'ICAL_OTHER',
     ];
 
     if (!in_array($form['source'], $allowedSources, true)) {
@@ -1299,6 +1374,7 @@ function validateGuestForm(array $form): array
         'BOOKING',
         'PHONE',
         'AIRBNB',
+        'ICAL_OTHER',
         'BASE44',
     ];
 
@@ -1445,6 +1521,23 @@ function inquiryIdFromPost(): ?int
 function inquiryIdFromQueryForReservation(): ?int
 {
     $value = $_GET['inquiry_id'] ?? null;
+
+    if (!is_string($value) && !is_int($value)) {
+        return null;
+    }
+
+    $id = filter_var($value, FILTER_VALIDATE_INT);
+
+    if (!is_int($id) || $id < 1) {
+        return null;
+    }
+
+    return $id;
+}
+
+function icalEventIdFromQueryForReservation(): ?int
+{
+    $value = $_GET['ical_event_id'] ?? null;
 
     if (!is_string($value) && !is_int($value)) {
         return null;

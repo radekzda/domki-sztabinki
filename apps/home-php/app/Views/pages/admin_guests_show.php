@@ -429,7 +429,7 @@ $displayDate = static function (mixed $value): string {
 
                         <div class="status-row">
                             <span>Źródło</span>
-                            <strong><?= htmlspecialchars((string) $guest['source'], ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars(sourceLabelForDisplay((string) $guest['source']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">

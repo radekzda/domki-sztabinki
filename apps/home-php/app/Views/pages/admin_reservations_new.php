@@ -41,6 +41,7 @@ declare(strict_types=1);
  * @var bool $canSave
  * @var int|null $calculatedNights
  * @var int|null $calculatedTotalPrice
+ * @var array<string, mixed>|null $sourceIcalEvent
  */
 
 $returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
@@ -56,11 +57,47 @@ $inquiryId = filter_var(
     FILTER_VALIDATE_INT
 );
 
+$icalEventId = filter_var(
+    $_GET['ical_event_id'] ?? null,
+    FILTER_VALIDATE_INT
+);
+
 $reservationCreateAction = '/admin/rezerwacje/nowa';
 
 if (is_int($inquiryId) && $inquiryId > 0) {
     $reservationCreateAction .= '?inquiry_id='
         . $inquiryId;
+} elseif (is_int($icalEventId) && $icalEventId > 0) {
+    $reservationCreateAction .= '?ical_event_id='
+        . $icalEventId;
+}
+
+$sourceIcalEventValue = isset($sourceIcalEvent)
+    && is_array($sourceIcalEvent)
+        ? $sourceIcalEvent
+        : null;
+
+$isIcalReservation = $sourceIcalEventValue !== null;
+
+$icalSourceLabel = '';
+
+if ($isIcalReservation) {
+    $icalSource = strtoupper(
+        trim(
+            (string) (
+                $sourceIcalEventValue['source']
+                ?? 'ICAL'
+            )
+        )
+    );
+
+    $icalSourceLabel = $icalSource === 'BOOKING'
+        ? 'Booking / iCal'
+        : (
+            $icalSource === 'AIRBNB'
+                ? 'Airbnb / iCal'
+                : 'iCal'
+        );
 }
 ?>
 <section class="page-section">
@@ -77,8 +114,12 @@ if (is_int($inquiryId) && $inquiryId > 0) {
                             <h1>Dodaj rezerwację</h1>
 
                             <p>
-                                Dodaj pobyt ręcznie. System wyliczy liczbę nocy i domyślną cenę według cennika domku.
-                                Jeżeli nie wybierzesz gościa, zostanie znaleziony po e-mailu albo utworzony automatycznie.
+                                <?php if ($isIcalReservation): ?>
+                                    Uzupełnij dane gościa dla rezerwacji zaimportowanej z kalendarza zewnętrznego.
+                                <?php else: ?>
+                                    Dodaj pobyt ręcznie. System wyliczy liczbę nocy i domyślną cenę według cennika domku.
+                                    Jeżeli nie wybierzesz gościa, zostanie znaleziony po e-mailu albo utworzony automatycznie.
+                                <?php endif; ?>
                             </p>
                         </div>
 
@@ -96,6 +137,15 @@ if (is_int($inquiryId) && $inquiryId > 0) {
                             </a>
                         </div>
                     </div>
+
+                    <?php if ($isIcalReservation): ?>
+                        <div class="alert alert--success">
+                            <strong>Rezerwacja z <?= htmlspecialchars($icalSourceLabel, ENT_QUOTES, 'UTF-8') ?></strong><br>
+                            Domek i termin zostały pobrane z blokady iCal i są zablokowane przed zmianą.
+                            Uzupełnij imię, nazwisko, telefon, e-mail oraz liczbę osób.
+                            Po zapisaniu blokada zostanie powiązana z pełną rezerwacją.
+                        </div>
+                    <?php endif; ?>
 
                     <?php if (isset($databaseMessage) && is_string($databaseMessage) && $databaseMessage !== ''): ?>
                         <div class="alert alert--warning">
@@ -128,6 +178,7 @@ if (is_int($inquiryId) && $inquiryId > 0) {
                         'canSave' => $canSave,
                         'action' => $reservationCreateAction,
                         'submitLabel' => 'Zapisz rezerwację',
+                        'lockIcalSourceFields' => $isIcalReservation,
                     ]);
                     ?>
                 </div>
