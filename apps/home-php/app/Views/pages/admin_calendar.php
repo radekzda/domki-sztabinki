@@ -9,6 +9,7 @@ declare(strict_types=1);
 $databaseMessage = null;
 $cabins = [];
 $reservations = [];
+$availabilityPeriods = [];
 
 $requestedMonth = isset($_GET['month'])
     ? (string) $_GET['month']
@@ -95,10 +96,15 @@ if (!Database::canAttemptConnection()) {
         }
 
         $reservations = ReservationRepository::all();
+        $availabilityPeriods = AvailabilityRepository::calendarPeriods(
+            $monthStartString,
+            $monthEndString
+        );
     } catch (Throwable $exception) {
         $databaseMessage = 'Nie udało się pobrać danych kalendarza: ' . AppErrorHandler::safeMessage($exception);
         $cabins = [];
         $reservations = [];
+        $availabilityPeriods = [];
     }
 }
 
@@ -109,6 +115,7 @@ $statusLabels = [
     'CHECKED_OUT' => 'Wymeldowany',
     'COMPLETED' => 'Wymeldowany',
     'CANCELLED' => 'Anulowana',
+    'ICAL' => 'Blokada iCal',
 ];
 
 $statusClasses = [
@@ -118,6 +125,7 @@ $statusClasses = [
     'CHECKED_OUT' => 'calendar-status--checked-out',
     'COMPLETED' => 'calendar-status--checked-out',
     'CANCELLED' => 'calendar-status--cancelled',
+    'ICAL' => 'calendar-status--ical',
 ];
 
 $blockingStatuses = [
@@ -303,11 +311,65 @@ foreach ($barReservations as $reservation) {
     $widthPercent = (($visibleEndMoment->getTimestamp() - $visibleStartMoment->getTimestamp()) / $totalMonthSeconds) * 100;
 
     $calendarBarsByCabin[$reservationCabinId][] = [
+        'kind' => 'RESERVATION',
         'reservation' => $reservation,
         'left_percent' => max(0, min(100, $leftPercent)),
         'width_percent' => max(0.35, min(100, $widthPercent)),
         'starts_before_month' => $reservationStartMoment < $monthStartMoment,
         'ends_after_month' => $reservationEndMoment > $monthEndMoment,
+    ];
+}
+
+foreach ($availabilityPeriods as $period) {
+    if ((string) ($period['kind'] ?? '') !== 'ICAL') {
+        continue;
+    }
+
+    $cabinId = (int) ($period['cabin_id'] ?? 0);
+    $startDate = substr((string) ($period['start_date'] ?? ''), 0, 10);
+    $endDate = substr((string) ($period['end_date'] ?? ''), 0, 10);
+    $source = strtoupper(trim((string) ($period['source'] ?? 'ICAL')));
+
+    if (!isset($calendarBarsByCabin[$cabinId])) {
+        continue;
+    }
+
+    if ($startDate === '' || $endDate === '') {
+        continue;
+    }
+
+    try {
+        $startMoment = new DateTimeImmutable($startDate . ' 00:00:00');
+        $endMoment = new DateTimeImmutable($endDate . ' 00:00:00');
+    } catch (Throwable $exception) {
+        continue;
+    }
+
+    $visibleStartMoment = $startMoment < $monthStartMoment
+        ? $monthStartMoment
+        : $startMoment;
+
+    $visibleEndMoment = $endMoment > $monthEndMoment
+        ? $monthEndMoment
+        : $endMoment;
+
+    if ($visibleEndMoment <= $visibleStartMoment) {
+        continue;
+    }
+
+    $leftPercent = (($visibleStartMoment->getTimestamp() - $monthStartMoment->getTimestamp()) / $totalMonthSeconds) * 100;
+    $widthPercent = (($visibleEndMoment->getTimestamp() - $visibleStartMoment->getTimestamp()) / $totalMonthSeconds) * 100;
+
+    $calendarBarsByCabin[$cabinId][] = [
+        'kind' => 'ICAL',
+        'source' => $source !== '' ? $source : 'ICAL',
+        'start_date' => $startDate,
+        'end_date' => $endDate,
+        'ical_event_id' => (int) ($period['ical_event_id'] ?? 0),
+        'left_percent' => max(0, min(100, $leftPercent)),
+        'width_percent' => max(0.35, min(100, $widthPercent)),
+        'starts_before_month' => $startMoment < $monthStartMoment,
+        'ends_after_month' => $endMoment > $monthEndMoment,
     ];
 }
 
@@ -407,6 +469,7 @@ $reservationBarClass = static function (array $reservation): string {
         'CONFIRMED' => 'calendar-status--confirmed',
         'CHECKED_IN' => 'calendar-status--checked-in',
         'CHECKED_OUT', 'COMPLETED' => 'calendar-status--checked-out',
+        'ICAL' => 'calendar-status--ical',
         default => 'calendar-status--pending',
     };
 };
@@ -1025,6 +1088,11 @@ $summaryCards = [
 
     .calendar-status--cancelled {
         display: none;
+    }
+
+    .calendar-status--ical {
+        background: #7c3aed;
+        color: #ffffff;
     }
 
     .pms-calendar-table-wrap {
@@ -2146,10 +2214,18 @@ $summaryCards = [
 
                                                     <?php foreach ($cabinBars as $bar): ?>
                                                         <?php
-                                                        $barReservation = $bar['reservation'];
-                                                        $reservationId = (int) ($barReservation['id'] ?? 0);
-                                                        $reservationStatus = (string) ($barReservation['status'] ?? '');
-                                                        $barClass = 'pms-calendar-bar ' . $reservationBarClass($barReservation);
+                                                        $barKind = (string) ($bar['kind'] ?? 'RESERVATION');
+                                                        $isIcalBar = $barKind === 'ICAL';
+                                                        $barClass = 'pms-calendar-bar';
+
+                                                        if ($isIcalBar) {
+                                                            $barClass .= ' calendar-status--ical';
+                                                        } else {
+                                                            $barReservation = is_array($bar['reservation'] ?? null)
+                                                                ? $bar['reservation']
+                                                                : [];
+                                                            $barClass .= ' ' . $reservationBarClass($barReservation);
+                                                        }
 
                                                         if ((bool) ($bar['starts_before_month'] ?? false)) {
                                                             $barClass .= ' pms-calendar-bar--continues-left';
@@ -2159,93 +2235,154 @@ $summaryCards = [
                                                             $barClass .= ' pms-calendar-bar--continues-right';
                                                         }
 
-                                                        $remainingAmount = max(
-                                                            (float) ($barReservation['total_price'] ?? 0) - (float) ($barReservation['paid_amount'] ?? 0),
-                                                            0
-                                                        );
-
                                                         $barStyle = 'left: '
                                                             . number_format((float) $bar['left_percent'], 4, '.', '')
                                                             . '%; width: '
                                                             . number_format((float) $bar['width_percent'], 4, '.', '')
                                                             . '%;';
                                                         ?>
-                                                        <a
-                                                            class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
-                                                            style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
-                                                            href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
-                                                        >
-                                                            <span class="pms-calendar-bar__line pms-calendar-bar__guest">
-                                                                <?= htmlspecialchars($reservationGuestName($barReservation), ENT_QUOTES, 'UTF-8') ?>
-                                                            </span>
 
-                                                            <span class="pms-calendar-bar__line">
-                                                                <?= htmlspecialchars(formatMoneyForDisplay($barReservation['total_price'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
-                                                                /
-                                                                poz.
-                                                                <?= htmlspecialchars(formatMoneyForDisplay($remainingAmount), ENT_QUOTES, 'UTF-8') ?>
-                                                            </span>
+                                                        <?php if ($isIcalBar): ?>
+                                                            <?php
+                                                            $icalSource = strtoupper(trim((string) ($bar['source'] ?? 'ICAL')));
+                                                            $icalLabel = $icalSource === '' || $icalSource === 'ICAL'
+                                                                ? 'iCal'
+                                                                : ucfirst(strtolower($icalSource)) . ' / iCal';
+                                                            $icalStart = (string) ($bar['start_date'] ?? '');
+                                                            $icalEnd = (string) ($bar['end_date'] ?? '');
+                                                            ?>
 
-                                                            <span class="pms-calendar-bar__line">
-                                                                os.:
-                                                                <?= htmlspecialchars((string) ($barReservation['guests'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
-                                                                |
-                                                                dor.:
-                                                                <?= htmlspecialchars((string) ($barReservation['adults'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
-                                                                |
-                                                                dz.:
-                                                                <?= htmlspecialchars((string) ($barReservation['children'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
-                                                            </span>
-
-                                                            <span class="pms-calendar-tooltip">
-                                                                <strong><?= htmlspecialchars($reservationGuestName($barReservation), ENT_QUOTES, 'UTF-8') ?></strong>
-
-                                                                <small class="pms-calendar-tooltip__subline">
-                                                                    <?= htmlspecialchars($reservationAddressLine($barReservation), ENT_QUOTES, 'UTF-8') ?>
-                                                                </small>
-
-                                                                <small class="pms-calendar-tooltip__subline">
-                                                                    <?= htmlspecialchars($reservationPhoneLine($barReservation), ENT_QUOTES, 'UTF-8') ?>
-                                                                </small>
-
-                                                                <span>
-                                                                    <em>Zameldowanie</em>
-                                                                    <b><?= htmlspecialchars($formatDateTime($barReservation['check_in_at'] ?? null), ENT_QUOTES, 'UTF-8') ?></b>
+                                                            <div
+                                                                class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
+                                                                style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
+                                                                role="note"
+                                                                aria-label="<?= htmlspecialchars('Zewnętrzna blokada ' . $icalLabel, ENT_QUOTES, 'UTF-8') ?>"
+                                                            >
+                                                                <span class="pms-calendar-bar__line pms-calendar-bar__guest">
+                                                                    <?= htmlspecialchars($icalLabel, ENT_QUOTES, 'UTF-8') ?>
                                                                 </span>
 
-                                                                <span>
-                                                                    <em>Wymeldowanie</em>
-                                                                    <b><?= htmlspecialchars($formatDateTime($barReservation['check_out_at'] ?? null), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                <span class="pms-calendar-bar__line">
+                                                                    Zajęte
                                                                 </span>
 
-                                                                <span>
-                                                                    <em>Osoby</em>
-                                                                    <b>
-                                                                        <?= htmlspecialchars((string) ($barReservation['guests'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
-                                                                        /
-                                                                        dor.:
-                                                                        <?= htmlspecialchars((string) ($barReservation['adults'] ?? 0), ENT_QUOTES, 'UTF-8') ?>,
-                                                                        dzieci:
-                                                                        <?= htmlspecialchars((string) ($barReservation['children'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
-                                                                    </b>
+                                                                <span class="pms-calendar-bar__line">
+                                                                    Blokada zewnętrzna
                                                                 </span>
 
-                                                                <span>
-                                                                    <em>Wartość</em>
-                                                                    <b><?= htmlspecialchars(formatMoneyForDisplay($barReservation['total_price'] ?? 0), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                <span class="pms-calendar-tooltip">
+                                                                    <strong><?= htmlspecialchars($icalLabel, ENT_QUOTES, 'UTF-8') ?></strong>
+
+                                                                    <small class="pms-calendar-tooltip__subline">
+                                                                        Zewnętrzna blokada dostępności
+                                                                    </small>
+
+                                                                    <span>
+                                                                        <em>Od</em>
+                                                                        <b><?= htmlspecialchars($formatDate($icalStart), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Do</em>
+                                                                        <b><?= htmlspecialchars($formatDate($icalEnd), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Status</em>
+                                                                        <b>Blokada iCal</b>
+                                                                    </span>
+                                                                </span>
+                                                            </div>
+                                                        <?php else: ?>
+                                                            <?php
+                                                            $barReservation = is_array($bar['reservation'] ?? null)
+                                                                ? $bar['reservation']
+                                                                : [];
+                                                            $reservationId = (int) ($barReservation['id'] ?? 0);
+                                                            $reservationStatus = (string) ($barReservation['status'] ?? '');
+                                                            $remainingAmount = max(
+                                                                (float) ($barReservation['total_price'] ?? 0) - (float) ($barReservation['paid_amount'] ?? 0),
+                                                                0
+                                                            );
+                                                            ?>
+
+                                                            <a
+                                                                class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
+                                                                style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
+                                                                href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
+                                                            >
+                                                                <span class="pms-calendar-bar__line pms-calendar-bar__guest">
+                                                                    <?= htmlspecialchars($reservationGuestName($barReservation), ENT_QUOTES, 'UTF-8') ?>
                                                                 </span>
 
-                                                                <span>
-                                                                    <em>Pozostało</em>
-                                                                    <b><?= htmlspecialchars(formatMoneyForDisplay($remainingAmount), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                <span class="pms-calendar-bar__line">
+                                                                    <?= htmlspecialchars(formatMoneyForDisplay($barReservation['total_price'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
+                                                                    /
+                                                                    poz.
+                                                                    <?= htmlspecialchars(formatMoneyForDisplay($remainingAmount), ENT_QUOTES, 'UTF-8') ?>
                                                                 </span>
 
-                                                                <span>
-                                                                    <em>Status</em>
-                                                                    <b><?= htmlspecialchars($statusLabel($reservationStatus), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                <span class="pms-calendar-bar__line">
+                                                                    os.:
+                                                                    <?= htmlspecialchars((string) ($barReservation['guests'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
+                                                                    |
+                                                                    dor.:
+                                                                    <?= htmlspecialchars((string) ($barReservation['adults'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
+                                                                    |
+                                                                    dz.:
+                                                                    <?= htmlspecialchars((string) ($barReservation['children'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
                                                                 </span>
-                                                            </span>
-                                                        </a>
+
+                                                                <span class="pms-calendar-tooltip">
+                                                                    <strong><?= htmlspecialchars($reservationGuestName($barReservation), ENT_QUOTES, 'UTF-8') ?></strong>
+
+                                                                    <small class="pms-calendar-tooltip__subline">
+                                                                        <?= htmlspecialchars($reservationAddressLine($barReservation), ENT_QUOTES, 'UTF-8') ?>
+                                                                    </small>
+
+                                                                    <small class="pms-calendar-tooltip__subline">
+                                                                        <?= htmlspecialchars($reservationPhoneLine($barReservation), ENT_QUOTES, 'UTF-8') ?>
+                                                                    </small>
+
+                                                                    <span>
+                                                                        <em>Zameldowanie</em>
+                                                                        <b><?= htmlspecialchars($formatDateTime($barReservation['check_in_at'] ?? null), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Wymeldowanie</em>
+                                                                        <b><?= htmlspecialchars($formatDateTime($barReservation['check_out_at'] ?? null), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Osoby</em>
+                                                                        <b>
+                                                                            <?= htmlspecialchars((string) ($barReservation['guests'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
+                                                                            /
+                                                                            dor.:
+                                                                            <?= htmlspecialchars((string) ($barReservation['adults'] ?? 0), ENT_QUOTES, 'UTF-8') ?>,
+                                                                            dzieci:
+                                                                            <?= htmlspecialchars((string) ($barReservation['children'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
+                                                                        </b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Wartość</em>
+                                                                        <b><?= htmlspecialchars(formatMoneyForDisplay($barReservation['total_price'] ?? 0), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Pozostało</em>
+                                                                        <b><?= htmlspecialchars(formatMoneyForDisplay($remainingAmount), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Status</em>
+                                                                        <b><?= htmlspecialchars($statusLabel($reservationStatus), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+                                                                </span>
+                                                            </a>
+                                                        <?php endif; ?>
                                                     <?php endforeach; ?>
                                                 </div>
                                             </td>
@@ -2282,6 +2419,11 @@ $summaryCards = [
                         <span class="pms-calendar-legend__item">
                             <i class="pms-calendar-legend__dot calendar-status--checked-out"></i>
                             Wymeldowany
+                        </span>
+
+                        <span class="pms-calendar-legend__item">
+                            <i class="pms-calendar-legend__dot calendar-status--ical"></i>
+                            Booking / iCal
                         </span>
 
                         <span class="pms-calendar-legend__item">

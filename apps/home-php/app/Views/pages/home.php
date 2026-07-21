@@ -162,19 +162,18 @@ if (!Database::canAttemptConnection()) {
 
     try {
         $today = date('Y-m-d');
-        $reservations = ReservationRepository::all();
+        $availabilityPeriods = AvailabilityRepository::blockingPeriods(
+            $availabilityWindowStartString,
+            $availabilityWindowEndString
+        );
 
-        foreach ($reservations as $reservation) {
-            $cabinId = (int) ($reservation['cabin_id'] ?? 0);
-            $status = (string) ($reservation['status'] ?? '');
-            $startDate = substr((string) ($reservation['start_date'] ?? ''), 0, 10);
-            $endDate = substr((string) ($reservation['end_date'] ?? ''), 0, 10);
+        foreach ($availabilityPeriods as $period) {
+            $cabinId = (int) ($period['cabin_id'] ?? 0);
+            $status = (string) ($period['status'] ?? '');
+            $startDate = substr((string) ($period['start_date'] ?? ''), 0, 10);
+            $endDate = substr((string) ($period['end_date'] ?? ''), 0, 10);
 
             if ($cabinId < 1) {
-                continue;
-            }
-
-            if (!reservationStatusBlocks($status)) {
                 continue;
             }
 

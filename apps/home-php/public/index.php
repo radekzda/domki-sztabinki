@@ -36,6 +36,7 @@ require dirname(__DIR__) . '/app/Repositories/InvoiceRepository.php';
 require dirname(__DIR__) . '/app/Controllers/InvoiceController.php';
 require dirname(__DIR__) . '/app/Controllers/InvoiceSellerController.php';
 require dirname(__DIR__) . '/app/Repositories/IcalEventRepository.php';
+require dirname(__DIR__) . '/app/Repositories/AvailabilityRepository.php';
 require dirname(__DIR__) . '/app/Repositories/IcalSyncLogRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReportRepository.php';
 require dirname(__DIR__) . '/app/Repositories/ReservationHistoryRepository.php';
