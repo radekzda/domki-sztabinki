@@ -108,6 +108,7 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                         'form' => $form,
                         'errors' => $errors,
                         'cabins' => $cabins,
+                        'guests' => $guests,
                         'canSave' => $canSave,
                         'action' => '/admin/rezerwacje/edytuj?id=' . $id,
                         'submitLabel' => 'Zapisz zmiany',
