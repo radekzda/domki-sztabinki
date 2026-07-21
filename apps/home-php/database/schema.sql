@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS cabins (
     price_six_nights INT UNSIGNED NOT NULL DEFAULT 400,
     price_seven_plus_nights INT UNSIGNED NOT NULL DEFAULT 350,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
+    cleaning_status VARCHAR(30) NOT NULL DEFAULT 'READY',
+    cleaning_updated_at DATETIME NULL,
     main_image_url VARCHAR(255) NULL,
     ical_url TEXT NULL,
     ical_enabled TINYINT(1) NOT NULL DEFAULT 0,
@@ -86,8 +88,8 @@ CREATE TABLE IF NOT EXISTS cabins (
 CREATE TABLE IF NOT EXISTS cabin_images (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     cabin_id INT UNSIGNED NOT NULL,
-    url VARCHAR(255) NOT NULL,
-    alt VARCHAR(255) NULL,
+    image_url VARCHAR(255) NOT NULL,
+    alt_text VARCHAR(255) NULL,
     is_main TINYINT(1) NOT NULL DEFAULT 0,
     sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -117,6 +119,9 @@ CREATE TABLE IF NOT EXISTS guests (
     birth_date DATE NULL,
     is_vip TINYINT(1) NOT NULL DEFAULT 0,
     notes TEXT NULL,
+    preferred_contact VARCHAR(30) NULL,
+    preferences TEXT NULL,
+    important_notes TEXT NULL,
     source VARCHAR(60) NOT NULL DEFAULT 'MANUAL',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -174,6 +179,30 @@ CREATE TABLE IF NOT EXISTS reservations (
         FOREIGN KEY (guest_id) REFERENCES guests(id)
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS reservation_history (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    reservation_id INT UNSIGNED NOT NULL,
+    event_type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    details TEXT NULL,
+    old_value TEXT NULL,
+    new_value TEXT NULL,
+    amount DECIMAL(10, 2) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_reservation_history_reservation_id (
+        reservation_id
+    ),
+    KEY idx_reservation_history_created_at (
+        created_at
+    ),
+    KEY idx_reservation_history_event_type (
+        event_type
+    )
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS invoice_sequences (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -237,6 +266,8 @@ CREATE TABLE IF NOT EXISTS invoices (
     payment_method VARCHAR(30) NULL,
     payment_status VARCHAR(30)
         NOT NULL DEFAULT 'UNPAID',
+    paid_amount DECIMAL(12, 2)
+        NOT NULL DEFAULT 0.00,
 
     seller_name VARCHAR(190) NOT NULL,
     seller_tax_id_type VARCHAR(20)
@@ -379,6 +410,24 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS invoice_reminder_notifications (
+    reservation_id INT UNSIGNED NOT NULL,
+    reminder_date DATE NOT NULL,
+    recipient VARCHAR(190) NOT NULL,
+    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (reservation_id),
+    INDEX invoice_reminder_date_index (
+        reminder_date
+    ),
+    CONSTRAINT invoice_reminder_reservation_foreign
+        FOREIGN KEY (reservation_id)
+        REFERENCES reservations(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS ical_sync_logs (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     cabin_id INT UNSIGNED NOT NULL,
@@ -445,10 +494,7 @@ CREATE TABLE IF NOT EXISTS ical_events (
         FOREIGN KEY (cabin_id)
         REFERENCES cabins(id)
         ON DELETE CASCADE,
- end_date
-    ),
-    CONSTRAINT ical_events_cabin_foreign
-        FOREIGN KEY (    CONSTRAINT ical_events_reservation_foreign
+    CONSTRAINT ical_events_reservation_foreign
         FOREIGN KEY (matched_reservation_id)
         REFERENCES reservations(id)
         ON DELETE SET NULL
@@ -488,32 +534,6 @@ CREATE TABLE IF NOT EXISTS inquiries (
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS response_templates (
-    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    name VARCHAR(160) NOT NULL,
-    subject VARCHAR(255) NOT NULL,
-    body TEXT NOT NULL,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    sort_order INT NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    INDEX response_templates_is_active_index (is_active),
-    INDEX response_templates_sort_order_index (sort_order)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS admin_users (
-    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    email VARCHAR(190) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(40) NOT NULL DEFAULT 'ADMIN',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY admin_users_email_unique (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
 CREATE TABLE IF NOT EXISTS site_images (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     image_url VARCHAR(255) NOT NULL,
@@ -528,25 +548,32 @@ CREATE TABLE IF NOT EXISTS site_images (
     INDEX site_images_sort_order_idx (sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS system_settings (
+CREATE TABLE IF NOT EXISTS message_templates (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    property_name VARCHAR(190) NOT NULL DEFAULT 'Domki Sztabinki',
-    owner_name VARCHAR(190) NULL,
-    owner_email VARCHAR(190) NULL,
-    owner_phone VARCHAR(60) NULL,
-    contact_email VARCHAR(190) NULL,
-    contact_phone VARCHAR(60) NULL,
-    property_street VARCHAR(190) NULL,
-    property_postal_code VARCHAR(40) NULL,
-    property_city VARCHAR(120) NULL,
-    property_country VARCHAR(120) NOT NULL DEFAULT 'Polska',
-    check_in_time VARCHAR(20) NOT NULL DEFAULT '15:00',
-    check_out_time VARCHAR(20) NOT NULL DEFAULT '11:00',
-    minimum_nights INT UNSIGNED NOT NULL DEFAULT 4,
-    season_start_month INT UNSIGNED NOT NULL DEFAULT 5,
-    season_end_month INT UNSIGNED NOT NULL DEFAULT 9,
-    website_url VARCHAR(190) NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    name VARCHAR(150) NOT NULL,
+    template_key VARCHAR(100) NULL,
+    template_context VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+    content TEXT NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_message_templates_template_key (template_key),
+    KEY idx_message_templates_context (template_context),
+    KEY idx_message_templates_active (is_active)
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(100) NOT NULL,
+    setting_value TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (setting_key)
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
