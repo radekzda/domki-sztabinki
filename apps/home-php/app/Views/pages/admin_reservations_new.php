@@ -50,6 +50,18 @@ if ($returnUrl === '' && isset($_POST['return_url']) && is_string($_POST['return
 }
 
 $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
+
+$inquiryId = filter_var(
+    $_GET['inquiry_id'] ?? null,
+    FILTER_VALIDATE_INT
+);
+
+$reservationCreateAction = '/admin/rezerwacje/nowa';
+
+if (is_int($inquiryId) && $inquiryId > 0) {
+    $reservationCreateAction .= '?inquiry_id='
+        . $inquiryId;
+}
 ?>
 <section class="page-section">
     <div class="container">
@@ -114,7 +126,7 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                         'cabins' => $cabins,
                         'guests' => $guests,
                         'canSave' => $canSave,
-                        'action' => '/admin/rezerwacje/nowa',
+                        'action' => $reservationCreateAction,
                         'submitLabel' => 'Zapisz rezerwację',
                     ]);
                     ?>

@@ -511,6 +511,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
     email VARCHAR(190) NULL,
     cabin_id INT UNSIGNED NULL,
     cabin_name VARCHAR(160) NULL,
+    reservation_id INT UNSIGNED NULL,
     date_from DATE NOT NULL,
     date_to DATE NOT NULL,
     guests INT UNSIGNED NOT NULL DEFAULT 1,
@@ -527,10 +528,14 @@ CREATE TABLE IF NOT EXISTS inquiries (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     INDEX inquiries_cabin_id_index (cabin_id),
+    UNIQUE KEY inquiries_reservation_id_unique (reservation_id),
     INDEX inquiries_status_index (status),
     INDEX inquiries_created_at_index (created_at),
     CONSTRAINT inquiries_cabin_id_foreign
         FOREIGN KEY (cabin_id) REFERENCES cabins(id)
+        ON DELETE SET NULL,
+    CONSTRAINT inquiries_reservation_id_foreign
+        FOREIGN KEY (reservation_id) REFERENCES reservations(id)
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

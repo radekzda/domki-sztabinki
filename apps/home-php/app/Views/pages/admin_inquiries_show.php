@@ -13,6 +13,7 @@ declare(strict_types=1);
  *     email: string|null,
  *     cabin_id: int|null,
  *     cabin_name: string|null,
+ *     reservation_id: int|null,
  *     linked_cabin_name: string|null,
  *     date_from: string,
  *     date_to: string,
@@ -39,6 +40,11 @@ $statusLabels = [
 $cabinName = $inquiry['linked_cabin_name']
     ?? $inquiry['cabin_name']
     ?? 'Dowolny / nie wybrano';
+
+$linkedReservationId = (int) (
+    $inquiry['reservation_id']
+    ?? 0
+);
 ?>
 <section class="page-section">
     <div class="container">
@@ -59,12 +65,21 @@ $cabinName = $inquiry['linked_cabin_name']
                         </div>
 
                         <div class="page-header__actions">
-                            <a
-                                class="button button--primary"
-                                href="/admin/rezerwacje/nowa?inquiry_id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
-                            >
-                                Utwórz rezerwację
-                            </a>
+                            <?php if ($linkedReservationId > 0): ?>
+                                <a
+                                    class="button button--primary"
+                                    href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $linkedReservationId, ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                                    Rezerwacja #<?= htmlspecialchars((string) $linkedReservationId, ENT_QUOTES, 'UTF-8') ?>
+                                </a>
+                            <?php else: ?>
+                                <a
+                                    class="button button--primary"
+                                    href="/admin/rezerwacje/nowa?inquiry_id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                                    Utwórz rezerwację
+                                </a>
+                            <?php endif; ?>
 
                             <a class="button button--secondary" href="/admin/zapytania">
                                 Wróć do listy
@@ -128,6 +143,17 @@ $cabinName = $inquiry['linked_cabin_name']
                             <span>Status</span>
                             <strong><?= htmlspecialchars($statusLabels[$inquiry['status']] ?? $inquiry['status'], ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
+
+                        <?php if ($linkedReservationId > 0): ?>
+                            <div class="status-row">
+                                <span>Rezerwacja</span>
+                                <strong>
+                                    <a href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $linkedReservationId, ENT_QUOTES, 'UTF-8') ?>">
+                                        #<?= htmlspecialchars((string) $linkedReservationId, ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                </strong>
+                            </div>
+                        <?php endif; ?>
 
                         <div class="status-row">
                             <span>Źródło</span>
@@ -271,12 +297,21 @@ $cabinName = $inquiry['linked_cabin_name']
                             </button>
                         </form>
 
-                        <a
-                            class="button button--primary"
-                            href="/admin/rezerwacje/nowa?inquiry_id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
-                        >
-                            Utwórz rezerwację
-                        </a>
+                        <?php if ($linkedReservationId > 0): ?>
+                            <a
+                                class="button button--primary"
+                                href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $linkedReservationId, ENT_QUOTES, 'UTF-8') ?>"
+                            >
+                                Rezerwacja #<?= htmlspecialchars((string) $linkedReservationId, ENT_QUOTES, 'UTF-8') ?>
+                            </a>
+                        <?php else: ?>
+                            <a
+                                class="button button--primary"
+                                href="/admin/rezerwacje/nowa?inquiry_id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
+                            >
+                                Utwórz rezerwację
+                            </a>
+                        <?php endif; ?>
 
                         <form
                             method="post"

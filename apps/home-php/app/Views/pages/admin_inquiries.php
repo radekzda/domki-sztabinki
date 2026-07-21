@@ -13,6 +13,7 @@ declare(strict_types=1);
  *     email: string|null,
  *     cabin_id: int|null,
  *     cabin_name: string|null,
+ *     reservation_id: int|null,
  *     linked_cabin_name: string|null,
  *     date_from: string,
  *     date_to: string,
@@ -472,6 +473,10 @@ $getStatusClass = static function (string $status): string {
                                     <?php foreach ($inquiries as $inquiry): ?>
                                         <?php
                                         $status = $inquiry['status'];
+                                        $linkedReservationId = (int) (
+                                            $inquiry['reservation_id']
+                                            ?? 0
+                                        );
                                         $cabinName = $inquiry['linked_cabin_name']
                                             ?? $inquiry['cabin_name']
                                             ?? 'Dowolny / nie wybrano';
@@ -567,12 +572,21 @@ $getStatusClass = static function (string $status): string {
                                                         Szczegóły
                                                     </a>
 
-                                                    <a
-                                                        class="button button--primary button--small"
-                                                        href="/admin/rezerwacje/nowa?inquiry_id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
-                                                    >
-                                                        Rezerwacja
-                                                    </a>
+                                                    <?php if ($linkedReservationId > 0): ?>
+                                                        <a
+                                                            class="button button--primary button--small"
+                                                            href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $linkedReservationId, ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+                                                            Rezerwacja #<?= htmlspecialchars((string) $linkedReservationId, ENT_QUOTES, 'UTF-8') ?>
+                                                        </a>
+                                                    <?php else: ?>
+                                                        <a
+                                                            class="button button--primary button--small"
+                                                            href="/admin/rezerwacje/nowa?inquiry_id=<?= htmlspecialchars((string) $inquiry['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                        >
+                                                            Rezerwacja
+                                                        </a>
+                                                    <?php endif; ?>
 
                                                     <form class="inquiry-status-form" method="post" action="/admin/zapytania/status">
     <?= csrfField() ?>

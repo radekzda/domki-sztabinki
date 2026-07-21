@@ -1396,6 +1396,18 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
                 if ($inquiry === null) {
                     $databaseMessage = 'Nie znaleziono zapytania do wstępnego uzupełnienia formularza.';
                 } else {
+                    $linkedReservationId = (int) (
+                        $inquiry['reservation_id']
+                        ?? 0
+                    );
+
+                    if ($linkedReservationId > 0) {
+                        Response::redirect(
+                            '/admin/rezerwacje/pokaz?id='
+                            . $linkedReservationId
+                        );
+                    }
+
                     $form = reservationFormFromInquiry($inquiry);
                 }
             }
@@ -1473,6 +1485,7 @@ function reservationReturnUrlFromPost(): string
 
 $router->post('/admin/rezerwacje/nowa', function (): void {
     $returnUrl = reservationReturnUrlFromPost();
+    $inquiryId = inquiryIdFromQueryForReservation();
 
     Auth::requireAdmin();
     requireValidCsrf();
@@ -1506,6 +1519,39 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
         $cabins = CabinRepository::all();
         $guests = GuestRepository::all();
         $settings = SettingsRepository::all();
+
+        if ($inquiryId !== null) {
+            $sourceInquiry = InquiryRepository::find(
+                $inquiryId
+            );
+
+            if ($sourceInquiry === null) {
+                Response::html(
+                    View::render(
+                        'pages/error',
+                        [
+                            'title' => 'Nie znaleziono zapytania',
+                            'message' => 'Zapytanie użyte do utworzenia rezerwacji nie istnieje.',
+                        ]
+                    ),
+                    404
+                );
+
+                return;
+            }
+
+            $linkedReservationId = (int) (
+                $sourceInquiry['reservation_id']
+                ?? 0
+            );
+
+            if ($linkedReservationId > 0) {
+                Response::redirect(
+                    '/admin/rezerwacje/pokaz?id='
+                    . $linkedReservationId
+                );
+            }
+        }
     } catch (Throwable $exception) {
         Response::html(View::render('pages/admin_reservations_new', [
             'title' => 'Dodaj rezerwację',
@@ -1579,7 +1625,27 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             $form['notes'] !== '' ? $form['notes'] : null
         );
 
-        ReservationRepository::create(reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice, $guestId));
+        $reservationId = ReservationRepository::create(
+            reservationDataFromForm(
+                $form,
+                $calculatedNights,
+                $calculatedTotalPrice,
+                $guestId
+            )
+        );
+
+        if ($inquiryId !== null) {
+            InquiryRepository::linkReservation(
+                $inquiryId,
+                $reservationId
+            );
+
+            Response::redirect(
+                '/admin/zapytania/pokaz?id='
+                . $inquiryId
+                . '&reservation_created=1'
+            );
+        }
 
         if ($returnUrl !== '') {
         Response::redirect($returnUrl);
