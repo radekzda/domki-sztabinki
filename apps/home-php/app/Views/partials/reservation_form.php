@@ -102,9 +102,17 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 <?php foreach ($cabins as $cabin): ?>
                     <option
                         value="<?= htmlspecialchars((string) $cabin['id'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-max-guests="<?= htmlspecialchars((string) $cabin['max_guests'], ENT_QUOTES, 'UTF-8') ?>"
                         <?= $form['cabin_id'] === (string) $cabin['id'] ? 'selected' : '' ?>
                     >
-                        <?= htmlspecialchars($cabin['name'], ENT_QUOTES, 'UTF-8') ?>
+                        <?= htmlspecialchars(
+                            $cabin['name']
+                            . ' — maks. '
+                            . $cabin['max_guests']
+                            . ' os.',
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -112,6 +120,10 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
             <?php if (isset($errors['cabin_id'])): ?>
                 <span class="form-error"><?= htmlspecialchars($errors['cabin_id'], ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
+
+            <span class="form-hint">
+                Łączna liczba dorosłych i dzieci nie może przekroczyć maksymalnej liczby osób dla wybranego domku.
+            </span>
         </div>
 
         <div class="form-field">

@@ -2352,13 +2352,24 @@ if (isset($settings) && is_array($settings)) {
                                         <?php
                                         $optionId = $cabinInt($optionCabin, 'id', 0);
                                         $optionName = $cabinString($optionCabin, 'name', 'Domek');
+                                        $optionMaxGuests = $cabinInt($optionCabin, 'max_guests', 0);
                                         ?>
 
                                         <option
                                             value="<?= htmlspecialchars((string) $optionId, ENT_QUOTES, 'UTF-8') ?>"
+                                            data-max-guests="<?= htmlspecialchars((string) $optionMaxGuests, ENT_QUOTES, 'UTF-8') ?>"
                                             <?= $form['cabin_id'] === (string) $optionId ? 'selected' : '' ?>
                                         >
-                                            <?= htmlspecialchars($optionName, ENT_QUOTES, 'UTF-8') ?>
+                                            <?= htmlspecialchars(
+                                                $optionName
+                                                . (
+                                                    $optionMaxGuests > 0
+                                                        ? ' — maks. ' . $optionMaxGuests . ' os.'
+                                                        : ''
+                                                ),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -2470,6 +2481,10 @@ if (isset($settings) && is_array($settings)) {
                                     <span class="public-error"><?= htmlspecialchars($errors['children'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
                             </label>
+
+                            <p class="public-form-hint">
+                                Łączna liczba dorosłych i dzieci nie może przekroczyć pojemności wybranego domku.
+                            </p>
 
                             <label class="public-label" for="street">
                                 Ulica i numer

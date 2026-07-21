@@ -504,6 +504,13 @@ final class ReservationRepository
      */
     public static function create(array $data): int
     {
+        $data['guests'] = self::normalizeGuestCount($data);
+
+        self::assertGuestCapacity(
+            (int) ($data['cabin_id'] ?? 0),
+            (int) $data['guests']
+        );
+
         $paymentState = self::normalizePaymentState(
             $data['total_price'] ?? 0,
             $data['paid_amount'] ?? 0,
@@ -675,6 +682,13 @@ final class ReservationRepository
     {
         $reservationBefore = self::find($id);
 
+        $data['guests'] = self::normalizeGuestCount($data);
+
+        self::assertGuestCapacity(
+            (int) ($data['cabin_id'] ?? 0),
+            (int) $data['guests']
+        );
+
         $paymentState = self::normalizePaymentState(
             $data['total_price'] ?? 0,
             $data['paid_amount'] ?? 0,
@@ -788,6 +802,61 @@ final class ReservationRepository
                 . $id
                 . ': '
                 . $exception->getMessage()
+            );
+        }
+    }
+
+    private static function normalizeGuestCount(
+        array $data
+    ): int {
+        $adults = (int) ($data['adults'] ?? 0);
+        $children = (int) ($data['children'] ?? 0);
+
+        if ($adults < 1) {
+            throw new InvalidArgumentException(
+                'Liczba dorosłych musi być większa od zera.'
+            );
+        }
+
+        if ($children < 0) {
+            throw new InvalidArgumentException(
+                'Liczba dzieci nie może być ujemna.'
+            );
+        }
+
+        return $adults + $children;
+    }
+
+    private static function assertGuestCapacity(
+        int $cabinId,
+        int $guestCount
+    ): void {
+        if ($cabinId < 1) {
+            throw new InvalidArgumentException(
+                'Wybrany domek nie istnieje.'
+            );
+        }
+
+        $cabin = CabinRepository::find($cabinId);
+
+        if ($cabin === null) {
+            throw new InvalidArgumentException(
+                'Wybrany domek nie istnieje.'
+            );
+        }
+
+        $maxGuests = (int) ($cabin['max_guests'] ?? 0);
+
+        if (
+            $maxGuests > 0
+            && $guestCount > $maxGuests
+        ) {
+            throw new InvalidArgumentException(
+                'Wybrany domek może pomieścić maksymalnie '
+                . $maxGuests
+                . ' osób. Podano '
+                . $guestCount
+                . '.'
             );
         }
     }

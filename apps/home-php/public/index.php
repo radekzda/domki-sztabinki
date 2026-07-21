@@ -245,6 +245,17 @@ $router->post('/zapytanie', function (): void {
         }
     }
 
+    if ($selectedCabin !== null) {
+        $capacityError = guestCapacityErrorForCabin(
+            $form,
+            $selectedCabin
+        );
+
+        if ($capacityError !== null) {
+            $errors['adults'] = $capacityError;
+        }
+    }
+
     if ($databaseMessage !== null) {
         $errors['date_from'] = $databaseMessage;
     }
@@ -1574,6 +1585,15 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
 
         if ($selectedCabin === null) {
             $errors['cabin_id'] = 'Wybrany domek nie istnieje.';
+        } else {
+            $capacityError = guestCapacityErrorForCabin(
+                $form,
+                $selectedCabin
+            );
+
+            if ($capacityError !== null) {
+                $errors['adults'] = $capacityError;
+            }
         }
 
         if ($selectedCabin !== null && $calculatedNights !== null) {
@@ -2314,6 +2334,15 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
 
         if ($selectedCabin === null) {
             $errors['cabin_id'] = 'Wybrany domek nie istnieje.';
+        } else {
+            $capacityError = guestCapacityErrorForCabin(
+                $form,
+                $selectedCabin
+            );
+
+            if ($capacityError !== null) {
+                $errors['adults'] = $capacityError;
+            }
         }
 
         if ($selectedCabin !== null && $calculatedNights !== null) {

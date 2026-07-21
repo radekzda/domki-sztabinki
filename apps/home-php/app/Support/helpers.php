@@ -817,6 +817,48 @@ function validateReservationForm(array $form): array
     return $errors;
 }
 
+/**
+ * @param array<string, string> $form
+ * @param array<string, mixed> $cabin
+ */
+function guestCapacityErrorForCabin(
+    array $form,
+    array $cabin
+): ?string {
+    $adultsValue = $form['adults'] ?? '';
+    $childrenValue = $form['children'] ?? '';
+
+    if (
+        !is_string($adultsValue)
+        || !ctype_digit($adultsValue)
+        || (int) $adultsValue < 1
+        || !is_string($childrenValue)
+        || !ctype_digit($childrenValue)
+    ) {
+        return null;
+    }
+
+    $maxGuests = (int) ($cabin['max_guests'] ?? 0);
+
+    if ($maxGuests < 1) {
+        return null;
+    }
+
+    $guestCount =
+        (int) $adultsValue
+        + (int) $childrenValue;
+
+    if ($guestCount <= $maxGuests) {
+        return null;
+    }
+
+    return 'Wybrany domek może pomieścić maksymalnie '
+        . $maxGuests
+        . ' osób. Podano '
+        . $guestCount
+        . '.';
+}
+
 function calculateReservationNights(string $startDate, string $endDate): ?int
 {
     if ($startDate === '' || $endDate === '') {
