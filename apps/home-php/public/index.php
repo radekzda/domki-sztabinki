@@ -2046,6 +2046,10 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
             (int) $reservation['id']
         );
 
+        $reservationInvoices = InvoiceRepository::forReservation(
+            (int) $reservation['id']
+        );
+
         $reservationMessageTemplates = [];
 
         foreach (
@@ -2069,6 +2073,7 @@ $router->get('/admin/rezerwacje/pokaz', function (): void {
             'title' => 'Szczegóły rezerwacji',
             'reservation' => $reservation,
             'reservationHistory' => $reservationHistory,
+            'reservationInvoices' => $reservationInvoices,
             'reservationMessageTemplates' => $reservationMessageTemplates,
         ]));
     } catch (Throwable $exception) {

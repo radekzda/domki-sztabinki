@@ -491,6 +491,23 @@ final class InvoiceRepository
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public static function firstForReservation(
+        int $reservationId
+    ): ?array {
+        $invoices = self::forReservation(
+            $reservationId
+        );
+
+        $invoice = $invoices[0] ?? null;
+
+        return is_array($invoice)
+            ? $invoice
+            : null;
+    }
+
+    /**
      * @param array<string, mixed> $data
      * @param array<int, array<string, mixed>> $items
      */
@@ -561,11 +578,61 @@ final class InvoiceRepository
             2
         );
 
+        $reservationId =
+            self::nullablePositiveInt(
+                $data['reservation_id']
+                ?? null
+            );
+
         $connection = Database::connection();
 
         $connection->beginTransaction();
 
         try {
+            if ($reservationId !== null) {
+                $existingInvoiceStatement =
+                    $connection->prepare(
+                        'SELECT
+                            id,
+                            invoice_number
+                        FROM invoices
+                        WHERE reservation_id =
+                            :reservation_id
+                        ORDER BY id DESC
+                        LIMIT 1
+                        FOR UPDATE'
+                    );
+
+                $existingInvoiceStatement->execute([
+                    'reservation_id' =>
+                        $reservationId,
+                ]);
+
+                $existingInvoice =
+                    $existingInvoiceStatement->fetch();
+
+                if (is_array($existingInvoice)) {
+                    $existingNumber = trim(
+                        (string) (
+                            $existingInvoice[
+                                'invoice_number'
+                            ]
+                            ?? ''
+                        )
+                    );
+
+                    throw new RuntimeException(
+                        'Ta rezerwacja ma już '
+                        . 'wystawioną fakturę'
+                        . (
+                            $existingNumber !== ''
+                                ? ': ' . $existingNumber
+                                : '.'
+                        )
+                    );
+                }
+            }
+
             $previousSequenceNumber =
                 isset(
                     $data[
@@ -691,10 +758,7 @@ final class InvoiceRepository
 
             $statement->execute([
                 'reservation_id' =>
-                    self::nullablePositiveInt(
-                        $data['reservation_id']
-                        ?? null
-                    ),
+                    $reservationId,
 
                 'seller_id' =>
                     $sellerId,

@@ -25,6 +25,20 @@ final class InvoiceController
                 $reservationId
             );
 
+            $existingInvoice =
+                InvoiceRepository::firstForReservation(
+                    $reservationId
+                );
+
+            if ($existingInvoice !== null) {
+                Response::redirect(
+                    '/admin/faktury/pokaz?id='
+                    . (int) $existingInvoice['id']
+                );
+
+                return;
+            }
+
             $form = self::formFromContext(
                 $context
             );
@@ -81,6 +95,20 @@ final class InvoiceController
                     $exception
                 ),
                 422
+            );
+
+            return;
+        }
+
+        $existingInvoice =
+            InvoiceRepository::firstForReservation(
+                $reservationId
+            );
+
+        if ($existingInvoice !== null) {
+            Response::redirect(
+                '/admin/faktury/pokaz?id='
+                . (int) $existingInvoice['id']
             );
 
             return;
