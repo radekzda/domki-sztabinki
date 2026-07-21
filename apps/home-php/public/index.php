@@ -975,11 +975,30 @@ $router->get('/admin/domki/ical-podglad', function (): void {
                         $content
                     );
 
+                IcalParser::assertCompleteParse(
+                    $content,
+                    $events
+                );
+
+                $icalSource = strtoupper(
+                    trim(
+                        (string) (
+                            $cabin['ical_source']
+                            ?? 'BOOKING'
+                        )
+                    )
+                );
+
+                if ($icalSource === '') {
+                    $icalSource = 'BOOKING';
+                }
+
                 foreach ($events as $event) {
                     $classification =
                         IcalEventRepository::classifyEvent(
                             $id,
-                            $event
+                            $event,
+                            $icalSource
                         );
 
                     $action = (string) (

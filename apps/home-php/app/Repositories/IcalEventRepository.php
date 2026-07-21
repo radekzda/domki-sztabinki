@@ -132,12 +132,18 @@ final class IcalEventRepository
     public static function findExactReservation(
         int $cabinId,
         string $startDate,
-        string $endDate
+        string $endDate,
+        ?string $source = null
     ): ?array {
         $connection = Database::connection();
 
-        $statement = $connection->prepare(
-            'SELECT
+        $source = strtoupper(
+            trim(
+                (string) ($source ?? '')
+            )
+        );
+
+        $sql = 'SELECT
                 id,
                 external_id,
                 cabin_id,
@@ -150,16 +156,29 @@ final class IcalEventRepository
             WHERE cabin_id = :cabin_id
             AND start_date = :start_date
             AND end_date = :end_date
-            AND status <> "CANCELLED"
-            ORDER BY id ASC
-            LIMIT 1'
-        );
+            AND status <> "CANCELLED"';
 
-        $statement->execute([
+        $params = [
             'cabin_id' => $cabinId,
             'start_date' => $startDate,
             'end_date' => $endDate,
-        ]);
+        ];
+
+        if ($source !== '') {
+            $sql .= ' AND UPPER(source) = :source';
+            $params['source'] = $source;
+        }
+
+        $sql .= ' ORDER BY id ASC
+            LIMIT 1';
+
+        $statement = $connection->prepare(
+            $sql
+        );
+
+        $statement->execute(
+            $params
+        );
 
         $row = $statement->fetch();
 
@@ -253,7 +272,8 @@ final class IcalEventRepository
      */
     public static function classifyEvent(
         int $cabinId,
-        array $event
+        array $event,
+        ?string $source = null
     ): array {
         $uid = trim(
             (string) (
@@ -283,35 +303,88 @@ final class IcalEventRepository
             $endDate
         );
 
+        $normalizedSource = strtoupper(
+            trim(
+                (string) ($source ?? '')
+            )
+        );
+
         $existingIcalEvent = self::findByUid(
             $cabinId,
             $uid
         );
 
-        if ($existingIcalEvent !== null) {
-            return [
-                'action' => 'EXISTING_ICAL',
-                'existing_ical_event' =>
-                    $existingIcalEvent,
-                'matched_reservation' =>
-                    null,
-                'conflicting_reservation' =>
-                    null,
-            ];
-        }
-
         $matchedReservation =
             self::findExactReservation(
                 $cabinId,
                 $startDate,
-                $endDate
+                $endDate,
+                $normalizedSource !== ''
+                    ? $normalizedSource
+                    : null
             );
 
         if ($matchedReservation !== null) {
+            $matchedReservationId = (int) (
+                $matchedReservation['id']
+                ?? 0
+            );
+
+            $existingMatchedReservationId =
+                $existingIcalEvent !== null
+                && isset(
+                    $existingIcalEvent[
+                        'matched_reservation_id'
+                    ]
+                )
+                && $existingIcalEvent[
+                    'matched_reservation_id'
+                ] !== null
+                    ? (int) $existingIcalEvent[
+                        'matched_reservation_id'
+                    ]
+                    : null;
+
+            $existingStartDate = trim(
+                (string) (
+                    $existingIcalEvent[
+                        'start_date'
+                    ]
+                    ?? ''
+                )
+            );
+
+            $existingEndDate = trim(
+                (string) (
+                    $existingIcalEvent[
+                        'end_date'
+                    ]
+                    ?? ''
+                )
+            );
+
+            if (
+                $existingIcalEvent !== null
+                && $existingMatchedReservationId
+                    === $matchedReservationId
+                && $existingStartDate === $startDate
+                && $existingEndDate === $endDate
+            ) {
+                return [
+                    'action' => 'EXISTING_ICAL',
+                    'existing_ical_event' =>
+                        $existingIcalEvent,
+                    'matched_reservation' =>
+                        $matchedReservation,
+                    'conflicting_reservation' =>
+                        null,
+                ];
+            }
+
             return [
                 'action' => 'MATCH_RESERVATION',
                 'existing_ical_event' =>
-                    null,
+                    $existingIcalEvent,
                 'matched_reservation' =>
                     $matchedReservation,
                 'conflicting_reservation' =>
@@ -330,11 +403,23 @@ final class IcalEventRepository
             return [
                 'action' => 'CONFLICT',
                 'existing_ical_event' =>
-                    null,
+                    $existingIcalEvent,
                 'matched_reservation' =>
                     null,
                 'conflicting_reservation' =>
                     $conflictingReservation,
+            ];
+        }
+
+        if ($existingIcalEvent !== null) {
+            return [
+                'action' => 'EXISTING_ICAL',
+                'existing_ical_event' =>
+                    $existingIcalEvent,
+                'matched_reservation' =>
+                    null,
+                'conflicting_reservation' =>
+                    null,
             ];
         }
 
@@ -473,18 +558,6 @@ final class IcalEventRepository
         $connection = Database::connection();
 
         if ($existing !== null) {
-            $existingMatchedReservationId =
-                isset(
-                    $existing['matched_reservation_id']
-                )
-                && $existing['matched_reservation_id'] !== null
-                    ? (int) $existing['matched_reservation_id']
-                    : null;
-
-            $finalMatchedReservationId =
-                $matchedReservationId
-                ?? $existingMatchedReservationId;
-
             $statement = $connection->prepare(
                 'UPDATE ical_events
                 SET
@@ -504,7 +577,7 @@ final class IcalEventRepository
             $statement->execute([
                 'id' => (int) $existing['id'],
                 'matched_reservation_id' =>
-                    $finalMatchedReservationId,
+                    $matchedReservationId,
                 'source' => $source,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
@@ -592,15 +665,14 @@ final class IcalEventRepository
     ): array {
         $classification = self::classifyEvent(
             $cabinId,
-            $event
+            $event,
+            $source
         );
 
         $matchedReservationId = null;
 
         if (
-            $classification['action']
-            === 'MATCH_RESERVATION'
-            && is_array(
+            is_array(
                 $classification['matched_reservation']
             )
         ) {

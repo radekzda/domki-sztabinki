@@ -69,6 +69,45 @@ final class IcalParser
     }
 
     /**
+     * Zabezpiecza synchronizację przed cichym pominięciem
+     * nieprawidłowych bloków VEVENT.
+     *
+     * Jeżeli źródłowy kalendarz zawiera więcej bloków VEVENT
+     * niż parser zwrócił poprawnych wydarzeń, synchronizacja
+     * powinna zostać przerwana przed dezaktywacją istniejących
+     * blokad.
+     *
+     * @param array<int, array<string, mixed>> $events
+     */
+    public static function assertCompleteParse(
+        string $content,
+        array $events
+    ): void {
+        $rawEventCount = preg_match_all(
+            '/^BEGIN:VEVENT\s*$/mi',
+            $content
+        );
+
+        if ($rawEventCount === false) {
+            $rawEventCount = 0;
+        }
+
+        $parsedEventCount = count(
+            $events
+        );
+
+        if ($rawEventCount > $parsedEventCount) {
+            throw new RuntimeException(
+                'Kalendarz iCal zawiera '
+                . $rawEventCount
+                . ' bloków VEVENT, ale parser poprawnie odczytał tylko '
+                . $parsedEventCount
+                . '. Synchronizacja została przerwana, aby nie dezaktywować poprawnych blokad.'
+            );
+        }
+    }
+
+    /**
      * @return array<int, array{
      *     uid: string,
      *     start_date: string,

@@ -66,6 +66,11 @@ final class IcalSyncService
                 $content
             );
 
+            IcalParser::assertCompleteParse(
+                $content,
+                $events
+            );
+
             $counts = [
                 'EXISTING_ICAL' => 0,
                 'MATCH_RESERVATION' => 0,
