@@ -504,6 +504,12 @@ final class ReservationRepository
      */
     public static function create(array $data): int
     {
+        $paymentState = self::normalizePaymentState(
+            $data['total_price'] ?? 0,
+            $data['paid_amount'] ?? 0,
+            $data['payment_status'] ?? 'PENDING'
+        );
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -566,9 +572,12 @@ final class ReservationRepository
             'children' => $data['children'],
             'status' => $data['status'],
             'source' => $data['source'],
-            'payment_status' => $data['payment_status'],
-            'total_price' => $data['total_price'],
-            'paid_amount' => $data['paid_amount'],
+            'payment_status' =>
+                $paymentState['payment_status'],
+            'total_price' =>
+                $paymentState['total_price'],
+            'paid_amount' =>
+                $paymentState['paid_amount'],
             'notes' => $data['notes'],
         ]);
 
@@ -640,6 +649,12 @@ final class ReservationRepository
     {
         $reservationBefore = self::find($id);
 
+        $paymentState = self::normalizePaymentState(
+            $data['total_price'] ?? 0,
+            $data['paid_amount'] ?? 0,
+            $data['payment_status'] ?? 'PENDING'
+        );
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -684,9 +699,12 @@ final class ReservationRepository
             'children' => $data['children'],
             'status' => $data['status'],
             'source' => $data['source'],
-            'payment_status' => $data['payment_status'],
-            'total_price' => $data['total_price'],
-            'paid_amount' => $data['paid_amount'],
+            'payment_status' =>
+                $paymentState['payment_status'],
+            'total_price' =>
+                $paymentState['total_price'],
+            'paid_amount' =>
+                $paymentState['paid_amount'],
             'notes' => $data['notes'],
         ]);
 
@@ -726,6 +744,91 @@ final class ReservationRepository
                 . $exception->getMessage()
             );
         }
+    }
+
+    /**
+     * @return array{
+     *     total_price: string,
+     *     paid_amount: string,
+     *     payment_status: string
+     * }
+     */
+    private static function normalizePaymentState(
+        mixed $totalPriceValue,
+        mixed $paidAmountValue,
+        mixed $requestedStatusValue
+    ): array {
+        $totalPrice = round(
+            (float) str_replace(
+                ',',
+                '.',
+                (string) $totalPriceValue
+            ),
+            2
+        );
+
+        $paidAmount = round(
+            (float) str_replace(
+                ',',
+                '.',
+                (string) $paidAmountValue
+            ),
+            2
+        );
+
+        if ($totalPrice < 0) {
+            throw new InvalidArgumentException(
+                'Cena pobytu nie może być ujemna.'
+            );
+        }
+
+        if ($paidAmount < 0) {
+            throw new InvalidArgumentException(
+                'Kwota wpłacona nie może być ujemna.'
+            );
+        }
+
+        if ($paidAmount > $totalPrice) {
+            throw new InvalidArgumentException(
+                'Kwota wpłacona nie może być większa '
+                . 'od ceny pobytu.'
+            );
+        }
+
+        $requestedStatus = strtoupper(
+            trim(
+                (string) $requestedStatusValue
+            )
+        );
+
+        if ($requestedStatus === 'REFUNDED') {
+            $paymentStatus = 'REFUNDED';
+        } elseif ($paidAmount <= 0) {
+            $paymentStatus = 'PENDING';
+        } elseif (
+            $totalPrice > 0
+            && $paidAmount >= $totalPrice
+        ) {
+            $paymentStatus = 'PAID';
+        } else {
+            $paymentStatus = 'PARTIAL';
+        }
+
+        return [
+            'total_price' => number_format(
+                $totalPrice,
+                2,
+                '.',
+                ''
+            ),
+            'paid_amount' => number_format(
+                $paidAmount,
+                2,
+                '.',
+                ''
+            ),
+            'payment_status' => $paymentStatus,
+        ];
     }
 
     public static function setStatus(int $id, string $status): void
@@ -952,27 +1055,118 @@ final class ReservationRepository
     {
         $reservationBefore = self::find($id);
 
+        if ($reservationBefore === null) {
+            throw new RuntimeException(
+                'Nie znaleziono rezerwacji.'
+            );
+        }
+
+        $paymentStatus = strtoupper(
+            trim($paymentStatus)
+        );
+
+        if (
+            !in_array(
+                $paymentStatus,
+                [
+                    'PENDING',
+                    'PARTIAL',
+                    'PAID',
+                    'REFUNDED',
+                ],
+                true
+            )
+        ) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowy status płatności.'
+            );
+        }
+
+        if ($paymentStatus === 'PAID') {
+            self::markPaid($id);
+
+            return;
+        }
+
+        $totalPrice = round(
+            (float) (
+                $reservationBefore['total_price']
+                ?? 0
+            ),
+            2
+        );
+
+        $currentPaidAmount = round(
+            (float) (
+                $reservationBefore['paid_amount']
+                ?? 0
+            ),
+            2
+        );
+
+        if ($paymentStatus === 'PENDING') {
+            $paidAmount = 0.0;
+        } elseif ($paymentStatus === 'PARTIAL') {
+            if (
+                $totalPrice <= 0
+                || $currentPaidAmount <= 0
+                || $currentPaidAmount >= $totalPrice
+            ) {
+                throw new InvalidArgumentException(
+                    'Status Częściowa wymaga kwoty wpłaconej '
+                    . 'większej od 0 zł i mniejszej od ceny pobytu.'
+                );
+            }
+
+            $paidAmount = $currentPaidAmount;
+        } else {
+            // REFUNDED pozostaje ręcznym statusem.
+            // Kwotę wpłat zachowujemy do czasu wdrożenia
+            // osobnej obsługi zwrotów.
+            $paidAmount = min(
+                max(0.0, $currentPaidAmount),
+                max(0.0, $totalPrice)
+            );
+        }
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
             'UPDATE reservations
-            SET payment_status = :payment_status
+            SET
+                payment_status = :payment_status,
+                paid_amount = :paid_amount
             WHERE id = :id'
         );
 
         $statement->execute([
             'id' => $id,
             'payment_status' => $paymentStatus,
+            'paid_amount' => number_format(
+                $paidAmount,
+                2,
+                '.',
+                ''
+            ),
         ]);
 
-        $oldPaymentStatus = $reservationBefore !== null
-            ? (string) (
-                $reservationBefore['payment_status']
-                ?? ''
-            )
-            : '';
+        $oldPaymentStatus = (string) (
+            $reservationBefore['payment_status']
+            ?? ''
+        );
 
-        if ($oldPaymentStatus === $paymentStatus) {
+        $oldPaidAmount = round(
+            (float) (
+                $reservationBefore['paid_amount']
+                ?? 0
+            ),
+            2
+        );
+
+        if (
+            $oldPaymentStatus === $paymentStatus
+            && $oldPaidAmount === $paidAmount
+        ) {
             return;
         }
 
@@ -981,7 +1175,14 @@ final class ReservationRepository
                 $id,
                 'PAYMENT_STATUS',
                 'Zmieniono status płatności',
-                null,
+                'Wpłacono: '
+                    . number_format(
+                        $paidAmount,
+                        2,
+                        ',',
+                        ' '
+                    )
+                    . ' zł.',
                 $oldPaymentStatus !== ''
                     ? $oldPaymentStatus
                     : null,
@@ -996,7 +1197,6 @@ final class ReservationRepository
             );
         }
     }
-
     public static function cancel(int $id): void
     {
         self::setStatus($id, 'CANCELLED');
