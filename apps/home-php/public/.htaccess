@@ -2,6 +2,19 @@
 # Public web root security and routing.
 
 Options -Indexes
+DirectoryIndex index.php
+
+
+# Block hidden files such as .git, .env and editor metadata.
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+
+    <IfModule !mod_authz_core.c>
+        Deny from all
+    </IfModule>
+</FilesMatch>
 
 # Block accidental exposure of sensitive files copied to public/.
 <FilesMatch "(^\.env|\.ini$|\.log$|\.sql$|\.sqlite$|\.sqlite3$|\.bak$|\.backup$|\.old$|\.orig$|\.save$|\.swp$|\.tmp$)">

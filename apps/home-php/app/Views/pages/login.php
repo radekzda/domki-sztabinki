@@ -23,7 +23,9 @@ declare(strict_types=1);
             <?php if (!$isAuthConfigured): ?>
                 <div class="alert alert--warning">
                     Logowanie nie jest jeszcze skonfigurowane. Ustaw
-                    <strong>ADMIN_EMAIL</strong> oraz <strong>ADMIN_PASSWORD</strong>
+                    <strong>ADMIN_EMAIL</strong> oraz
+                    <strong>ADMIN_PASSWORD_HASH</strong>
+                    (zalecane) albo <strong>ADMIN_PASSWORD</strong>
                     w lokalnym pliku <strong>.env</strong>.
                 </div>
             <?php endif; ?>

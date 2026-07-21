@@ -53,6 +53,16 @@ require dirname(__DIR__) . '/app/Controllers/ImportAuditController.php';
 
 $router = new Router();
 
+$isProduction = strtolower(
+    trim(
+        (string) (
+            $config['environment']
+            ?? 'production'
+        )
+    )
+) === 'production';
+
+
 $router->get('/ical/domek', function (): void {
     $idValue = $_GET['id'] ?? null;
     $tokenValue = $_GET['token'] ?? null;
@@ -4204,7 +4214,7 @@ $router->get('/admin/raporty', function (): void {
     );
 });
 
-$router->get('/admin/system', function () use ($config): void {
+$router->get('/admin/system', function () use ($config, $isProduction): void {
     Auth::requireAdmin();
 
     $uploadsPath = dirname(__DIR__) . '/storage/uploads';
@@ -4223,6 +4233,16 @@ $router->get('/admin/system', function () use ($config): void {
         'PDO MySQL' => extension_loaded('pdo_mysql') ? 'dostępne' : 'brak',
         'DB_DATABASE' => $dbDatabase !== '' && $dbDatabase !== 'CHANGE_ME_DATABASE' ? 'ustawione' : 'brak',
         'DB_USERNAME' => $dbUsername !== '' && $dbUsername !== 'CHANGE_ME_USERNAME' ? 'ustawione' : 'brak',
+        'Hasło administratora' => Auth::passwordMode() === 'hash'
+            ? 'hash password_hash — zalecane'
+            : (
+                Auth::passwordMode() === 'plain'
+                    ? 'zwykły tekst — zmień na ADMIN_PASSWORD_HASH przed produkcją'
+                    : 'brak'
+            ),
+        'Instalator i seed DB' => $isProduction
+            ? 'zablokowane w środowisku produkcyjnym'
+            : 'dostępne poza produkcją',
         'storage/uploads istnieje' => is_dir($uploadsPath) ? 'tak' : 'nie',
         'storage/uploads zapisywalny' => is_writable($uploadsPath) ? 'tak' : 'nie',
     ];
@@ -4242,8 +4262,23 @@ $router->get('/admin/system/database', function (): void {
     ]));
 });
 
-$router->get('/admin/system/database/install', function (): void {
+$router->get('/admin/system/database/install', function () use ($isProduction): void {
     Auth::requireAdmin();
+
+    if ($isProduction) {
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' => 'Funkcja niedostępna',
+                    'message' => 'Instalator bazy danych jest wyłączony w środowisku produkcyjnym.',
+                ]
+            ),
+            403
+        );
+
+        return;
+    }
 
     Response::html(View::render('pages/database_install', [
         'title' => 'Instalator bazy MySQL',
@@ -4254,9 +4289,24 @@ $router->get('/admin/system/database/install', function (): void {
     ]));
 });
 
-$router->post('/admin/system/database/install', function (): void {
+$router->post('/admin/system/database/install', function () use ($isProduction): void {
     Auth::requireAdmin();
     requireValidCsrf();
+
+    if ($isProduction) {
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' => 'Funkcja niedostępna',
+                    'message' => 'Instalator bazy danych jest wyłączony w środowisku produkcyjnym.',
+                ]
+            ),
+            403
+        );
+
+        return;
+    }
 
     $message = '';
     $messageType = 'warning';
@@ -4281,8 +4331,23 @@ $router->post('/admin/system/database/install', function (): void {
     ]));
 });
 
-$router->get('/admin/system/database/seed', function (): void {
+$router->get('/admin/system/database/seed', function () use ($isProduction): void {
     Auth::requireAdmin();
+
+    if ($isProduction) {
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' => 'Funkcja niedostępna',
+                    'message' => 'Wgrywanie danych startowych jest wyłączone w środowisku produkcyjnym.',
+                ]
+            ),
+            403
+        );
+
+        return;
+    }
 
     Response::html(View::render('pages/database_seed', [
         'title' => 'Dane startowe',
@@ -4293,9 +4358,24 @@ $router->get('/admin/system/database/seed', function (): void {
     ]));
 });
 
-$router->post('/admin/system/database/seed', function (): void {
+$router->post('/admin/system/database/seed', function () use ($isProduction): void {
     Auth::requireAdmin();
     requireValidCsrf();
+
+    if ($isProduction) {
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' => 'Funkcja niedostępna',
+                    'message' => 'Wgrywanie danych startowych jest wyłączone w środowisku produkcyjnym.',
+                ]
+            ),
+            403
+        );
+
+        return;
+    }
 
     $message = '';
     $messageType = 'warning';
