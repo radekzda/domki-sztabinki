@@ -145,6 +145,79 @@ final class GuestRepository
         return self::mapGuestRow($row);
     }
 
+    public static function findByPhone(?string $phone): ?array
+    {
+        self::ensureProfileColumns();
+
+        $normalizedPhone = self::normalizePhone($phone);
+
+        if ($normalizedPhone === '') {
+            return null;
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->query(
+            'SELECT
+                id,
+                external_id,
+                first_name,
+                last_name,
+                email,
+                phone,
+                country,
+                street,
+                postal_code,
+                city,
+                full_address,
+                pesel,
+                document_number,
+                nationality,
+                birth_date,
+                is_vip,
+                source,
+                notes,
+                preferred_contact,
+                preferences,
+                important_notes,
+                created_at
+            FROM guests
+            WHERE phone IS NOT NULL
+                AND TRIM(phone) <> \'\'
+            ORDER BY id ASC'
+        );
+
+        if ($statement === false) {
+            return null;
+        }
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return null;
+        }
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            if (
+                self::normalizePhone(
+                    isset($row['phone'])
+                        ? (string) $row['phone']
+                        : null
+                ) !== $normalizedPhone
+            ) {
+                continue;
+            }
+
+            return self::mapGuestRow($row);
+        }
+
+        return null;
+    }
+
     public static function create(array $data): int
     {
         self::ensureProfileColumns();
@@ -357,6 +430,18 @@ final class GuestRepository
             }
         }
 
+        $phone = $phone !== null
+            ? trim($phone)
+            : null;
+
+        if ($phone !== null && $phone !== '') {
+            $existingGuest = self::findByPhone($phone);
+
+            if ($existingGuest !== null) {
+                return (int) $existingGuest['id'];
+            }
+        }
+
         $guestName = trim($guestName);
         $resolvedFirstName = trim((string) ($firstName ?? ''));
         $resolvedLastName = trim((string) ($lastName ?? ''));
@@ -457,6 +542,27 @@ final class GuestRepository
             'source' => $source,
             'notes' => $notes,
         ]);
+    }
+
+    private static function normalizePhone(?string $phone): string
+    {
+        $phone = trim((string) ($phone ?? ''));
+
+        if ($phone === '') {
+            return '';
+        }
+
+        $digits = preg_replace('/\D+/', '', $phone);
+
+        if (!is_string($digits) || $digits === '') {
+            return '';
+        }
+
+        if (str_starts_with($digits, '00')) {
+            $digits = substr($digits, 2);
+        }
+
+        return $digits;
     }
 
     private static function ensureProfileColumns(): void
