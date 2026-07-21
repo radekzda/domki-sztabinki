@@ -181,6 +181,7 @@ $router->get('/regulamin', function (): void {
                         $settings['booking_rules']
                         ?? ''
                     ),
+                'settings' => $settings,
             ]
         )
     );

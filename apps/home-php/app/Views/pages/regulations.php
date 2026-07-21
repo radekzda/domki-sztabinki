@@ -4,12 +4,33 @@ declare(strict_types=1);
 
 /**
  * @var string|null $bookingRules
+ * @var array<string, string>|null $settings
  */
 
 $additionalRules = isset($bookingRules)
     && is_string($bookingRules)
         ? trim($bookingRules)
         : '';
+
+$publicSettings = isset($settings)
+    && is_array($settings)
+        ? $settings
+        : defaultSettingsForm();
+
+$checkInTime = trim((string) ($publicSettings['check_in_time'] ?? '15:00'));
+$checkOutTime = trim((string) ($publicSettings['check_out_time'] ?? '11:00'));
+$minimumNights = max(
+    1,
+    (int) ($publicSettings['minimum_nights'] ?? 4)
+);
+
+$minimumNightsWord = match (true) {
+    $minimumNights === 1 => 'noc',
+    $minimumNights % 10 >= 2
+        && $minimumNights % 10 <= 4
+        && ($minimumNights % 100 < 12 || $minimumNights % 100 > 14) => 'noce',
+    default => 'nocy',
+};
 ?>
 
 <style>
@@ -184,8 +205,9 @@ $additionalRules = isset($bookingRules)
                 <li>
                     Rezerwacja bezpośrednia zostaje potwierdzona
                     po uzgodnieniu terminu i ceny pobytu oraz
-                    wpłacie zadatku w wysokości 10% wartości
-                    pobytu, chyba że strony uzgodnią inaczej.
+                    wpłacie zadatku w wysokości wskazanej
+                    w potwierdzeniu rezerwacji, chyba że strony
+                    uzgodnią inaczej.
                 </li>
 
                 <li>
@@ -224,6 +246,19 @@ $additionalRules = isset($bookingRules)
                 </li>
 
                 <li>
+                    Minimalna długość pobytu przy rezerwacji
+                    bezpośredniej wynosi
+                    <?= htmlspecialchars(
+                        (string) $minimumNights,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>
+                    <?= htmlspecialchars($minimumNightsWord, ENT_QUOTES, 'UTF-8') ?>,
+                    chyba że Wynajmujący potwierdzi możliwość
+                    krótszego pobytu.
+                </li>
+
+                <li>
                     W przypadku rezerwacji dokonanej
                     za pośrednictwem Booking.com, Airbnb
                     lub innej platformy rezerwacyjnej zastosowanie
@@ -256,8 +291,10 @@ $additionalRules = isset($bookingRules)
             <ol>
                 <li>
                     Doba pobytowa rozpoczyna się o godzinie
-                    15:00 w dniu przyjazdu i kończy o godzinie
-                    11:00 w dniu wyjazdu.
+                    <?= htmlspecialchars($checkInTime, ENT_QUOTES, 'UTF-8') ?>
+                    w dniu przyjazdu i kończy o godzinie
+                    <?= htmlspecialchars($checkOutTime, ENT_QUOTES, 'UTF-8') ?>
+                    w dniu wyjazdu.
                 </li>
 
                 <li>

@@ -110,6 +110,8 @@ $isLoggedIn =
 $adminEmail = $isLoggedIn
     ? Auth::adminEmail()
     : '';
+
+$showGlobalChrome = !$isHomePage;
 ?>
 <!doctype html>
 <html lang="pl">
@@ -239,6 +241,7 @@ $adminEmail = $isLoggedIn
 </head>
 
 <body>
+    <?php if ($showGlobalChrome): ?>
     <header class="site-header">
         <div class="container site-header__inner">
             <a
@@ -294,11 +297,13 @@ $adminEmail = $isLoggedIn
             </nav>
         </div>
     </header>
+    <?php endif; ?>
 
     <main>
         <?= $content ?>
     </main>
 
+    <?php if ($showGlobalChrome): ?>
     <footer class="site-footer">
         <div class="container">
             <p>
@@ -320,5 +325,6 @@ $adminEmail = $isLoggedIn
             </p>
         </div>
     </footer>
+    <?php endif; ?>
 </body>
 </html>

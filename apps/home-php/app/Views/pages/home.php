@@ -29,7 +29,7 @@ $inquiryMessage = isset($publicDatabaseMessage) && is_string($publicDatabaseMess
     : null;
 
 $successMessage = isset($_GET['inquiry_sent'])
-    ? 'Dziękujemy.  zostało wysłane. Odpowiemy najszybciej jak to możliwe.'
+    ? 'Dziękujemy. Zapytanie zostało wysłane. Odpowiemy najszybciej jak to możliwe.'
     : null;
 
 $requestedAvailabilityMonth = isset($_GET['availability_month'])
@@ -240,6 +240,42 @@ $formatPublicPrice = static function (int $amount, string $currency): string {
 };
 
 $currency = $settings['currency'] !== '' ? $settings['currency'] : 'PLN';
+
+$publicPropertyName = trim((string) ($settings['property_name'] ?? ''));
+
+if ($publicPropertyName === '') {
+    $publicPropertyName = 'Domki Sztabinki';
+}
+
+$publicShortDescription = trim((string) ($settings['public_short_description'] ?? ''));
+
+if ($publicShortDescription === '') {
+    $publicShortDescription = 'Komfortowe domki w spokojnej okolicy, blisko natury i wody.';
+}
+
+$publicContactPhone = trim((string) ($settings['contact_phone'] ?? ''));
+$publicContactEmail = trim((string) ($settings['contact_email'] ?? ''));
+$publicCity = trim((string) ($settings['city'] ?? ''));
+
+$mapDirectionsUrl = 'https://www.google.com/maps/dir/'
+    . '?api=1&destination=Domki%20Sztabinki%20%C5%BBegary';
+
+$activeCabinCount = count($cabins);
+$maximumCabinGuests = 0;
+
+foreach ($cabins as $publicCabin) {
+    $maximumCabinGuests = max(
+        $maximumCabinGuests,
+        (int) ($publicCabin['max_guests'] ?? 0)
+    );
+}
+
+$activeCabinCountLabel = match (true) {
+    $activeCabinCount === 1 => '1 komfortowy domek',
+    $activeCabinCount >= 2 && $activeCabinCount <= 4 =>
+        $activeCabinCount . ' komfortowe domki',
+    default => $activeCabinCount . ' komfortowych domków',
+};
 
 $cabinString = static function (array $cabin, string $key, string $fallback = ''): string {
     if (!array_key_exists($key, $cabin)) {
@@ -497,6 +533,20 @@ if (isset($settings) && is_array($settings)) {
         font-size: 13px;
     }
 
+    .public-menu-toggle {
+        display: none;
+        min-height: 44px;
+        padding: 0 16px;
+        border: 1px solid var(--public-border);
+        border-radius: 9px;
+        background: var(--public-card);
+        color: var(--public-green);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
     .public-menu {
         display: flex;
         align-items: center;
@@ -642,6 +692,7 @@ if (isset($settings) && is_array($settings)) {
 
     .public-section {
         padding: 52px 0 0;
+        scroll-margin-top: 110px;
     }
 
     .public-section__head {
@@ -1307,8 +1358,30 @@ if (isset($settings) && is_array($settings)) {
     }
 
     @media (max-width: 1050px) {
+        .public-nav__inner {
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .public-menu-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: auto;
+        }
+
         .public-menu {
             display: none;
+            order: 3;
+            width: 100%;
+            flex-wrap: wrap;
+            gap: 10px 18px;
+            padding-top: 8px;
+            border-top: 1px solid var(--public-border);
+        }
+
+        .public-menu.is-open {
+            display: flex;
         }
 
         .public-feature-strip__box,
@@ -1738,16 +1811,26 @@ if (isset($settings) && is_array($settings)) {
     <nav class="public-nav">
         <div class="public-nav__inner">
             <a class="public-logo" href="/">
-                <strong>Domki Sztabinki</strong>
+                <strong><?= htmlspecialchars($publicPropertyName, ENT_QUOTES, 'UTF-8') ?></strong>
                 <span>komfortowe domki nad jeziorem</span>
             </a>
 
-            <div class="public-menu">
+            <button
+                class="public-menu-toggle"
+                type="button"
+                data-public-menu-toggle
+                aria-controls="public-menu"
+                aria-expanded="false"
+            >
+                Menu
+            </button>
+
+            <div class="public-menu" id="public-menu">
                 <a href="#domki">Domki</a>
                 <a href="#dostepnosc">Dostępność</a>
                 <a href="#atrakcje">Atrakcje</a>
                 <a href="#galeria">Galeria</a>
-                <a href="#cennik"></a>
+                <a href="#cennik">Cennik</a>
                 <a href="#kontakt">Kontakt</a>
             </div>
 
@@ -1765,9 +1848,11 @@ if (isset($settings) && is_array($settings)) {
                 <h1>Twój wypoczynek nad jeziorem Sztabinki</h1>
 
                 <p>
-                    Komfortowe domki w spokojnej okolicy, blisko natury i wody.
-                    Idealne miejsce na rodzinny wypoczynek, tydzień z przyjaciółmi
-                    i spokojny odpoczynek z dala od zgiełku.
+                    <?= htmlspecialchars(
+                        $publicShortDescription,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>
                 </p>
 
                 <div class="public-hero__actions">
@@ -1789,7 +1874,11 @@ if (isset($settings) && is_array($settings)) {
                 <div class="public-feature">
                     <div class="public-feature__icon">⌂</div>
                     <div>
-                        <strong>4 komfortowe domki</strong>
+                        <strong><?= htmlspecialchars(
+                            $activeCabinCountLabel,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?></strong>
                         <span>kameralny wypoczynek</span>
                     </div>
                 </div>
@@ -1797,8 +1886,12 @@ if (isset($settings) && is_array($settings)) {
                 <div class="public-feature">
                     <div class="public-feature__icon">👥</div>
                     <div>
-                        <strong>Do 6 osób</strong>
-                        <span>w każdym domku</span>
+                        <strong>Do <?= htmlspecialchars(
+                            (string) $maximumCabinGuests,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?> osób</strong>
+                        <span>w wybranych domkach</span>
                     </div>
                 </div>
 
@@ -1875,6 +1968,18 @@ if (isset($settings) && is_array($settings)) {
                         $cabinId = $cabinInt($offerCabin, 'id', 0);
                         $cabinName = $cabinString($offerCabin, 'name', 'Domek');
                         $cabinShortName = $cabinString($offerCabin, 'short_name', 'Domek');
+                        $cabinDescription = trim(
+                            $cabinString(
+                                $offerCabin,
+                                'description',
+                                ''
+                            )
+                        );
+                        $cabinMaxGuests = $cabinInt(
+                            $offerCabin,
+                            'max_guests',
+                            6
+                        );
                         $image = $cabinImages[$cabinId] ?? null;
                         ?>
 
@@ -1896,7 +2001,7 @@ if (isset($settings) && is_array($settings)) {
                                 <h3><?= htmlspecialchars($cabinName, ENT_QUOTES, 'UTF-8') ?></h3>
 
                                 <div class="public-cabin-meta">
-                                    <span><?= htmlspecialchars((string) $cabinInt($offerCabin, 'max_guests', 6), ENT_QUOTES, 'UTF-8') ?> osób</span>
+                                    <span><?= htmlspecialchars((string) $cabinMaxGuests, ENT_QUOTES, 'UTF-8') ?> osób</span>
                                     <span><?= htmlspecialchars((string) $cabinInt($offerCabin, 'bedrooms', 2), ENT_QUOTES, 'UTF-8') ?> sypialnie</span>
                                     <span>Wi-Fi</span>
                                 </div>
@@ -1930,7 +2035,17 @@ if (isset($settings) && is_array($settings)) {
 
                                     <div class="public-cabin-details__content">
                                         <p>
-                                            Domek ma około 48 m² i jest przygotowany dla maksymalnie 6 osób.
+                                            <?= nl2br(
+                                                htmlspecialchars(
+                                                    $cabinDescription !== ''
+                                                        ? $cabinDescription
+                                                        : 'Domek jest przygotowany dla maksymalnie '
+                                                            . $cabinMaxGuests
+                                                            . ' osób.',
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                )
+                                            ) ?>
                                         </p>
 
                                         <ul>
@@ -2342,8 +2457,8 @@ if (isset($settings) && is_array($settings)) {
                                 <?php endif; ?>
                             </label>
 
-                            <label class="public-label" for="cabin_id">
-                                Domek
+                            <div class="public-label">
+                                <label for="cabin_id">Domek</label>
                                 <select class="public-select" id="cabin_id" name="cabin_id">
                                     <option value="">Dowolny / proszę zaproponować</option>
 
@@ -2411,7 +2526,7 @@ if (isset($settings) && is_array($settings)) {
                                 <?php if (isset($errors['cabin_id'])): ?>
                                     <span class="public-error"><?= htmlspecialchars($errors['cabin_id'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
-                            </label>
+                            </div>
 
                             <label class="public-label" for="date_from">
                                 Przyjazd
@@ -2572,14 +2687,12 @@ if (isset($settings) && is_array($settings)) {
                 <aside class="public-contact-card" id="kontakt">
                     <p class="public-kicker">Kontakt</p>
 
-                    <h2></h2>
-
                         <a
                             class="public-map-card"
-                            href="https://www.google.com/maps/dir/?api=1&destination=Domki%20Sztabinki%20%C5%BBegary"
+                            href="<?= htmlspecialchars($mapDirectionsUrl, ENT_QUOTES, 'UTF-8') ?>"
                             target="_blank"
                             rel="noopener noreferrer"
-                            aria-label="Otwórz dojazd do Domków Sztabinki w Google Maps"
+                            aria-label="Otwórz dojazd do <?= htmlspecialchars($publicPropertyName, ENT_QUOTES, 'UTF-8') ?> w Google Maps"
                         >
                             <div
                                 class="public-map-static"
@@ -2689,7 +2802,7 @@ if (isset($settings) && is_array($settings)) {
                             </div>
 
                             <span class="public-map-card__caption">
-                                <strong>Domki Sztabinki</strong>
+                                <strong><?= htmlspecialchars($publicPropertyName, ENT_QUOTES, 'UTF-8') ?></strong>
                                 <span>Kliknij mapę, aby otworzyć dojazd w Google Maps</span>
                             </span>
                         </a>
@@ -2698,18 +2811,30 @@ if (isset($settings) && is_array($settings)) {
                     <div class="public-contact-list">
                         <div class="public-contact-row">
                             <span>Obiekt</span>
-                            <strong><?= htmlspecialchars($settings['property_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                            <strong><?= htmlspecialchars($publicPropertyName, ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
-                        <div class="public-contact-row">
-                            <span>Telefon</span>
-                            <strong><?= htmlspecialchars($settings['contact_phone'] !== '' ? $settings['contact_phone'] : '+48 502 286 718', ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
+                        <?php if ($publicContactPhone !== ''): ?>
+                            <div class="public-contact-row">
+                                <span>Telefon</span>
+                                <strong>
+                                    <a href="tel:<?= htmlspecialchars(preg_replace('/\s+/', '', $publicContactPhone) ?? $publicContactPhone, ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= htmlspecialchars($publicContactPhone, ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                </strong>
+                            </div>
+                        <?php endif; ?>
 
-                        <div class="public-contact-row">
-                            <span>E-mail</span>
-                            <strong><?= htmlspecialchars($settings['contact_email'] !== '' ? $settings['contact_email'] : 'radekzdancewicz@gmail.com', ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
+                        <?php if ($publicContactEmail !== ''): ?>
+                            <div class="public-contact-row">
+                                <span>E-mail</span>
+                                <strong>
+                                    <a href="mailto:<?= htmlspecialchars($publicContactEmail, ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= htmlspecialchars($publicContactEmail, ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                </strong>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </aside>
             </div>
@@ -2721,7 +2846,7 @@ if (isset($settings) && is_array($settings)) {
             <div class="public-footer__grid">
                 <div>
                     <a class="public-logo" href="/" style="color: #ffffff;">
-                        <strong style="color: #ffffff;">Domki Sztabinki</strong>
+                        <strong style="color: #ffffff;"><?= htmlspecialchars($publicPropertyName, ENT_QUOTES, 'UTF-8') ?></strong>
                         <span style="color: rgba(255,255,255,0.75);">wypoczynek nad jeziorem</span>
                     </a>
 
@@ -2747,15 +2872,27 @@ if (isset($settings) && is_array($settings)) {
                     <strong>Kontakt</strong>
 
                     <p>
-                        <?= htmlspecialchars($settings['contact_phone'] !== '' ? $settings['contact_phone'] : '+48 502 286 718', ENT_QUOTES, 'UTF-8') ?><br>
-                        <?= htmlspecialchars($settings['contact_email'] !== '' ? $settings['contact_email'] : 'radekzdancewicz@gmail.com', ENT_QUOTES, 'UTF-8') ?><br>
-                        <?= htmlspecialchars($settings['city'], ENT_QUOTES, 'UTF-8') ?>
+                        <?php if ($publicContactPhone !== ''): ?>
+                            <a href="tel:<?= htmlspecialchars(preg_replace('/\s+/', '', $publicContactPhone) ?? $publicContactPhone, ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars($publicContactPhone, ENT_QUOTES, 'UTF-8') ?>
+                            </a><br>
+                        <?php endif; ?>
+
+                        <?php if ($publicContactEmail !== ''): ?>
+                            <a href="mailto:<?= htmlspecialchars($publicContactEmail, ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars($publicContactEmail, ENT_QUOTES, 'UTF-8') ?>
+                            </a><br>
+                        <?php endif; ?>
+
+                        <?php if ($publicCity !== ''): ?>
+                            <?= htmlspecialchars($publicCity, ENT_QUOTES, 'UTF-8') ?>
+                        <?php endif; ?>
                     </p>
                 </div>
             </div>
 
             <p style="margin-top: 34px; font-size: 13px;">
-                © <?= htmlspecialchars(date('Y'), ENT_QUOTES, 'UTF-8') ?> Domki Sztabinki. Wszelkie prawa zastrzeżone.
+                © <?= htmlspecialchars(date('Y'), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($publicPropertyName, ENT_QUOTES, 'UTF-8') ?>. Wszelkie prawa zastrzeżone.
             </p>
         </div>
     </footer>
@@ -3201,6 +3338,26 @@ if (isset($settings) && is_array($settings)) {
 </script>
 
 <script>
+const publicMenuToggle = document.querySelector('[data-public-menu-toggle]');
+const publicMenu = document.getElementById('public-menu');
+
+if (publicMenuToggle && publicMenu) {
+    publicMenuToggle.addEventListener('click', function () {
+        const isOpen = publicMenu.classList.toggle('is-open');
+        publicMenuToggle.setAttribute(
+            'aria-expanded',
+            isOpen ? 'true' : 'false'
+        );
+    });
+
+    publicMenu.querySelectorAll('a').forEach(function (link) {
+        link.addEventListener('click', function () {
+            publicMenu.classList.remove('is-open');
+            publicMenuToggle.setAttribute('aria-expanded', 'false');
+        });
+    });
+}
+
 document.addEventListener('click', function (event) {
     if (!(event.target instanceof Element)) {
         return;
