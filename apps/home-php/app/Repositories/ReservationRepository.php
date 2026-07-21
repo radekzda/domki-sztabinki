@@ -621,6 +621,14 @@ final class ReservationRepository
             );
         }
 
+        self::syncCleaningForStatusTransition(
+            $reservationId,
+            null,
+            (string) $data['status'],
+            null,
+            (int) $data['cabin_id']
+        );
+
         return $reservationId;
     }
 
@@ -716,6 +724,14 @@ final class ReservationRepository
         ) {
             return;
         }
+
+        self::syncCleaningForStatusTransition(
+            $id,
+            (string) ($reservationBefore['status'] ?? ''),
+            (string) ($reservationAfter['status'] ?? ''),
+            (int) ($reservationBefore['cabin_id'] ?? 0),
+            (int) ($reservationAfter['cabin_id'] ?? 0)
+        );
 
         $changes = self::describeReservationChanges(
             $reservationBefore,
@@ -831,6 +847,59 @@ final class ReservationRepository
         ];
     }
 
+    private static function syncCleaningForStatusTransition(
+        int $reservationId,
+        ?string $oldStatus,
+        string $newStatus,
+        ?int $oldCabinId,
+        int $newCabinId
+    ): void {
+        $normalizedOldStatus = $oldStatus !== null
+            ? strtoupper(trim($oldStatus))
+            : null;
+
+        $normalizedNewStatus = strtoupper(
+            trim($newStatus)
+        );
+
+        $enteredCheckedOut =
+            $normalizedNewStatus === 'CHECKED_OUT'
+            && $normalizedOldStatus !== 'CHECKED_OUT';
+
+        $changedCabinWhileCheckedOut =
+            $normalizedNewStatus === 'CHECKED_OUT'
+            && $normalizedOldStatus === 'CHECKED_OUT'
+            && $oldCabinId !== null
+            && $oldCabinId > 0
+            && $oldCabinId !== $newCabinId;
+
+        if (
+            $newCabinId <= 0
+            || (
+                !$enteredCheckedOut
+                && !$changedCabinWhileCheckedOut
+            )
+        ) {
+            return;
+        }
+
+        try {
+            CabinRepository::setCleaningStatus(
+                $newCabinId,
+                'DIRTY'
+            );
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się ustawić statusu sprzątania domku #'
+                . $newCabinId
+                . ' po wymeldowaniu z rezerwacji #'
+                . $reservationId
+                . ': '
+                . $exception->getMessage()
+            );
+        }
+    }
+
     public static function setStatus(int $id, string $status): void
     {
         $reservationBefore = self::find($id);
@@ -855,34 +924,20 @@ final class ReservationRepository
             )
             : '';
 
-        if (
-            $oldStatus !== $status
-            && $status === 'CHECKED_OUT'
-            && $reservationBefore !== null
-        ) {
-            $cabinId = (int) (
+        $cabinId = $reservationBefore !== null
+            ? (int) (
                 $reservationBefore['cabin_id']
                 ?? 0
-            );
+            )
+            : 0;
 
-            if ($cabinId > 0) {
-                try {
-                    CabinRepository::setCleaningStatus(
-                        $cabinId,
-                        'DIRTY'
-                    );
-                } catch (Throwable $exception) {
-                    error_log(
-                        'Nie udało się ustawić statusu sprzątania domku #'
-                        . $cabinId
-                        . ' po wymeldowaniu z rezerwacji #'
-                        . $id
-                        . ': '
-                        . $exception->getMessage()
-                    );
-                }
-            }
-        }
+        self::syncCleaningForStatusTransition(
+            $id,
+            $oldStatus !== '' ? $oldStatus : null,
+            $status,
+            $cabinId > 0 ? $cabinId : null,
+            $cabinId
+        );
 
         if ($oldStatus === $status) {
             return;
