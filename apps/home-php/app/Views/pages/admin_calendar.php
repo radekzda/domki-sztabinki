@@ -2393,6 +2393,11 @@ $summaryCards = [
                                                                     </span>
 
                                                                     <span>
+                                                                        <em>Zapłacono</em>
+                                                                        <b><?= htmlspecialchars(formatMoneyForDisplay($barReservation['paid_amount'] ?? 0), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
                                                                         <em>Pozostało</em>
                                                                         <b><?= htmlspecialchars(formatMoneyForDisplay($remainingAmount), ENT_QUOTES, 'UTF-8') ?></b>
                                                                     </span>
@@ -2400,6 +2405,16 @@ $summaryCards = [
                                                                     <span>
                                                                         <em>Status</em>
                                                                         <b><?= htmlspecialchars($statusLabel($reservationStatus), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Status płatności</em>
+                                                                        <b><?= htmlspecialchars($paymentStatusLabel((string) ($barReservation['payment_status'] ?? '')), ENT_QUOTES, 'UTF-8') ?></b>
+                                                                    </span>
+
+                                                                    <span>
+                                                                        <em>Źródło</em>
+                                                                        <b><?= htmlspecialchars(sourceLabelForDisplay((string) ($barReservation['source'] ?? '')), ENT_QUOTES, 'UTF-8') ?></b>
                                                                     </span>
                                                                 </span>
                                                             </a>
