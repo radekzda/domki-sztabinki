@@ -506,6 +506,13 @@ final class ReservationRepository
      */
     public static function create(array $data): int
     {
+        $data['source'] = normalizePmsSource(
+            (string) (
+                $data['source']
+                ?? 'MANUAL'
+            )
+        );
+
         $data['guests'] = self::normalizeGuestCount($data);
 
         self::assertGuestCapacity(
@@ -617,7 +624,9 @@ final class ReservationRepository
                     . ' — '
                     . $data['end_date'],
                 'Źródło: '
-                    . $data['source'],
+                    . sourceLabelForDisplay(
+                        (string) $data['source']
+                    ),
                 'Cena pobytu: '
                     . number_format(
                         (float) $data['total_price'],
@@ -682,6 +691,13 @@ final class ReservationRepository
      */
     public static function update(int $id, array $data): void
     {
+        $data['source'] = normalizePmsSource(
+            (string) (
+                $data['source']
+                ?? 'MANUAL'
+            )
+        );
+
         $reservationBefore = self::find($id);
 
         $data['guests'] = self::normalizeGuestCount($data);

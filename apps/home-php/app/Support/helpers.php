@@ -569,6 +569,9 @@ function reservationFormFromPost(): array
         $_POST['check_out_time'] ?? null,
         '11:00'
     );
+    $form['source'] = normalizePmsSource(
+        $form['source']
+    );
 
     return $form;
 }
@@ -615,7 +618,12 @@ function reservationFormFromReservation(array $reservation): array
         'paid_amount' => $reservation['paid_amount'] !== null
             ? (string) (int) $reservation['paid_amount']
             : '0',
-        'source' => $reservation['source'],
+        'source' => normalizePmsSource(
+            (string) (
+                $reservation['source']
+                ?? 'MANUAL'
+            )
+        ),
         'notes' => $reservation['notes'] ?? '',
     ];
 }
@@ -647,24 +655,58 @@ function reservationFormFromCalendarQuery(array $form): array
     return $form;
 }
 
-function sourceLabelForDisplay(string $source): string
+function normalizePmsSource(string $source): string
 {
     $normalized = strtoupper(
         trim($source)
     );
 
+    $normalized = str_replace(
+        [
+            '.',
+            '-',
+            ' ',
+        ],
+        '_',
+        $normalized
+    );
+
     return match ($normalized) {
-        'MANUAL' => 'Ręcznie',
-        'WWW' => 'Strona WWW',
+        'MANUAL' => 'MANUAL',
+        'DIRECT' => 'DIRECT',
+        'WWW',
+        'WEB',
+        'WEBSITE' => 'WWW',
         'BOOKING',
-        'BOOKING.COM' => 'Booking.com',
-        'PHONE' => 'Telefon',
-        'AIRBNB' => 'Airbnb',
+        'BOOKING_COM',
+        'BOOKINGCOM' => 'BOOKING',
+        'PHONE' => 'PHONE',
+        'AIRBNB' => 'AIRBNB',
         'ICAL_OTHER',
         'OTHER',
-        'ICAL' => 'iCal — inne',
+        'ICAL' => 'ICAL_OTHER',
+        'EMAIL' => 'EMAIL',
+        'UNKNOWN',
+        '' => $normalized,
+        default => $normalized,
+    };
+}
+
+function sourceLabelForDisplay(string $source): string
+{
+    $normalized = normalizePmsSource(
+        $source
+    );
+
+    return match ($normalized) {
+        'MANUAL' => 'Ręcznie',
+        'DIRECT' => 'Bezpośrednio',
+        'WWW' => 'Strona WWW',
+        'BOOKING' => 'Booking.com',
+        'PHONE' => 'Telefon',
+        'AIRBNB' => 'Airbnb',
+        'ICAL_OTHER' => 'iCal — inne',
         'EMAIL' => 'E-mail',
-        'BASE44' => 'Base44',
         'UNKNOWN',
         '' => 'Nieznane',
         default => $source,
@@ -675,23 +717,26 @@ function reservationFormFromIcalEvent(array $event): array
 {
     $form = defaultReservationForm();
 
-    $source = strtoupper(
-        trim(
-            (string) (
-                $event['source']
-                ?? 'BOOKING'
-            )
+    $source = normalizePmsSource(
+        (string) (
+            $event['source']
+            ?? 'BOOKING'
         )
     );
 
-    $source = match ($source) {
-        'BOOKING' => 'BOOKING',
-        'AIRBNB' => 'AIRBNB',
-        'OTHER',
-        'ICAL',
-        'ICAL_OTHER' => 'ICAL_OTHER',
-        default => 'ICAL_OTHER',
-    };
+    if (
+        !in_array(
+            $source,
+            [
+                'BOOKING',
+                'AIRBNB',
+                'ICAL_OTHER',
+            ],
+            true
+        )
+    ) {
+        $source = 'ICAL_OTHER';
+    }
 
     $form['cabin_id'] = (string) (
         $event['cabin_id']
@@ -894,6 +939,7 @@ function validateReservationForm(array $form): array
 
     $allowedSources = [
         'MANUAL',
+        'DIRECT',
         'WWW',
         'BOOKING',
         'PHONE',
@@ -1153,7 +1199,9 @@ function reservationDataFromForm(
         'adults' => $adults,
         'children' => $children,
         'status' => $form['status'],
-        'source' => $form['source'],
+        'source' => normalizePmsSource(
+            $form['source']
+        ),
         'payment_status' => $form['payment_status'],
         'total_price' => $totalPrice,
         'paid_amount' => (int) $form['paid_amount'],
@@ -1297,6 +1345,10 @@ function guestFormFromPost(): array
         $form[$key] = is_string($postedValue) ? trim($postedValue) : $value;
     }
 
+    $form['source'] = normalizePmsSource(
+        $form['source']
+    );
+
     return $form;
 }
 
@@ -1332,7 +1384,12 @@ function guestFormFromGuest(array $guest): array
         'nationality' => isset($guest['nationality']) ? (string) $guest['nationality'] : '',
         'birth_date' => isset($guest['birth_date']) ? (string) $guest['birth_date'] : '',
         'is_vip' => (string) ((int) ($guest['is_vip'] ?? 0)),
-        'source' => (string) ($guest['source'] ?? 'MANUAL'),
+        'source' => normalizePmsSource(
+            (string) (
+                $guest['source']
+                ?? 'MANUAL'
+            )
+        ),
         'preferred_contact' => isset($guest['preferred_contact']) ? (string) $guest['preferred_contact'] : '',
         'preferences' => isset($guest['preferences']) ? (string) $guest['preferences'] : '',
         'important_notes' => isset($guest['important_notes']) ? (string) $guest['important_notes'] : '',
@@ -1387,12 +1444,12 @@ function validateGuestForm(array $form): array
 
     $allowedSources = [
         'MANUAL',
+        'DIRECT',
         'WWW',
         'BOOKING',
         'PHONE',
         'AIRBNB',
         'ICAL_OTHER',
-        'BASE44',
     ];
 
     if (!in_array((string) $form['source'], $allowedSources, true)) {
@@ -1440,7 +1497,9 @@ function guestDataFromForm(array $form): array
         'nationality' => trim((string) $form['nationality']) !== '' ? trim((string) $form['nationality']) : null,
         'birth_date' => trim((string) $form['birth_date']) !== '' ? (new DateTimeImmutable((string) $form['birth_date']))->format('Y-m-d') : null,
         'is_vip' => (int) $form['is_vip'],
-        'source' => (string) $form['source'],
+        'source' => normalizePmsSource(
+            (string) $form['source']
+        ),
         'preferred_contact' => trim((string) ($form['preferred_contact'] ?? '')) !== '' ? trim((string) ($form['preferred_contact'] ?? '')) : null,
         'preferences' => trim((string) ($form['preferences'] ?? '')) !== '' ? trim((string) ($form['preferences'] ?? '')) : null,
         'important_notes' => trim((string) ($form['important_notes'] ?? '')) !== '' ? trim((string) ($form['important_notes'] ?? '')) : null,

@@ -232,11 +232,14 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
                 <option value="MANUAL" <?= $form['source'] === 'MANUAL' ? 'selected' : '' ?>>
                     Ręcznie
                 </option>
+                <option value="DIRECT" <?= $form['source'] === 'DIRECT' ? 'selected' : '' ?>>
+                    Bezpośrednio
+                </option>
                 <option value="WWW" <?= $form['source'] === 'WWW' ? 'selected' : '' ?>>
-                    WWW
+                    Strona WWW
                 </option>
                 <option value="BOOKING" <?= $form['source'] === 'BOOKING' ? 'selected' : '' ?>>
-                    Booking
+                    Booking.com
                 </option>
                 <option value="PHONE" <?= $form['source'] === 'PHONE' ? 'selected' : '' ?>>
                     Telefon
@@ -246,9 +249,6 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
                 </option>
                 <option value="ICAL_OTHER" <?= $form['source'] === 'ICAL_OTHER' ? 'selected' : '' ?>>
                     iCal — inne
-                </option>
-                <option value="BASE44" <?= $form['source'] === 'BASE44' ? 'selected' : '' ?>>
-                    Base44
                 </option>
             </select>
 

@@ -220,6 +220,13 @@ final class GuestRepository
 
     public static function create(array $data): int
     {
+        $data['source'] = normalizePmsSource(
+            (string) (
+                $data['source']
+                ?? 'MANUAL'
+            )
+        );
+
         self::ensureProfileColumns();
 
         $connection = Database::connection();
@@ -298,6 +305,13 @@ final class GuestRepository
 
     public static function update(int $id, array $data): void
     {
+        $data['source'] = normalizePmsSource(
+            (string) (
+                $data['source']
+                ?? 'MANUAL'
+            )
+        );
+
         self::ensureProfileColumns();
 
         $connection = Database::connection();

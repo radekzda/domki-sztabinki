@@ -474,11 +474,14 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 <option value="MANUAL" <?= $form['source'] === 'MANUAL' ? 'selected' : '' ?>>
                     Ręcznie
                 </option>
+                <option value="DIRECT" <?= $form['source'] === 'DIRECT' ? 'selected' : '' ?>>
+                    Bezpośrednio
+                </option>
                 <option value="WWW" <?= $form['source'] === 'WWW' ? 'selected' : '' ?>>
-                    WWW
+                    Strona WWW
                 </option>
                 <option value="BOOKING" <?= $form['source'] === 'BOOKING' ? 'selected' : '' ?>>
-                    Booking
+                    Booking.com
                 </option>
                 <option value="PHONE" <?= $form['source'] === 'PHONE' ? 'selected' : '' ?>>
                     Telefon
