@@ -1679,6 +1679,7 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
 
     $cabins = [];
     $guests = [];
+    $settings = defaultSettingsForm();
     $databaseMessage = null;
     $form = defaultReservationForm();
     $form = reservationFormFromCalendarQuery($form);
@@ -1692,6 +1693,7 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
         try {
             $cabins = CabinRepository::all();
             $guests = GuestRepository::all();
+            $settings = SettingsRepository::all();
 
             if ($icalEventId !== null) {
                 $sourceIcalEvent = IcalEventRepository::find(
@@ -1763,6 +1765,7 @@ $router->get('/admin/rezerwacje/nowa', function (): void {
         'calculatedNights' => null,
         'calculatedTotalPrice' => null,
         'sourceIcalEvent' => $sourceIcalEvent,
+        'pricingSettings' => $settings,
     ]));
 });
 
@@ -1851,6 +1854,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
             'sourceIcalEvent' => null,
+            'pricingSettings' => $settings,
         ]), 422);
 
         return;
@@ -1954,6 +1958,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
             'sourceIcalEvent' => $sourceIcalEvent,
+            'pricingSettings' => $settings,
         ]), 500);
 
         return;
@@ -1993,11 +1998,19 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
                 }
             }
 
-            $calculatedTotalPrice = $calculatedNights
+            $defaultTotalPrice = $calculatedNights
                 * getReservationNightPriceFromSettings(
                     $calculatedNights,
                     $settings
                 );
+
+            $calculatedTotalPrice =
+                ($form['total_price'] ?? '') !== ''
+                    ? (int) $form['total_price']
+                    : $defaultTotalPrice;
+
+            $form['total_price'] =
+                (string) $calculatedTotalPrice;
         }
     }
 
@@ -2013,6 +2026,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
             'sourceIcalEvent' => $sourceIcalEvent,
+            'pricingSettings' => $settings,
         ]), 422);
 
         return;
@@ -2063,6 +2077,16 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
                 ? $form['country']
                 : null
         );
+
+        if ($form['payment_status'] === 'PAID') {
+            $form['paid_amount'] =
+                (string) $calculatedTotalPrice;
+        } elseif (
+            $form['payment_status']
+            === 'PENDING'
+        ) {
+            $form['paid_amount'] = '0';
+        }
 
         $reservationId = ReservationRepository::create(
             reservationDataFromForm(
@@ -2139,6 +2163,7 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
             'sourceIcalEvent' => $sourceIcalEvent,
+            'pricingSettings' => $settings,
         ]), 500);
     }
 });
@@ -2652,6 +2677,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
+            'pricingSettings' => [],
         ]));
 
         return;
@@ -2671,6 +2697,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
 
         $cabins = CabinRepository::all();
         $guests = GuestRepository::all();
+        $settings = SettingsRepository::all();
 
         Response::html(View::render('pages/admin_reservations_edit', [
             'title' => 'Edytuj rezerwację',
@@ -2683,6 +2710,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
             'canSave' => $cabins !== [],
             'calculatedNights' => $reservation['nights'],
             'calculatedTotalPrice' => $reservation['total_price'] !== null ? (int) $reservation['total_price'] : null,
+            'pricingSettings' => $settings,
         ]));
     } catch (Throwable $exception) {
         Response::html(View::render('pages/admin_reservations_edit', [
@@ -2696,6 +2724,7 @@ $router->get('/admin/rezerwacje/edytuj', function (): void {
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
+            'pricingSettings' => [],
         ]), 500);
     }
 });
@@ -2739,6 +2768,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
+            'pricingSettings' => [],
         ]), 422);
 
         return;
@@ -2761,6 +2791,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'canSave' => false,
             'calculatedNights' => null,
             'calculatedTotalPrice' => null,
+            'pricingSettings' => [],
         ]), 500);
 
         return;
@@ -2825,20 +2856,33 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             $existingTotalPrice =
                 $existingReservation['total_price'] ?? null;
 
+            $defaultTotalPrice = $calculatedNights
+                * getReservationNightPriceFromSettings(
+                    $calculatedNights,
+                    $settings
+                );
+
             if (
+                ($form['total_price'] ?? '') !== ''
+            ) {
+                $calculatedTotalPrice =
+                    (int) $form['total_price'];
+            } elseif (
                 !$hasPricingChange
                 && $existingTotalPrice !== null
                 && is_numeric($existingTotalPrice)
             ) {
                 $calculatedTotalPrice =
-                    (int) round((float) $existingTotalPrice);
-            } else {
-                $calculatedTotalPrice = $calculatedNights
-                    * getReservationNightPriceFromSettings(
-                        $calculatedNights,
-                        $settings
+                    (int) round(
+                        (float) $existingTotalPrice
                     );
+            } else {
+                $calculatedTotalPrice =
+                    $defaultTotalPrice;
             }
+
+            $form['total_price'] =
+                (string) $calculatedTotalPrice;
         }
     }
 
@@ -2854,6 +2898,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
+            'pricingSettings' => $settings,
         ]), 422);
 
         return;
@@ -2889,6 +2934,15 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
                 : null
         );
 
+        if ($form['payment_status'] === 'PAID') {
+            $form['paid_amount'] =
+                (string) $calculatedTotalPrice;
+        } elseif (
+            $form['payment_status']
+            === 'PENDING'
+        ) {
+            $form['paid_amount'] = '0';
+        }
         ReservationRepository::update($id, reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice, $guestId));
 
         // M13.63 return to calendar after edit
@@ -2909,6 +2963,7 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
             'canSave' => true,
             'calculatedNights' => $calculatedNights,
             'calculatedTotalPrice' => $calculatedTotalPrice,
+            'pricingSettings' => $settings,
         ]), 500);
     }
 });

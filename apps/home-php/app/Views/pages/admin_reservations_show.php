@@ -429,11 +429,12 @@ $displayDateTime = static function (mixed $value): string {
                     </div>
 
                     <div class="status-list">
-                        
+
                         <div class="status-row">
-                            <span>ID z Base44</span>
-                            <strong><?= htmlspecialchars($displayValue($reservation['external_id'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                            <span>Utworzono</span>
+                            <strong><?= htmlspecialchars(formatDateForDisplay($reservation['created_at']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
+                        
 
 <div class="status-row">
                             <span>Gość z rezerwacji</span>
@@ -482,14 +483,7 @@ $displayDateTime = static function (mixed $value): string {
                         </div>
 
 
-                        <div class="status-row">
-                            <span>Termin</span>
-                            <strong>
-                                <?= htmlspecialchars(formatDateForDisplay($reservation['start_date']), ENT_QUOTES, 'UTF-8') ?>
-                                —
-                                <?= htmlspecialchars(formatDateForDisplay($reservation['end_date']), ENT_QUOTES, 'UTF-8') ?>
-                            </strong>
-                        </div>
+
                         <div class="status-row">
                             <span>Godzina przyjazdu</span>
                             <strong><?= htmlspecialchars($displayDateTime($reservation['check_in_at'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
@@ -537,16 +531,29 @@ $displayDateTime = static function (mixed $value): string {
                             <span>Wpłacono</span>
                             <strong><?= htmlspecialchars(formatMoneyForDisplay($reservation['paid_amount']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
+                        <div class="status-row">
+                            <span>Pozostało do zapłaty</span>
+                            <strong>
+                                <?= htmlspecialchars(
+                                    formatMoneyForDisplay(
+                                        max(
+                                            0,
+                                            (float) ($reservation['total_price'] ?? 0)
+                                            - (float) ($reservation['paid_amount'] ?? 0)
+                                        )
+                                    ),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </strong>
+                        </div>
 
                         <div class="status-row">
                             <span>Źródło</span>
                             <strong><?= htmlspecialchars(sourceLabelForDisplay((string) $reservation['source']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
-                        <div class="status-row">
-                            <span>Utworzono</span>
-                            <strong><?= htmlspecialchars(formatDateForDisplay($reservation['created_at']), ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
+
                     </div>
 
                     <div class="empty-state">

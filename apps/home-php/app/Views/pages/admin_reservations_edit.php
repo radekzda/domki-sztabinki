@@ -112,6 +112,8 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                         'canSave' => $canSave,
                         'action' => '/admin/rezerwacje/edytuj?id=' . $id,
                         'submitLabel' => 'Zapisz zmiany',
+                        'pricingSettings' => $pricingSettings ?? [],
+                        'enableLivePricing' => true,
                     ]);
                     ?>
                 </div>

@@ -42,6 +42,7 @@ declare(strict_types=1);
  * @var int|null $calculatedNights
  * @var int|null $calculatedTotalPrice
  * @var array<string, mixed>|null $sourceIcalEvent
+ * @var array<string, string> $pricingSettings
  */
 
 $returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
@@ -179,6 +180,8 @@ if ($isIcalReservation) {
                         'action' => $reservationCreateAction,
                         'submitLabel' => 'Zapisz rezerwację',
                         'lockIcalSourceFields' => $isIcalReservation,
+                        'pricingSettings' => $pricingSettings ?? [],
+                        'enableLivePricing' => true,
                     ]);
                     ?>
                 </div>

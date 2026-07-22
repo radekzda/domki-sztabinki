@@ -431,6 +431,7 @@ function defaultReservationForm(): array
         'children' => '0',
         'status' => 'PENDING',
         'payment_status' => 'PENDING',
+        'total_price' => '',
         'paid_amount' => '0',
         'source' => 'MANUAL',
         'preferred_contact' => '',
@@ -608,6 +609,9 @@ function reservationFormFromReservation(array $reservation): array
         'children' => (string) $reservation['children'],
         'status' => $reservation['status'],
         'payment_status' => $reservation['payment_status'] ?? 'PENDING',
+        'total_price' => $reservation['total_price'] !== null
+            ? (string) (int) $reservation['total_price']
+            : '',
         'paid_amount' => $reservation['paid_amount'] !== null
             ? (string) (int) $reservation['paid_amount']
             : '0',
@@ -838,6 +842,19 @@ function validateReservationForm(array $form): array
     if (!ctype_digit($form['children'])) {
         $errors['children'] =
             'Liczba dzieci musi być liczbą całkowitą.';
+    }
+
+    if (
+        ($form['total_price'] ?? '') !== ''
+        && (
+            !ctype_digit(
+                (string) $form['total_price']
+            )
+            || (int) $form['total_price'] < 0
+        )
+    ) {
+        $errors['total_price'] =
+            'Kwota rezerwacji musi być nieujemną liczbą całkowitą.';
     }
 
     if (!ctype_digit($form['paid_amount'])) {

@@ -40,12 +40,20 @@ declare(strict_types=1);
  * @var string $action
  * @var string $submitLabel
  * @var bool $lockIcalSourceFields
+ * @var array<string, string> $pricingSettings
+ * @var bool $enableLivePricing
  */
 
 $actionValue = isset($action) && is_string($action) ? $action : '';
 $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabel : 'Zapisz rezerwację';
 $lockIcalSourceFieldsValue = isset($lockIcalSourceFields)
     && $lockIcalSourceFields === true;
+$enableLivePricingValue = isset($enableLivePricing)
+    && $enableLivePricing === true;
+$pricingSettingsValue = isset($pricingSettings)
+    && is_array($pricingSettings)
+        ? $pricingSettings
+        : [];
 $returnUrl = isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : '';
 
 if ($returnUrl === '' && isset($_POST['return_url']) && is_string($_POST['return_url'])) {
@@ -336,6 +344,60 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
             <?php endif; ?>
         </div>
 
+
+        <?php if ($enableLivePricingValue): ?>
+            <div class="form-field">
+                <label for="reservation_total_price">
+                    Kwota
+                    <span id="reservation_price_formula"></span>
+                </label>
+                <input
+                    id="reservation_total_price"
+                    name="total_price"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value="<?= htmlspecialchars(
+                        (string) ($form['total_price'] ?? ''),
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                >
+
+                <?php if (isset($errors['total_price'])): ?>
+                    <span class="form-error"><?= htmlspecialchars($errors['total_price'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php endif; ?>
+            </div>
+
+            <div class="form-field">
+                <label for="paid_amount">Wpłacono</label>
+                <input
+                    id="paid_amount"
+                    name="paid_amount"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value="<?= htmlspecialchars($form['paid_amount'], ENT_QUOTES, 'UTF-8') ?>"
+                >
+
+                <?php if (isset($errors['paid_amount'])): ?>
+                    <span class="form-error"><?= htmlspecialchars($errors['paid_amount'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php endif; ?>
+            </div>
+
+            <div class="form-field form-field--full">
+                <label for="reservation_remaining_amount">
+                    Pozostało do zapłaty
+                </label>
+                <input
+                    id="reservation_remaining_amount"
+                    type="text"
+                    value="—"
+                    readonly
+                >
+            </div>
+        <?php endif; ?>
+
         <div class="form-field">
             <label for="status">Status rezerwacji</label>
             <select id="status" name="status">
@@ -383,6 +445,7 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
             <?php endif; ?>
         </div>
 
+        <?php if (!$enableLivePricingValue): ?>
         <div class="form-field">
             <label for="paid_amount">Wpłacono</label>
             <input
@@ -398,6 +461,8 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
                 <span class="form-error"><?= htmlspecialchars($errors['paid_amount'], ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </div>
+
+        <?php endif; ?>
 
         <div class="form-field">
             <label for="source">Źródło</label>
@@ -541,4 +606,317 @@ $canReturnToCalendar = str_starts_with($returnUrl, '/admin/kalendarz');
         });
     });
 </script>
+
+<?php if ($enableLivePricingValue): ?>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var pricing = <?= json_encode(
+            [
+                'price_one_night' => (int) (
+                    $pricingSettingsValue['price_one_night']
+                    ?? 800
+                ),
+                'price_two_nights' => (int) (
+                    $pricingSettingsValue['price_two_nights']
+                    ?? 440
+                ),
+                'price_three_nights' => (int) (
+                    $pricingSettingsValue['price_three_nights']
+                    ?? 430
+                ),
+                'price_four_nights' => (int) (
+                    $pricingSettingsValue['price_four_nights']
+                    ?? 420
+                ),
+                'price_five_nights' => (int) (
+                    $pricingSettingsValue['price_five_nights']
+                    ?? 410
+                ),
+                'price_six_nights' => (int) (
+                    $pricingSettingsValue['price_six_nights']
+                    ?? 400
+                ),
+                'price_seven_plus_nights' => (int) (
+                    $pricingSettingsValue['price_seven_plus_nights']
+                    ?? 350
+                ),
+            ],
+            JSON_UNESCAPED_UNICODE
+            | JSON_UNESCAPED_SLASHES
+        ) ?>;
+
+        var startInput =
+            document.getElementById('start_date');
+        var endInput =
+            document.getElementById('end_date');
+        var totalInput =
+            document.getElementById(
+                'reservation_total_price'
+            );
+        var formulaLabel =
+            document.getElementById(
+                'reservation_price_formula'
+            );
+        var paidInput =
+            document.getElementById('paid_amount');
+        var remainingInput =
+            document.getElementById(
+                'reservation_remaining_amount'
+            );
+        var paymentStatusSelect =
+            document.getElementById('payment_status');
+
+        if (
+            !startInput
+            || !endInput
+            || !totalInput
+            || !formulaLabel
+            || !paidInput
+            || !remainingInput
+            || !paymentStatusSelect
+        ) {
+            return;
+        }
+
+        var totalPrice = 0;
+        var suggestedTotalPrice = 0;
+
+        function money(value) {
+            return new Intl.NumberFormat(
+                'pl-PL',
+                {
+                    maximumFractionDigits: 0
+                }
+            ).format(value) + ' zł';
+        }
+
+        function calculateNights() {
+            if (
+                startInput.value === ''
+                || endInput.value === ''
+            ) {
+                return 0;
+            }
+
+            var start = new Date(
+                startInput.value + 'T00:00:00Z'
+            );
+            var end = new Date(
+                endInput.value + 'T00:00:00Z'
+            );
+
+            if (
+                Number.isNaN(start.getTime())
+                || Number.isNaN(end.getTime())
+                || end <= start
+            ) {
+                return 0;
+            }
+
+            return Math.round(
+                (
+                    end.getTime()
+                    - start.getTime()
+                )
+                / 86400000
+            );
+        }
+
+        function nightlyPrice(nights) {
+            if (nights <= 1) {
+                return pricing.price_one_night;
+            }
+
+            if (nights === 2) {
+                return pricing.price_two_nights;
+            }
+
+            if (nights === 3) {
+                return pricing.price_three_nights;
+            }
+
+            if (nights === 4) {
+                return pricing.price_four_nights;
+            }
+
+            if (nights === 5) {
+                return pricing.price_five_nights;
+            }
+
+            if (nights === 6) {
+                return pricing.price_six_nights;
+            }
+
+            return pricing.price_seven_plus_nights;
+        }
+
+        function paidAmount() {
+            var value = Number(
+                paidInput.value || 0
+            );
+
+            return Number.isFinite(value)
+                ? Math.max(0, value)
+                : 0;
+        }
+
+        function currentTotalPrice() {
+            var value = Number(
+                totalInput.value || 0
+            );
+
+            return Number.isFinite(value)
+                ? Math.max(0, value)
+                : 0;
+        }
+
+        function updateRemaining() {
+            totalPrice = currentTotalPrice();
+
+            var paid = paidAmount();
+
+            remainingInput.value = money(
+                Math.max(
+                    totalPrice - paid,
+                    0
+                )
+            );
+        }
+
+        function updateSummary() {
+            var nights = calculateNights();
+
+            if (nights < 1) {
+                totalPrice = 0;
+                totalInput.value = '—';
+                formulaLabel.textContent = '';
+                remainingInput.value = '—';
+
+                return;
+            }
+
+            var pricePerNight =
+                nightlyPrice(nights);
+
+            suggestedTotalPrice =
+                nights * pricePerNight;
+
+            totalInput.value =
+                String(suggestedTotalPrice);
+
+            totalPrice =
+                suggestedTotalPrice;
+
+            formulaLabel.textContent =
+                ' ('
+                + nights
+                + (
+                    nights === 1
+                        ? ' noc × '
+                        : ' nocy × '
+                )
+                + money(pricePerNight)
+                + ')';
+
+            if (
+                paymentStatusSelect.value
+                === 'PAID'
+            ) {
+                paidInput.value =
+                    String(totalPrice);
+            } else if (
+                Number(paidInput.value || 0)
+                > totalPrice
+            ) {
+                paidInput.value =
+                    String(totalPrice);
+            }
+
+            updateRemaining();
+        }
+
+        function syncPaidWithStatus() {
+            if (
+                paymentStatusSelect.value
+                === 'PAID'
+            ) {
+                paidInput.value =
+                    String(totalPrice);
+            } else if (
+                paymentStatusSelect.value
+                === 'PENDING'
+            ) {
+                paidInput.value = '0';
+            }
+
+            updateRemaining();
+        }
+
+        startInput.addEventListener(
+            'change',
+            updateSummary
+        );
+
+        endInput.addEventListener(
+            'change',
+            updateSummary
+        );
+
+        totalInput.addEventListener(
+            'input',
+            function () {
+                totalPrice =
+                    currentTotalPrice();
+
+                if (
+                    paymentStatusSelect.value
+                    === 'PAID'
+                ) {
+                    paidInput.value =
+                        String(totalPrice);
+                } else if (
+                    Number(
+                        paidInput.value || 0
+                    ) > totalPrice
+                ) {
+                    paidInput.value =
+                        String(totalPrice);
+                }
+
+                updateRemaining();
+            }
+        );
+
+        paidInput.addEventListener(
+            'input',
+            updateRemaining
+        );
+
+        paymentStatusSelect.addEventListener(
+            'change',
+            syncPaidWithStatus
+        );
+
+        var initialTotalPrice =
+            totalInput.value;
+
+        updateSummary();
+
+        if (
+            initialTotalPrice !== ''
+            && Number.isFinite(
+                Number(initialTotalPrice)
+            )
+        ) {
+            totalInput.value =
+                initialTotalPrice;
+
+            totalPrice =
+                currentTotalPrice();
+        }
+
+        syncPaidWithStatus();
+    });
+</script>
+<?php endif; ?>
 
