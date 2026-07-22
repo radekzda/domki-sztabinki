@@ -15,6 +15,13 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
 ?>
 <form class="form form--wide" method="post" action="<?= htmlspecialchars($actionValue, ENT_QUOTES, 'UTF-8') ?>">
     <?= csrfField() ?>
+
+    <input
+        id="address_sync_source"
+        name="address_sync_source"
+        type="hidden"
+        value="structured"
+    >
     <div class="form-grid">
         <div class="form-field">
             <label for="first_name">Imię</label>
@@ -132,6 +139,26 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
         </div>
 
         <div class="form-field">
+            <label for="street">Ulica</label>
+            <input
+                id="street"
+                name="street"
+                type="text"
+                value="<?= htmlspecialchars($form['street'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="postal_code">Kod pocztowy</label>
+            <input
+                id="postal_code"
+                name="postal_code"
+                type="text"
+                value="<?= htmlspecialchars($form['postal_code'], ENT_QUOTES, 'UTF-8') ?>"
+            >
+        </div>
+
+        <div class="form-field">
             <label for="city">Miejscowość</label>
             <input
                 id="city"
@@ -195,20 +222,6 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
             >
         </div>
 
-        <div class="form-field">
-            <label for="nationality">Narodowość</label>
-
-            <input
-                id="nationality"
-                name="nationality"
-                type="text"
-                value="<?= htmlspecialchars(
-                    $form['nationality'],
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>"
-            >
-        </div>
 
         <div class="form-field">
             <label for="is_vip">VIP</label>
@@ -255,20 +268,6 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
             <?php if (isset($errors['source'])): ?>
                 <span class="form-error"><?= htmlspecialchars($errors['source'], ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
-        </div>
-
-        <div class="form-field form-field--full">
-            <label for="external_id">ID z Base44</label>
-            <input
-                id="external_id"
-                name="external_id"
-                type="text"
-                value="<?= htmlspecialchars($form['external_id'], ENT_QUOTES, 'UTF-8') ?>"
-            >
-
-            <small>
-                To pole służy do dopasowania importu. Nie jest widoczne dla gościa.
-            </small>
         </div>
 
         <div class="form-field form-field--full">
@@ -333,3 +332,221 @@ $submitLabelValue = isset($submitLabel) && is_string($submitLabel) ? $submitLabe
         </a>
     </div>
 </form>
+
+<script>
+    document.addEventListener(
+        'DOMContentLoaded',
+        function () {
+            var street =
+                document.getElementById(
+                    'street'
+                );
+            var postalCode =
+                document.getElementById(
+                    'postal_code'
+                );
+            var city =
+                document.getElementById(
+                    'city'
+                );
+            var country =
+                document.getElementById(
+                    'country'
+                );
+            var fullAddress =
+                document.getElementById(
+                    'full_address'
+                );
+            var syncSource =
+                document.getElementById(
+                    'address_sync_source'
+                );
+
+            if (
+                !street
+                || !postalCode
+                || !city
+                || !country
+                || !fullAddress
+                || !syncSource
+            ) {
+                return;
+            }
+
+            function composeAddress() {
+                var cityLine = [
+                    postalCode.value.trim(),
+                    city.value.trim()
+                ]
+                    .filter(Boolean)
+                    .join(' ');
+
+                fullAddress.value = [
+                    street.value.trim(),
+                    cityLine,
+                    country.value.trim()
+                ]
+                    .filter(Boolean)
+                    .join(', ');
+
+                syncSource.value =
+                    'structured';
+            }
+
+            function parseFullAddress() {
+                var parts =
+                    fullAddress.value
+                        .split(
+                            /,|\r?\n/
+                        )
+                        .map(
+                            function (part) {
+                                return part.trim();
+                            }
+                        )
+                        .filter(Boolean);
+
+                if (
+                    parts.length === 0
+                ) {
+                    return;
+                }
+
+                var parsedStreet =
+                    parts[0] || '';
+                var parsedPostal = '';
+                var parsedCity = '';
+                var parsedCountry = '';
+
+                for (
+                    var index = 1;
+                    index < parts.length;
+                    index++
+                ) {
+                    var part =
+                        parts[index];
+
+                    var postalCity =
+                        part.match(
+                            /^([A-Z]{0,2}\s*\d[\dA-Z -]{1,9})\s+(.+)$/i
+                        );
+
+                    if (postalCity) {
+                        parsedPostal =
+                            postalCity[1]
+                                .trim();
+                        parsedCity =
+                            postalCity[2]
+                                .trim();
+
+                        break;
+                    }
+
+                    var postalOnly =
+                        part.match(
+                            /^([A-Z]{0,2}\s*\d[\dA-Z -]{1,9})$/i
+                        );
+
+                    if (postalOnly) {
+                        parsedPostal =
+                            postalOnly[1]
+                                .trim();
+
+                        if (
+                            index > 1
+                            && parsedCity === ''
+                        ) {
+                            parsedCity =
+                                parts[
+                                    index - 1
+                                ];
+                        }
+
+                        break;
+                    }
+                }
+
+                if (
+                    parsedCity === ''
+                    && parts[1]
+                    && parts[1]
+                        !== parsedPostal
+                ) {
+                    parsedCity =
+                        parts[1];
+                }
+
+                if (
+                    parts.length >= 3
+                ) {
+                    var last =
+                        parts[
+                            parts.length - 1
+                        ];
+
+                    if (
+                        last !== parsedStreet
+                        && last !== parsedCity
+                        && last !== parsedPostal
+                        && (
+                            parsedPostal === ''
+                            || !last.includes(
+                                parsedPostal
+                            )
+                        )
+                    ) {
+                        parsedCountry =
+                            last;
+                    }
+                }
+
+                if (parsedStreet !== '') {
+                    street.value =
+                        parsedStreet;
+                }
+
+                if (parsedPostal !== '') {
+                    postalCode.value =
+                        parsedPostal;
+                }
+
+                if (parsedCity !== '') {
+                    city.value =
+                        parsedCity;
+                }
+
+                if (parsedCountry !== '') {
+                    country.value =
+                        parsedCountry;
+                }
+
+                syncSource.value = 'full';
+            }
+
+            [
+                street,
+                postalCode,
+                city,
+                country
+            ].forEach(
+                function (input) {
+                    input.addEventListener(
+                        'input',
+                        composeAddress
+                    );
+                }
+            );
+
+            fullAddress.addEventListener(
+                'change',
+                parseFullAddress
+            );
+
+            fullAddress.addEventListener(
+                'blur',
+                parseFullAddress
+            );
+        }
+    );
+</script>
+

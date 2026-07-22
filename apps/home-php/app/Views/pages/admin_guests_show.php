@@ -376,6 +376,16 @@ $displayDate = static function (mixed $value): string {
                         </div>
 
                         <div class="status-row">
+                            <span>Ulica</span>
+                            <strong><?= htmlspecialchars($displayValue($guest['street'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
+                            <span>Kod pocztowy</span>
+                            <strong><?= htmlspecialchars($displayValue($guest['postal_code'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
+                        </div>
+
+                        <div class="status-row">
                             <span>Miejscowość</span>
                             <strong><?= htmlspecialchars($displayValue($guest['city'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
@@ -405,22 +415,6 @@ $displayDate = static function (mixed $value): string {
                             <strong><?= htmlspecialchars($displayValue($guest['document_number'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
-                        <div class="status-row">
-                            <span>Narodowość</span>
-
-                            <strong>
-                                <?= htmlspecialchars(
-                                    $displayValue(
-                                        $guest[
-                                            'nationality'
-                                        ]
-                                        ?? null
-                                    ),
-                                    ENT_QUOTES,
-                                    'UTF-8'
-                                ) ?>
-                            </strong>
-                        </div>
 
                         <div class="status-row">
                             <span>VIP</span>
@@ -430,11 +424,6 @@ $displayDate = static function (mixed $value): string {
                         <div class="status-row">
                             <span>Źródło</span>
                             <strong><?= htmlspecialchars(sourceLabelForDisplay((string) $guest['source']), ENT_QUOTES, 'UTF-8') ?></strong>
-                        </div>
-
-                        <div class="status-row">
-                            <span>ID z Base44</span>
-                            <strong><?= htmlspecialchars($displayValue($guest['external_id'] ?? null), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
                         <div class="status-row">

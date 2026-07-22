@@ -1308,20 +1308,264 @@ function reservationStatusBlocks(string $status): bool
     return in_array($status, ['PENDING', 'CONFIRMED', 'CHECKED_IN'], true);
 }
 
+/**
+ * @return array{
+ *     street: string,
+ *     postal_code: string,
+ *     city: string,
+ *     country: string
+ * }
+ */
+function guestAddressFieldsFromFullAddress(
+    string $fullAddress
+): array {
+    $parts = preg_split(
+        '/\s*(?:,|\r\n|\r|\n)\s*/u',
+        trim($fullAddress)
+    );
+
+    if (!is_array($parts)) {
+        $parts = [];
+    }
+
+    $parts = array_values(
+        array_filter(
+            array_map(
+                static fn (string $part): string =>
+                    trim($part),
+                $parts
+            ),
+            static fn (string $part): bool =>
+                $part !== ''
+        )
+    );
+
+    $street = $parts[0] ?? '';
+    $postalCode = '';
+    $city = '';
+    $country = '';
+
+    foreach ($parts as $index => $part) {
+        if ($index === 0) {
+            continue;
+        }
+
+        if (
+            preg_match(
+                '/^([A-Z]{0,2}\s*\d[\dA-Z -]{1,9})\s+(.+)$/iu',
+                $part,
+                $matches
+            ) === 1
+        ) {
+            $postalCode = trim(
+                (string) ($matches[1] ?? '')
+            );
+            $city = trim(
+                (string) ($matches[2] ?? '')
+            );
+
+            break;
+        }
+
+        if (
+            preg_match(
+                '/^([A-Z]{0,2}\s*\d[\dA-Z -]{1,9})$/iu',
+                $part,
+                $matches
+            ) === 1
+        ) {
+            $postalCode = trim(
+                (string) ($matches[1] ?? '')
+            );
+
+            if (
+                $city === ''
+                && $index > 1
+            ) {
+                $city = trim(
+                    (string) (
+                        $parts[$index - 1]
+                        ?? ''
+                    )
+                );
+            }
+
+            break;
+        }
+    }
+
+    if (
+        $city === ''
+        && isset($parts[1])
+        && $parts[1] !== $postalCode
+    ) {
+        $city = trim(
+            (string) $parts[1]
+        );
+    }
+
+    if (count($parts) >= 3) {
+        $lastPart = trim(
+            (string) $parts[
+                count($parts) - 1
+            ]
+        );
+
+        if (
+            $lastPart !== ''
+            && $lastPart !== $street
+            && $lastPart !== $city
+            && $lastPart !== $postalCode
+            && (
+                $postalCode === ''
+                || !str_contains(
+                    $lastPart,
+                    $postalCode
+                )
+            )
+        ) {
+            $country = $lastPart;
+        }
+    }
+
+    return [
+        'street' => $street,
+        'postal_code' => $postalCode,
+        'city' => $city,
+        'country' => $country,
+    ];
+}
+
+function guestFullAddressFromFields(
+    string $street,
+    string $postalCode,
+    string $city,
+    string $country
+): string {
+    $cityLine = trim(
+        trim($postalCode)
+        . ' '
+        . trim($city)
+    );
+
+    $parts = array_values(
+        array_filter(
+            [
+                trim($street),
+                $cityLine,
+                trim($country),
+            ],
+            static fn (string $part): bool =>
+                $part !== ''
+        )
+    );
+
+    return implode(
+        ', ',
+        $parts
+    );
+}
+
+/**
+ * @param array<string, string> $form
+ * @return array<string, string>
+ */
+function normalizeGuestAddressForm(
+    array $form,
+    bool $preferFullAddress = false
+): array {
+    $fullAddress = trim(
+        (string) (
+            $form['full_address']
+            ?? ''
+        )
+    );
+
+    if ($fullAddress !== '') {
+        $parsed =
+            guestAddressFieldsFromFullAddress(
+                $fullAddress
+            );
+
+        foreach (
+            [
+                'street',
+                'postal_code',
+                'city',
+                'country',
+            ]
+            as $field
+        ) {
+            if (
+                $preferFullAddress
+                || trim(
+                    (string) (
+                        $form[$field]
+                        ?? ''
+                    )
+                ) === ''
+            ) {
+                if (
+                    trim(
+                        (string) (
+                            $parsed[$field]
+                            ?? ''
+                        )
+                    ) !== ''
+                ) {
+                    $form[$field] =
+                        trim(
+                            (string) $parsed[
+                                $field
+                            ]
+                        );
+                }
+            }
+        }
+    }
+
+    $composed =
+        guestFullAddressFromFields(
+            (string) (
+                $form['street']
+                ?? ''
+            ),
+            (string) (
+                $form['postal_code']
+                ?? ''
+            ),
+            (string) (
+                $form['city']
+                ?? ''
+            ),
+            (string) (
+                $form['country']
+                ?? ''
+            )
+        );
+
+    if ($composed !== '') {
+        $form['full_address'] =
+            $composed;
+    }
+
+    return $form;
+}
+
 function defaultGuestForm(): array
 {
     return [
-        'external_id' => '',
         'first_name' => '',
         'last_name' => '',
         'email' => '',
         'phone' => '',
+        'street' => '',
+        'postal_code' => '',
         'city' => '',
         'country' => '',
         'full_address' => '',
         'pesel' => '',
         'document_number' => '',
-        'nationality' => '',
         'birth_date' => '',
         'is_vip' => '0',
         'source' => 'MANUAL',
@@ -1341,60 +1585,172 @@ function guestFormFromPost(): array
     $form = [];
 
     foreach ($defaults as $key => $value) {
-        $postedValue = $_POST[$key] ?? $value;
-        $form[$key] = is_string($postedValue) ? trim($postedValue) : $value;
+        $postedValue =
+            $_POST[$key]
+            ?? $value;
+
+        $form[$key] =
+            is_string($postedValue)
+                ? trim($postedValue)
+                : $value;
     }
 
-    $form['source'] = normalizePmsSource(
-        $form['source']
-    );
+    $form['source'] =
+        normalizePmsSource(
+            $form['source']
+        );
 
-    return $form;
+    $addressSyncSource =
+        isset(
+            $_POST[
+                'address_sync_source'
+            ]
+        )
+        && is_string(
+            $_POST[
+                'address_sync_source'
+            ]
+        )
+            ? trim(
+                $_POST[
+                    'address_sync_source'
+                ]
+            )
+            : '';
+
+    return normalizeGuestAddressForm(
+        $form,
+        $addressSyncSource === 'full'
+    );
 }
 
 /**
- * @param array{
- *     id: int,
- *     first_name: string,
- *     last_name: string,
- *     email: string,
- *     phone: string|null,
- *     country: string|null,
- *     city: string|null,
- *     is_vip: int,
- *     source: string,
- *     notes: string|null,
- *     created_at: string
- * } $guest
+ * @param array<string, mixed> $guest
  * @return array<string, string>
  */
 function guestFormFromGuest(array $guest): array
 {
-    return [
-        'external_id' => isset($guest['external_id']) ? (string) $guest['external_id'] : '',
-        'first_name' => (string) ($guest['first_name'] ?? ''),
-        'last_name' => (string) ($guest['last_name'] ?? ''),
-        'email' => (string) ($guest['email'] ?? ''),
-        'phone' => isset($guest['phone']) ? (string) $guest['phone'] : '',
-        'city' => isset($guest['city']) ? (string) $guest['city'] : '',
-        'country' => isset($guest['country']) ? (string) $guest['country'] : '',
-        'full_address' => isset($guest['full_address']) ? (string) $guest['full_address'] : '',
-        'pesel' => isset($guest['pesel']) ? (string) $guest['pesel'] : '',
-        'document_number' => isset($guest['document_number']) ? (string) $guest['document_number'] : '',
-        'nationality' => isset($guest['nationality']) ? (string) $guest['nationality'] : '',
-        'birth_date' => isset($guest['birth_date']) ? (string) $guest['birth_date'] : '',
-        'is_vip' => (string) ((int) ($guest['is_vip'] ?? 0)),
+    $form = [
+        'first_name' => (string) (
+            $guest['first_name']
+            ?? ''
+        ),
+        'last_name' => (string) (
+            $guest['last_name']
+            ?? ''
+        ),
+        'email' => (string) (
+            $guest['email']
+            ?? ''
+        ),
+        'phone' => isset(
+            $guest['phone']
+        )
+            ? (string) $guest['phone']
+            : '',
+        'street' => isset(
+            $guest['street']
+        )
+            ? (string) $guest[
+                'street'
+            ]
+            : '',
+        'postal_code' => isset(
+            $guest['postal_code']
+        )
+            ? (string) $guest[
+                'postal_code'
+            ]
+            : '',
+        'city' => isset(
+            $guest['city']
+        )
+            ? (string) $guest['city']
+            : '',
+        'country' => isset(
+            $guest['country']
+        )
+            ? (string) $guest[
+                'country'
+            ]
+            : '',
+        'full_address' => isset(
+            $guest['full_address']
+        )
+            ? (string) $guest[
+                'full_address'
+            ]
+            : '',
+        'pesel' => isset(
+            $guest['pesel']
+        )
+            ? (string) $guest[
+                'pesel'
+            ]
+            : '',
+        'document_number' => isset(
+            $guest['document_number']
+        )
+            ? (string) $guest[
+                'document_number'
+            ]
+            : '',
+        'birth_date' => isset(
+            $guest['birth_date']
+        )
+            ? (string) $guest[
+                'birth_date'
+            ]
+            : '',
+        'is_vip' => (string) (
+            (int) (
+                $guest['is_vip']
+                ?? 0
+            )
+        ),
         'source' => normalizePmsSource(
             (string) (
                 $guest['source']
                 ?? 'MANUAL'
             )
         ),
-        'preferred_contact' => isset($guest['preferred_contact']) ? (string) $guest['preferred_contact'] : '',
-        'preferences' => isset($guest['preferences']) ? (string) $guest['preferences'] : '',
-        'important_notes' => isset($guest['important_notes']) ? (string) $guest['important_notes'] : '',
-        'notes' => isset($guest['notes']) ? (string) $guest['notes'] : '',
+        'preferred_contact' => isset(
+            $guest[
+                'preferred_contact'
+            ]
+        )
+            ? (string) $guest[
+                'preferred_contact'
+            ]
+            : '',
+        'preferences' => isset(
+            $guest['preferences']
+        )
+            ? (string) $guest[
+                'preferences'
+            ]
+            : '',
+        'important_notes' => isset(
+            $guest[
+                'important_notes'
+            ]
+        )
+            ? (string) $guest[
+                'important_notes'
+            ]
+            : '',
+        'notes' => isset(
+            $guest['notes']
+        )
+            ? (string) $guest[
+                'notes'
+            ]
+            : '',
     ];
+
+    return normalizeGuestAddressForm(
+        $form
+    );
 }
 
 /**
@@ -1405,22 +1761,59 @@ function validateGuestForm(array $form): array
 {
     $errors = [];
 
-    if (trim((string) $form['first_name']) === '') {
-        $errors['first_name'] = 'Podaj imię gościa.';
+    if (
+        trim(
+            (string) $form[
+                'first_name'
+            ]
+        ) === ''
+    ) {
+        $errors['first_name'] =
+            'Podaj imię gościa.';
     }
 
-    if (trim((string) $form['last_name']) === '') {
-        $errors['last_name'] = 'Podaj nazwisko gościa.';
+    if (
+        trim(
+            (string) $form[
+                'last_name'
+            ]
+        ) === ''
+    ) {
+        $errors['last_name'] =
+            'Podaj nazwisko gościa.';
     }
 
-    if (trim((string) $form['email']) === '') {
-        $errors['email'] = 'Podaj e-mail gościa.';
-    } elseif (!filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors['email'] = 'Podaj poprawny adres e-mail.';
+    if (
+        trim(
+            (string) $form[
+                'email'
+            ]
+        ) === ''
+    ) {
+        $errors['email'] =
+            'Podaj e-mail gościa.';
+    } elseif (
+        !filter_var(
+            $form['email'],
+            FILTER_VALIDATE_EMAIL
+        )
+    ) {
+        $errors['email'] =
+            'Podaj poprawny adres e-mail.';
     }
 
-    if (!in_array((string) $form['is_vip'], ['0', '1'], true)) {
-        $errors['is_vip'] = 'Nieprawidłowa wartość VIP.';
+    if (
+        !in_array(
+            (string) $form['is_vip'],
+            [
+                '0',
+                '1',
+            ],
+            true
+        )
+    ) {
+        $errors['is_vip'] =
+            'Nieprawidłowa wartość VIP.';
     }
 
     $allowedContactMethods = [
@@ -1433,12 +1826,19 @@ function validateGuestForm(array $form): array
 
     if (
         !in_array(
-            (string) ($form['preferred_contact'] ?? ''),
+            (string) (
+                $form[
+                    'preferred_contact'
+                ]
+                ?? ''
+            ),
             $allowedContactMethods,
             true
         )
     ) {
-        $errors['preferred_contact'] =
+        $errors[
+            'preferred_contact'
+        ] =
             'Nieprawidłowy preferowany sposób kontaktu.';
     }
 
@@ -1452,15 +1852,33 @@ function validateGuestForm(array $form): array
         'ICAL_OTHER',
     ];
 
-    if (!in_array((string) $form['source'], $allowedSources, true)) {
-        $errors['source'] = 'Nieprawidłowe źródło gościa.';
+    if (
+        !in_array(
+            (string) $form['source'],
+            $allowedSources,
+            true
+        )
+    ) {
+        $errors['source'] =
+            'Nieprawidłowe źródło gościa.';
     }
 
-    if ((string) $form['birth_date'] !== '') {
+    if (
+        (string) $form[
+            'birth_date'
+        ] !== ''
+    ) {
         try {
-            new DateTimeImmutable((string) $form['birth_date']);
-        } catch (Throwable $exception) {
-            $errors['birth_date'] = 'Podaj poprawną datę urodzenia.';
+            new DateTimeImmutable(
+                (string) $form[
+                    'birth_date'
+                ]
+            );
+        } catch (
+            Throwable $exception
+        ) {
+            $errors['birth_date'] =
+                'Podaj poprawną datę urodzenia.';
         }
     }
 
@@ -1469,41 +1887,187 @@ function validateGuestForm(array $form): array
 
 /**
  * @param array<string, string> $form
- * @return array{
- *     first_name: string,
- *     last_name: string,
- *     email: string,
- *     phone: string|null,
- *     country: string|null,
- *     city: string|null,
- *     is_vip: int,
- *     source: string,
- *     notes: string|null
- * }
+ * @return array<string, mixed>
  */
 function guestDataFromForm(array $form): array
 {
+    $form =
+        normalizeGuestAddressForm(
+            $form
+        );
+
     return [
-        'external_id' => trim((string) $form['external_id']) !== '' ? trim((string) $form['external_id']) : null,
-        'first_name' => trim((string) $form['first_name']),
-        'last_name' => trim((string) $form['last_name']),
-        'email' => strtolower(trim((string) $form['email'])),
-        'phone' => trim((string) $form['phone']) !== '' ? trim((string) $form['phone']) : null,
-        'country' => trim((string) $form['country']) !== '' ? trim((string) $form['country']) : null,
-        'city' => trim((string) $form['city']) !== '' ? trim((string) $form['city']) : null,
-        'full_address' => trim((string) $form['full_address']) !== '' ? trim((string) $form['full_address']) : null,
-        'pesel' => trim((string) $form['pesel']) !== '' ? trim((string) $form['pesel']) : null,
-        'document_number' => trim((string) $form['document_number']) !== '' ? trim((string) $form['document_number']) : null,
-        'nationality' => trim((string) $form['nationality']) !== '' ? trim((string) $form['nationality']) : null,
-        'birth_date' => trim((string) $form['birth_date']) !== '' ? (new DateTimeImmutable((string) $form['birth_date']))->format('Y-m-d') : null,
-        'is_vip' => (int) $form['is_vip'],
+        'first_name' => trim(
+            (string) $form[
+                'first_name'
+            ]
+        ),
+        'last_name' => trim(
+            (string) $form[
+                'last_name'
+            ]
+        ),
+        'email' => strtolower(
+            trim(
+                (string) $form[
+                    'email'
+                ]
+            )
+        ),
+        'phone' => trim(
+            (string) $form['phone']
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'phone'
+                ]
+            )
+            : null,
+        'country' => trim(
+            (string) $form[
+                'country'
+            ]
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'country'
+                ]
+            )
+            : null,
+        'street' => trim(
+            (string) $form[
+                'street'
+            ]
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'street'
+                ]
+            )
+            : null,
+        'postal_code' => trim(
+            (string) $form[
+                'postal_code'
+            ]
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'postal_code'
+                ]
+            )
+            : null,
+        'city' => trim(
+            (string) $form['city']
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'city'
+                ]
+            )
+            : null,
+        'full_address' => trim(
+            (string) $form[
+                'full_address'
+            ]
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'full_address'
+                ]
+            )
+            : null,
+        'pesel' => trim(
+            (string) $form['pesel']
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'pesel'
+                ]
+            )
+            : null,
+        'document_number' => trim(
+            (string) $form[
+                'document_number'
+            ]
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'document_number'
+                ]
+            )
+            : null,
+        'birth_date' => trim(
+            (string) $form[
+                'birth_date'
+            ]
+        ) !== ''
+            ? (
+                new DateTimeImmutable(
+                    (string) $form[
+                        'birth_date'
+                    ]
+                )
+            )->format(
+                'Y-m-d'
+            )
+            : null,
+        'is_vip' => (int) $form[
+            'is_vip'
+        ],
         'source' => normalizePmsSource(
             (string) $form['source']
         ),
-        'preferred_contact' => trim((string) ($form['preferred_contact'] ?? '')) !== '' ? trim((string) ($form['preferred_contact'] ?? '')) : null,
-        'preferences' => trim((string) ($form['preferences'] ?? '')) !== '' ? trim((string) ($form['preferences'] ?? '')) : null,
-        'important_notes' => trim((string) ($form['important_notes'] ?? '')) !== '' ? trim((string) ($form['important_notes'] ?? '')) : null,
-        'notes' => trim((string) $form['notes']) !== '' ? trim((string) $form['notes']) : null,
+        'preferred_contact' => trim(
+            (string) (
+                $form[
+                    'preferred_contact'
+                ]
+                ?? ''
+            )
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'preferred_contact'
+                ]
+            )
+            : null,
+        'preferences' => trim(
+            (string) (
+                $form[
+                    'preferences'
+                ]
+                ?? ''
+            )
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'preferences'
+                ]
+            )
+            : null,
+        'important_notes' => trim(
+            (string) (
+                $form[
+                    'important_notes'
+                ]
+                ?? ''
+            )
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'important_notes'
+                ]
+            )
+            : null,
+        'notes' => trim(
+            (string) $form['notes']
+        ) !== ''
+            ? trim(
+                (string) $form[
+                    'notes'
+                ]
+            )
+            : null,
     ];
 }
 

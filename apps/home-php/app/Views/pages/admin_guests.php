@@ -147,6 +147,14 @@ declare(strict_types=1);
         overflow-wrap: anywhere;
     }
 
+    .guest-address-incomplete {
+        background: #fff1f2;
+    }
+
+    .guest-address-incomplete .guest-list-address {
+        color: #9f1239;
+    }
+
     .guest-list-muted {
         font-size: 12px;
         color: #6b7280;
@@ -302,7 +310,7 @@ declare(strict_types=1);
 
                             <p>
                                 Po skonfigurowaniu MySQL i dodaniu pierwszych gości pojawią się tutaj dane kontaktowe,
-                                źródło pozyskania oraz oznaczenie VIP.
+                                źródło pozyskania oraz historię pobytów.
                             </p>
                         </div>
                     <?php else: ?>
@@ -310,13 +318,13 @@ declare(strict_types=1);
                             <table class="data-table guests-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 16%;">Gość</th>
-                                        <th style="width: 20%;">Kontakt</th>
-                                        <th style="width: 18%;">Adres</th>
+                                        <th style="width: 14%;">Gość</th>
+                                        <th style="width: 18%;">Kontakt</th>
+                                        <th style="width: 19%;">Adres</th>
                                         <th style="width: 8%;">Kraj</th>
-                                        <th style="width: 6%;">VIP</th>
                                         <th style="width: 8%;">Źródło</th>
-                                        <th style="width: 10%;">Utworzono</th>
+                                        <th style="width: 9%;">Utworzono</th>
+                                        <th style="width: 10%;">Ostatnia wizyta</th>
                                         <th style="width: 14%;">Akcje</th>
                                     </tr>
                                 </thead>
@@ -345,15 +353,95 @@ declare(strict_types=1);
                                                 </div>
                                             </td>
 
-                                            <td>
-                                                <?php
-                                                $guestAddress = trim((string) ($guest['full_address'] ?? ''));
+                                            <?php
+                                            $guestAddress = trim(
+                                                (string) (
+                                                    $guest[
+                                                        'full_address'
+                                                    ]
+                                                    ?? ''
+                                                )
+                                            );
 
-                                                if ($guestAddress === '') {
-                                                    $guestAddress = trim((string) ($guest['city'] ?? ''));
+                                            if (
+                                                $guestAddress === ''
+                                            ) {
+                                                $guestAddress =
+                                                    guestFullAddressFromFields(
+                                                        (string) (
+                                                            $guest[
+                                                                'street'
+                                                            ]
+                                                            ?? ''
+                                                        ),
+                                                        (string) (
+                                                            $guest[
+                                                                'postal_code'
+                                                            ]
+                                                            ?? ''
+                                                        ),
+                                                        (string) (
+                                                            $guest[
+                                                                'city'
+                                                            ]
+                                                            ?? ''
+                                                        ),
+                                                        (string) (
+                                                            $guest[
+                                                                'country'
+                                                            ]
+                                                            ?? ''
+                                                        )
+                                                    );
+                                            }
+
+                                            $missingAddressFields = [];
+
+                                            foreach (
+                                                [
+                                                    'street' =>
+                                                        'ulica',
+                                                    'postal_code' =>
+                                                        'kod pocztowy',
+                                                    'city' =>
+                                                        'miejscowość',
+                                                ]
+                                                as $field =>
+                                                    $label
+                                            ) {
+                                                if (
+                                                    trim(
+                                                        (string) (
+                                                            $guest[
+                                                                $field
+                                                            ]
+                                                            ?? ''
+                                                        )
+                                                    ) === ''
+                                                ) {
+                                                    $missingAddressFields[] =
+                                                        $label;
                                                 }
-                                                ?>
+                                            }
 
+                                            $addressIncomplete =
+                                                $missingAddressFields
+                                                !== [];
+
+                                            $addressTitle =
+                                                $addressIncomplete
+                                                    ? 'Braki w adresie: '
+                                                        . implode(
+                                                            ', ',
+                                                            $missingAddressFields
+                                                        )
+                                                    : '';
+                                            ?>
+
+                                            <td
+                                                class="<?= $addressIncomplete ? 'guest-address-incomplete' : '' ?>"
+                                                <?= $addressTitle !== '' ? 'title="' . htmlspecialchars($addressTitle, ENT_QUOTES, 'UTF-8') . '"' : '' ?>
+                                            >
                                                 <span class="guest-list-address">
                                                     <?= htmlspecialchars($guestAddress !== '' ? $guestAddress : '—', ENT_QUOTES, 'UTF-8') ?>
                                                 </span>
@@ -361,14 +449,6 @@ declare(strict_types=1);
 
                                             <td>
                                                 <?= htmlspecialchars($guest['country'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
-                                            </td>
-
-                                            <td>
-                                                <?php if ($guest['is_vip'] === 1): ?>
-                                                    <span class="status-pill status-pill--success">VIP</span>
-                                                <?php else: ?>
-                                                    <span class="status-pill status-pill--muted">Nie</span>
-                                                <?php endif; ?>
                                             </td>
 
                                             <td>
@@ -380,6 +460,18 @@ declare(strict_types=1);
                                             <td>
                                                 <span class="guest-list-muted">
                                                     <?= htmlspecialchars(formatDateForDisplay($guest['created_at']), ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                <span class="guest-list-muted">
+                                                    <?= htmlspecialchars(
+                                                        ($guest['last_visit'] ?? null) !== null
+                                                            ? formatDateForDisplay((string) $guest['last_visit'])
+                                                            : '—',
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
                                                 </span>
                                             </td>
 

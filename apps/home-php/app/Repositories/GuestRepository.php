@@ -31,7 +31,14 @@ final class GuestRepository
                 birth_date,
                 is_vip,
                 source,
-                created_at
+                created_at,
+                (
+                    SELECT MAX(reservations.end_date)
+                    FROM reservations
+                    WHERE reservations.guest_id = guests.id
+                    AND reservations.status <> "CANCELLED"
+                    AND reservations.end_date <= CURDATE()
+                ) AS last_visit
             FROM guests
             ORDER BY last_name ASC, first_name ASC, id DESC'
         );
@@ -325,6 +332,8 @@ final class GuestRepository
                 email = :email,
                 phone = :phone,
                 country = :country,
+                street = :street,
+                postal_code = :postal_code,
                 city = :city,
                 full_address = :full_address,
                 pesel = :pesel,
@@ -348,6 +357,8 @@ final class GuestRepository
             'email' => $data['email'],
             'phone' => $data['phone'],
             'country' => $data['country'],
+            'street' => $data['street'] ?? null,
+            'postal_code' => $data['postal_code'] ?? null,
             'city' => $data['city'],
             'full_address' => $data['full_address'] ?? null,
             'pesel' => $data['pesel'] ?? null,
@@ -714,6 +725,10 @@ final class GuestRepository
             'preferences' => isset($row['preferences']) ? (string) $row['preferences'] : null,
             'important_notes' => isset($row['important_notes']) ? (string) $row['important_notes'] : null,
             'created_at' => (string) ($row['created_at'] ?? ''),
+            'last_visit' => isset($row['last_visit'])
+                && $row['last_visit'] !== null
+                    ? (string) $row['last_visit']
+                    : null,
         ];
     }
 }
