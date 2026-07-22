@@ -239,6 +239,46 @@ final class IcalEventRepository
     /**
      * @return array<string, mixed>|null
      */
+    private static function findReservationById(
+        int $reservationId
+    ): ?array {
+        if ($reservationId < 1) {
+            return null;
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                id,
+                external_id,
+                cabin_id,
+                guest_name,
+                start_date,
+                end_date,
+                status,
+                source
+            FROM reservations
+            WHERE id = :id
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'id' => $reservationId,
+        ]);
+
+        $row = $statement->fetch();
+
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return $row;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
     public static function findBlockingConflict(
         int $cabinId,
         string $startDate,
@@ -356,18 +396,91 @@ final class IcalEventRepository
             )
         );
 
+        $reservationSource =
+            self::reservationSourceFromIcalSource(
+                $normalizedSource
+            );
+
         $existingIcalEvent = self::findByUid(
             $cabinId,
             $uid
         );
+
+        if ($existingIcalEvent !== null) {
+            $existingMatchedReservationId =
+                isset(
+                    $existingIcalEvent[
+                        'matched_reservation_id'
+                    ]
+                )
+                && $existingIcalEvent[
+                    'matched_reservation_id'
+                ] !== null
+                    ? (int) $existingIcalEvent[
+                        'matched_reservation_id'
+                    ]
+                    : null;
+
+            if (
+                $existingMatchedReservationId !== null
+                && $existingMatchedReservationId > 0
+            ) {
+                $linkedReservation =
+                    self::findReservationById(
+                        $existingMatchedReservationId
+                    );
+
+                if (
+                    $linkedReservation !== null
+                    && strtoupper(
+                        trim(
+                            (string) (
+                                $linkedReservation[
+                                    'status'
+                                ]
+                                ?? ''
+                            )
+                        )
+                    ) !== 'CANCELLED'
+                    && (int) (
+                        $linkedReservation[
+                            'cabin_id'
+                        ]
+                        ?? 0
+                    ) === $cabinId
+                    && (string) (
+                        $linkedReservation[
+                            'start_date'
+                        ]
+                        ?? ''
+                    ) === $startDate
+                    && (string) (
+                        $linkedReservation[
+                            'end_date'
+                        ]
+                        ?? ''
+                    ) === $endDate
+                ) {
+                    return [
+                        'action' => 'EXISTING_ICAL',
+                        'existing_ical_event' =>
+                            $existingIcalEvent,
+                        'matched_reservation' =>
+                            $linkedReservation,
+                        'conflicting_reservation' =>
+                            null,
+                    ];
+                }
+            }
+        }
 
         $matchedReservation =
             self::findExactReservation(
                 $cabinId,
                 $startDate,
                 $endDate,
-                $normalizedSource !== ''
-                    ? $normalizedSource
+                $reservationSource !== ''
+                    ? $reservationSource
                     : null
             );
 
@@ -439,6 +552,27 @@ final class IcalEventRepository
             ];
         }
 
+        $linkCandidateReservation =
+            self::findExactReservation(
+                $cabinId,
+                $startDate,
+                $endDate
+            );
+
+        if ($linkCandidateReservation !== null) {
+            return [
+                'action' => 'CONFLICT',
+                'existing_ical_event' =>
+                    $existingIcalEvent,
+                'matched_reservation' =>
+                    null,
+                'conflicting_reservation' =>
+                    $linkCandidateReservation,
+                'link_candidate_reservation' =>
+                    $linkCandidateReservation,
+            ];
+        }
+
         $conflictingReservation =
             self::findBlockingConflict(
                 $cabinId,
@@ -455,6 +589,8 @@ final class IcalEventRepository
                     null,
                 'conflicting_reservation' =>
                     $conflictingReservation,
+                'link_candidate_reservation' =>
+                    null,
             ];
         }
 
@@ -605,6 +741,70 @@ final class IcalEventRepository
         $connection = Database::connection();
 
         if ($existing !== null) {
+            $finalMatchedReservationId =
+                $matchedReservationId;
+
+            if ($finalMatchedReservationId === null) {
+                $existingMatchedReservationId =
+                    isset(
+                        $existing[
+                            'matched_reservation_id'
+                        ]
+                    )
+                    && $existing[
+                        'matched_reservation_id'
+                    ] !== null
+                        ? (int) $existing[
+                            'matched_reservation_id'
+                        ]
+                        : null;
+
+                if (
+                    $existingMatchedReservationId !== null
+                    && $existingMatchedReservationId > 0
+                ) {
+                    $linkedReservation =
+                        self::findReservationById(
+                            $existingMatchedReservationId
+                        );
+
+                    if (
+                        $linkedReservation !== null
+                        && strtoupper(
+                            trim(
+                                (string) (
+                                    $linkedReservation[
+                                        'status'
+                                    ]
+                                    ?? ''
+                                )
+                            )
+                        ) !== 'CANCELLED'
+                        && (int) (
+                            $linkedReservation[
+                                'cabin_id'
+                            ]
+                            ?? 0
+                        ) === $cabinId
+                        && (string) (
+                            $linkedReservation[
+                                'start_date'
+                            ]
+                            ?? ''
+                        ) === $startDate
+                        && (string) (
+                            $linkedReservation[
+                                'end_date'
+                            ]
+                            ?? ''
+                        ) === $endDate
+                    ) {
+                        $finalMatchedReservationId =
+                            $existingMatchedReservationId;
+                    }
+                }
+            }
+
             $statement = $connection->prepare(
                 'UPDATE ical_events
                 SET
@@ -624,7 +824,7 @@ final class IcalEventRepository
             $statement->execute([
                 'id' => (int) $existing['id'],
                 'matched_reservation_id' =>
-                    $matchedReservationId,
+                    $finalMatchedReservationId,
                 'source' => $source,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
@@ -759,6 +959,11 @@ final class IcalEventRepository
                 $classification[
                     'conflicting_reservation'
                 ],
+            'link_candidate_reservation' =>
+                $classification[
+                    'link_candidate_reservation'
+                ]
+                ?? null,
         ];
     }
 
@@ -778,83 +983,134 @@ final class IcalEventRepository
         }
 
         $connection = Database::connection();
+        $transactionStarted = false;
 
-        $statement = $connection->prepare(
-            'SELECT
-                ie.id AS ical_event_id,
-                ie.cabin_id AS ical_cabin_id,
-                ie.matched_reservation_id,
-                ie.start_date AS ical_start_date,
-                ie.end_date AS ical_end_date,
-                ie.is_active,
-                r.id AS reservation_id,
-                r.cabin_id AS reservation_cabin_id,
-                r.start_date AS reservation_start_date,
-                r.end_date AS reservation_end_date
-            FROM ical_events ie
-            INNER JOIN reservations r
-                ON r.id = :reservation_id
-            WHERE ie.id = :ical_event_id
-            LIMIT 1'
-        );
+        try {
+            if (!$connection->inTransaction()) {
+                $connection->beginTransaction();
+                $transactionStarted = true;
+            }
 
-        $statement->execute([
-            'ical_event_id' => $icalEventId,
-            'reservation_id' => $reservationId,
-        ]);
-
-        $row = $statement->fetch();
-
-        if (!is_array($row)) {
-            throw new RuntimeException(
-                'Nie znaleziono wydarzenia iCal albo rezerwacji do powiązania.'
+            $statement = $connection->prepare(
+                'SELECT
+                    ie.id AS ical_event_id,
+                    ie.cabin_id AS ical_cabin_id,
+                    ie.matched_reservation_id,
+                    ie.source AS ical_source,
+                    ie.start_date AS ical_start_date,
+                    ie.end_date AS ical_end_date,
+                    ie.is_active,
+                    r.id AS reservation_id,
+                    r.cabin_id AS reservation_cabin_id,
+                    r.start_date AS reservation_start_date,
+                    r.end_date AS reservation_end_date
+                FROM ical_events ie
+                INNER JOIN reservations r
+                    ON r.id = :reservation_id
+                WHERE ie.id = :ical_event_id
+                LIMIT 1'
             );
-        }
 
-        if ((int) ($row['is_active'] ?? 0) !== 1) {
-            throw new RuntimeException(
-                'Nie można utworzyć rezerwacji z nieaktywnej blokady iCal.'
+            $statement->execute([
+                'ical_event_id' => $icalEventId,
+                'reservation_id' => $reservationId,
+            ]);
+
+            $row = $statement->fetch();
+
+            if (!is_array($row)) {
+                throw new RuntimeException(
+                    'Nie znaleziono wydarzenia iCal albo rezerwacji do powiązania.'
+                );
+            }
+
+            if ((int) ($row['is_active'] ?? 0) !== 1) {
+                throw new RuntimeException(
+                    'Nie można powiązać nieaktywnej blokady iCal z rezerwacją.'
+                );
+            }
+
+            $existingReservationId = isset(
+                $row['matched_reservation_id']
+            ) && $row['matched_reservation_id'] !== null
+                ? (int) $row['matched_reservation_id']
+                : null;
+
+            if (
+                $existingReservationId !== null
+                && $existingReservationId !== $reservationId
+            ) {
+                throw new RuntimeException(
+                    'Ta blokada iCal jest już powiązana z inną rezerwacją.'
+                );
+            }
+
+            if (
+                (int) ($row['ical_cabin_id'] ?? 0)
+                    !== (int) ($row['reservation_cabin_id'] ?? 0)
+                || (string) ($row['ical_start_date'] ?? '')
+                    !== (string) ($row['reservation_start_date'] ?? '')
+                || (string) ($row['ical_end_date'] ?? '')
+                    !== (string) ($row['reservation_end_date'] ?? '')
+            ) {
+                throw new RuntimeException(
+                    'Powiązać można tylko rezerwację tego samego domku z dokładnie takim samym terminem jak blokada iCal.'
+                );
+            }
+
+            $icalSource = strtoupper(
+                trim(
+                    (string) (
+                        $row['ical_source']
+                        ?? 'OTHER'
+                    )
+                )
             );
-        }
 
-        $existingReservationId = isset(
-            $row['matched_reservation_id']
-        ) && $row['matched_reservation_id'] !== null
-            ? (int) $row['matched_reservation_id']
-            : null;
+            $reservationSource = match ($icalSource) {
+                'BOOKING' => 'BOOKING',
+                'AIRBNB' => 'AIRBNB',
+                default => 'ICAL_OTHER',
+            };
 
-        if (
-            $existingReservationId !== null
-            && $existingReservationId !== $reservationId
-        ) {
-            throw new RuntimeException(
-                'Ta blokada iCal jest już powiązana z inną rezerwacją.'
+            $updateEvent = $connection->prepare(
+                'UPDATE ical_events
+                SET matched_reservation_id = :reservation_id
+                WHERE id = :ical_event_id'
             );
-        }
 
-        if (
-            (int) ($row['ical_cabin_id'] ?? 0)
-                !== (int) ($row['reservation_cabin_id'] ?? 0)
-            || (string) ($row['ical_start_date'] ?? '')
-                !== (string) ($row['reservation_start_date'] ?? '')
-            || (string) ($row['ical_end_date'] ?? '')
-                !== (string) ($row['reservation_end_date'] ?? '')
-        ) {
-            throw new RuntimeException(
-                'Domek i termin rezerwacji muszą odpowiadać blokadzie iCal.'
+            $updateEvent->execute([
+                'reservation_id' => $reservationId,
+                'ical_event_id' => $icalEventId,
+            ]);
+
+            $updateReservation = $connection->prepare(
+                'UPDATE reservations
+                SET source = :source
+                WHERE id = :reservation_id'
             );
+
+            $updateReservation->execute([
+                'source' => $reservationSource,
+                'reservation_id' => $reservationId,
+            ]);
+
+            if (
+                $transactionStarted
+                && $connection->inTransaction()
+            ) {
+                $connection->commit();
+            }
+        } catch (Throwable $exception) {
+            if (
+                $transactionStarted
+                && $connection->inTransaction()
+            ) {
+                $connection->rollBack();
+            }
+
+            throw $exception;
         }
-
-        $update = $connection->prepare(
-            'UPDATE ical_events
-            SET matched_reservation_id = :reservation_id
-            WHERE id = :ical_event_id'
-        );
-
-        $update->execute([
-            'reservation_id' => $reservationId,
-            'ical_event_id' => $icalEventId,
-        ]);
     }
 
     public static function hasBlockingOverlap(
@@ -997,6 +1253,26 @@ final class IcalEventRepository
         );
 
         return $statement->rowCount();
+    }
+
+    private static function reservationSourceFromIcalSource(
+        string $source
+    ): string {
+        $source = strtoupper(
+            trim(
+                $source
+            )
+        );
+
+        if ($source === '') {
+            return '';
+        }
+
+        return match ($source) {
+            'BOOKING' => 'BOOKING',
+            'AIRBNB' => 'AIRBNB',
+            default => 'ICAL_OTHER',
+        };
     }
 
     private static function validateEventData(

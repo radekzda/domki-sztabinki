@@ -916,6 +916,255 @@ $router->post('/admin/domki/ical-synchronizuj', function (): void {
 });
 
 
+$router->post('/admin/domki/ical-powiaz-rezerwacje', function (): void {
+    Auth::requireAdmin();
+    requireValidCsrf();
+
+    $icalEventIdRaw = $_POST['ical_event_id']
+        ?? null;
+
+    $reservationIdRaw = $_POST['reservation_id']
+        ?? null;
+
+    if (
+        !(
+            is_string($icalEventIdRaw)
+            || is_int($icalEventIdRaw)
+        )
+        || !ctype_digit(
+            (string) $icalEventIdRaw
+        )
+        || !(
+            is_string($reservationIdRaw)
+            || is_int($reservationIdRaw)
+        )
+        || !ctype_digit(
+            (string) $reservationIdRaw
+        )
+    ) {
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' =>
+                        'Nieprawidłowe dane',
+                    'message' =>
+                        'Nie można powiązać blokady iCal z rezerwacją, ponieważ identyfikatory są nieprawidłowe.',
+                ]
+            ),
+            400
+        );
+
+        return;
+    }
+
+    $icalEventId = (int) $icalEventIdRaw;
+    $reservationId = (int) $reservationIdRaw;
+
+    if (
+        $icalEventId < 1
+        || $reservationId < 1
+    ) {
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' =>
+                        'Nieprawidłowe dane',
+                    'message' =>
+                        'Nie można powiązać blokady iCal z rezerwacją, ponieważ identyfikatory są nieprawidłowe.',
+                ]
+            ),
+            400
+        );
+
+        return;
+    }
+
+    if (!Database::canAttemptConnection()) {
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' =>
+                        'Brak połączenia z bazą',
+                    'message' =>
+                        'Nie można powiązać blokady iCal bez połączenia z bazą danych.',
+                ]
+            ),
+            422
+        );
+
+        return;
+    }
+
+    try {
+        $icalEvent =
+            IcalEventRepository::find(
+                $icalEventId
+            );
+
+        if ($icalEvent === null) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Nie znaleziono blokady iCal',
+                        'message' =>
+                            'Wybrana blokada iCal nie istnieje.',
+                    ]
+                ),
+                404
+            );
+
+            return;
+        }
+
+        $alreadyLinkedToReservation =
+            isset(
+                $icalEvent[
+                    'matched_reservation_id'
+                ]
+            )
+            && $icalEvent[
+                'matched_reservation_id'
+            ] !== null
+            && (int) $icalEvent[
+                'matched_reservation_id'
+            ] === $reservationId;
+
+        $reservationBeforeLink =
+            ReservationRepository::find(
+                $reservationId
+            );
+
+        IcalEventRepository::linkReservation(
+            $icalEventId,
+            $reservationId
+        );
+
+        if (!$alreadyLinkedToReservation) {
+            $icalSource = strtoupper(
+                trim(
+                    (string) (
+                        $icalEvent['source']
+                        ?? 'OTHER'
+                    )
+                )
+            );
+
+            $newSource = match ($icalSource) {
+                'BOOKING' => 'BOOKING',
+                'AIRBNB' => 'AIRBNB',
+                default => 'ICAL_OTHER',
+            };
+
+            $sourceLabel = match ($newSource) {
+                'BOOKING' => 'Booking.com',
+                'AIRBNB' => 'Airbnb',
+                default => 'iCal — inne',
+            };
+
+            $previousSource = strtoupper(
+                trim(
+                    (string) (
+                        $reservationBeforeLink[
+                            'source'
+                        ]
+                        ?? ''
+                    )
+                )
+            );
+
+            $previousSourceLabel = match (
+                $previousSource
+            ) {
+                'BOOKING' => 'Booking.com',
+                'AIRBNB' => 'Airbnb',
+                'ICAL_OTHER' => 'iCal — inne',
+                'WWW' => 'WWW',
+                'PHONE' => 'Telefon',
+                'MANUAL' => 'Ręcznie',
+                default => $previousSource !== ''
+                    ? $previousSource
+                    : '—',
+            };
+
+            try {
+                ReservationHistoryRepository::add(
+                    $reservationId,
+                    'ICAL_LINK',
+                    'Powiązano rezerwację z kalendarzem iCal',
+                    'Powiązano istniejącą rezerwację z wydarzeniem iCal. '
+                        . 'Źródło: '
+                        . $sourceLabel
+                        . '. UID: '
+                        . trim(
+                            (string) (
+                                $icalEvent['ical_uid']
+                                ?? '—'
+                            )
+                        )
+                        . '. Termin: '
+                        . (string) (
+                            $icalEvent['start_date']
+                            ?? '—'
+                        )
+                        . ' – '
+                        . (string) (
+                            $icalEvent['end_date']
+                            ?? '—'
+                        )
+                        . '.',
+                    $previousSourceLabel,
+                    $sourceLabel
+                );
+            } catch (Throwable $historyException) {
+                error_log(
+                    'Nie udało się zapisać historii powiązania iCal '
+                    . 'z rezerwacją #'
+                    . $reservationId
+                    . ': '
+                    . $historyException->getMessage()
+                );
+            }
+        }
+
+        $cabinId = (int) (
+            $icalEvent['cabin_id']
+            ?? 0
+        );
+
+        Response::redirect(
+            '/admin/domki/ical-podglad?'
+            . http_build_query([
+                'id' => $cabinId,
+                'linked' => '1',
+                'reservation_id' =>
+                    $reservationId,
+            ])
+        );
+    } catch (Throwable $exception) {
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' =>
+                        'Nie udało się powiązać rezerwacji',
+                    'message' =>
+                        AppErrorHandler::safeMessage(
+                            $exception
+                        ),
+                ]
+            ),
+            422
+        );
+    }
+});
+
+
+
 $router->get('/admin/domki/ical-podglad', function (): void {
     Auth::requireAdmin();
 
@@ -1037,6 +1286,16 @@ $router->get('/admin/domki/ical-podglad', function (): void {
                         'conflicting_reservation' =>
                             $classification[
                                 'conflicting_reservation'
+                            ]
+                            ?? null,
+                        'existing_ical_event' =>
+                            $classification[
+                                'existing_ical_event'
+                            ]
+                            ?? null,
+                        'link_candidate_reservation' =>
+                            $classification[
+                                'link_candidate_reservation'
                             ]
                             ?? null,
                     ];

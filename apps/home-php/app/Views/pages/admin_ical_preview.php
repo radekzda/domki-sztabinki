@@ -60,6 +60,16 @@ $syncDeactivated = isset($_GET['deactivated'])
         ? (int) $_GET['deactivated']
         : 0;
 
+$linkCompleted = (
+    isset($_GET['linked'])
+    && $_GET['linked'] === '1'
+);
+
+$linkedReservationId = isset($_GET['reservation_id'])
+    && ctype_digit((string) $_GET['reservation_id'])
+        ? (int) $_GET['reservation_id']
+        : 0;
+
 $actionLabels = [
     'EXISTING_ICAL' =>
         'Już zapisane iCal',
@@ -157,6 +167,29 @@ $actionLabels = [
         color: #3730a3;
         font-size: 11px;
         font-weight: 700;
+    }
+
+    .ical-preview-link-candidate {
+        display: grid;
+        gap: 8px;
+        margin-top: 8px;
+        padding: 10px;
+        border: 1px solid #d1fae5;
+        border-radius: 10px;
+        background: #ecfdf5;
+    }
+
+    .ical-preview-link-candidate strong {
+        color: #065f46;
+    }
+
+    .ical-preview-link-candidate form {
+        margin: 0;
+    }
+
+    .ical-preview-link-candidate .button {
+        width: 100%;
+        justify-content: center;
     }
 
     @media (max-width: 900px) {
@@ -272,6 +305,23 @@ $actionLabels = [
                             </a>
                         </div>
                     </div>
+
+                    <?php if ($linkCompleted): ?>
+                        <div
+                            class="alert alert--success"
+                            style="margin-bottom: 16px;"
+                        >
+                            Blokada iCal została powiązana
+                            z rezerwacją
+                            #<?= htmlspecialchars(
+                                (string) $linkedReservationId,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>.
+                            Od tej chwili w kalendarzu
+                            będzie widoczna jako jedna rezerwacja.
+                        </div>
+                    <?php endif; ?>
 
                     <?php if ($syncCompleted): ?>
                         <div
@@ -487,6 +537,38 @@ $actionLabels = [
                                                         'conflicting_reservation'
                                                     ]
                                                     : null;
+
+                                            $existingIcalEvent =
+                                                is_array(
+                                                    $row[
+                                                        'existing_ical_event'
+                                                    ]
+                                                    ?? null
+                                                )
+                                                    ? $row[
+                                                        'existing_ical_event'
+                                                    ]
+                                                    : null;
+
+                                            $linkCandidateReservation =
+                                                is_array(
+                                                    $row[
+                                                        'link_candidate_reservation'
+                                                    ]
+                                                    ?? null
+                                                )
+                                                    ? $row[
+                                                        'link_candidate_reservation'
+                                                    ]
+                                                    : null;
+
+                                            $existingIcalEventId =
+                                                (int) (
+                                                    $existingIcalEvent[
+                                                        'id'
+                                                    ]
+                                                    ?? 0
+                                                );
                                             ?>
 
                                             <tr>
@@ -592,6 +674,102 @@ $actionLabels = [
                                                             ENT_QUOTES,
                                                             'UTF-8'
                                                         ) ?>
+
+                                                        <?php if (
+                                                            $linkCandidateReservation
+                                                            !== null
+                                                        ): ?>
+                                                            <div class="ical-preview-link-candidate">
+                                                                <strong>
+                                                                    Ten sam domek i dokładnie ten sam termin.
+                                                                </strong>
+
+                                                                <span>
+                                                                    <?= htmlspecialchars(
+                                                                        (string) (
+                                                                            $linkCandidateReservation[
+                                                                                'guest_name'
+                                                                            ]
+                                                                            ?? 'Gość'
+                                                                        ),
+                                                                        ENT_QUOTES,
+                                                                        'UTF-8'
+                                                                    ) ?>
+                                                                    ·
+                                                                    <?= htmlspecialchars(
+                                                                        sourceLabelForDisplay(
+                                                                            (string) (
+                                                                                $linkCandidateReservation[
+                                                                                    'source'
+                                                                                ]
+                                                                                ?? ''
+                                                                            )
+                                                                        ),
+                                                                        ENT_QUOTES,
+                                                                        'UTF-8'
+                                                                    ) ?>
+                                                                </span>
+
+                                                                <?php if (
+                                                                    $existingIcalEventId
+                                                                    > 0
+                                                                ): ?>
+                                                                    <form
+                                                                        method="post"
+                                                                        action="/admin/domki/ical-powiaz-rezerwacje"
+                                                                        onsubmit="return confirm('Powiązać tę blokadę iCal z istniejącą rezerwacją #<?= htmlspecialchars(
+                                                                            (string) (
+                                                                                $linkCandidateReservation[
+                                                                                    'id'
+                                                                                ]
+                                                                                ?? ''
+                                                                            ),
+                                                                            ENT_QUOTES,
+                                                                            'UTF-8'
+                                                                        ) ?>? Źródło rezerwacji zostanie ustawione zgodnie ze źródłem iCal.');"
+                                                                    >
+                                                                        <?= csrfField() ?>
+
+                                                                        <input
+                                                                            type="hidden"
+                                                                            name="ical_event_id"
+                                                                            value="<?= htmlspecialchars(
+                                                                                (string) $existingIcalEventId,
+                                                                                ENT_QUOTES,
+                                                                                'UTF-8'
+                                                                            ) ?>"
+                                                                        >
+
+                                                                        <input
+                                                                            type="hidden"
+                                                                            name="reservation_id"
+                                                                            value="<?= htmlspecialchars(
+                                                                                (string) (
+                                                                                    $linkCandidateReservation[
+                                                                                        'id'
+                                                                                    ]
+                                                                                    ?? ''
+                                                                                ),
+                                                                                ENT_QUOTES,
+                                                                                'UTF-8'
+                                                                            ) ?>"
+                                                                        >
+
+                                                                        <button
+                                                                            class="button button--primary"
+                                                                            type="submit"
+                                                                        >
+                                                                            Powiąż z istniejącą rezerwacją
+                                                                        </button>
+                                                                    </form>
+                                                                <?php else: ?>
+                                                                    <span>
+                                                                        Najpierw kliknij „Synchronizuj teraz”.
+                                                                        Po zapisaniu blokady pojawi się możliwość powiązania.
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         —
                                                     <?php endif; ?>
