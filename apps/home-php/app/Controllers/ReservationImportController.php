@@ -6,668 +6,993 @@ final class ReservationImportController
 {
     public static function show(): void
     {
-        Response::html(View::render('pages/admin_reservations_import', [
-            'title' => 'Import rezerwacji',
-            'result' => null,
-            'errorMessage' => null,
-        ]));
+        Response::html(
+            View::render(
+                'pages/admin_reservations_import',
+                [
+                    'title' =>
+                        'Import rezerwacji CSV',
+                    'result' => null,
+                    'errorMessage' => null,
+                ]
+            )
+        );
     }
 
     public static function store(): void
     {
-        if (!Database::canAttemptConnection()) {
-            Response::html(View::render('pages/admin_reservations_import', [
-                'title' => 'Import rezerwacji',
-                'result' => null,
-                'errorMessage' => 'Baza danych nie jest jeszcze skonfigurowana.',
-            ]));
+        if (
+            !Database::canAttemptConnection()
+        ) {
+            self::renderError(
+                'Baza danych nie jest jeszcze skonfigurowana.'
+            );
 
             return;
         }
 
-        if (!isset($_FILES['csv_file']) || !is_array($_FILES['csv_file'])) {
-            Response::html(View::render('pages/admin_reservations_import', [
-                'title' => 'Import rezerwacji',
-                'result' => null,
-                'errorMessage' => 'Nie wybrano pliku CSV.',
-            ]));
+        $path = self::uploadedCsvPath();
 
+        if ($path === null) {
             return;
+        }
+
+        try {
+            $result = self::importCsv(
+                Database::connection(),
+                $path
+            );
+
+            Response::html(
+                View::render(
+                    'pages/admin_reservations_import',
+                    [
+                        'title' =>
+                            'Import rezerwacji CSV',
+                        'result' => $result,
+                        'errorMessage' => null,
+                    ]
+                )
+            );
+        } catch (Throwable $exception) {
+            self::renderError(
+                'Import przerwany: '
+                . AppErrorHandler::safeMessage(
+                    $exception
+                )
+            );
+        }
+    }
+
+    private static function uploadedCsvPath(): ?string
+    {
+        if (
+            !isset($_FILES['csv_file'])
+            || !is_array(
+                $_FILES['csv_file']
+            )
+        ) {
+            self::renderError(
+                'Nie wybrano pliku CSV.'
+            );
+
+            return null;
         }
 
         $file = $_FILES['csv_file'];
 
-        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            Response::html(View::render('pages/admin_reservations_import', [
-                'title' => 'Import rezerwacji',
-                'result' => null,
-                'errorMessage' => 'Nie udało się wczytać pliku CSV. Kod błędu: ' . (string) ($file['error'] ?? 'brak'),
-            ]));
+        if (
+            (
+                $file['error']
+                ?? UPLOAD_ERR_NO_FILE
+            ) !== UPLOAD_ERR_OK
+        ) {
+            self::renderError(
+                'Nie udało się wczytać pliku CSV. Kod błędu: '
+                . (string) (
+                    $file['error']
+                    ?? 'brak'
+                )
+            );
 
-            return;
-        }
-
-        $tmpName = (string) ($file['tmp_name'] ?? '');
-
-        if ($tmpName === '' || !is_uploaded_file($tmpName)) {
-            Response::html(View::render('pages/admin_reservations_import', [
-                'title' => 'Import rezerwacji',
-                'result' => null,
-                'errorMessage' => 'Przesłany plik jest nieprawidłowy.',
-            ]));
-
-            return;
-        }
-
-        try {
-            $pdo = Database::connection();
-            self::ensureReservationsImportColumns($pdo);
-            $result = self::importCsv($pdo, $tmpName);
-
-            Response::html(View::render('pages/admin_reservations_import', [
-                'title' => 'Import rezerwacji',
-                'result' => $result,
-                'errorMessage' => null,
-            ]));
-        } catch (Throwable $exception) {
-            Response::html(View::render('pages/admin_reservations_import', [
-                'title' => 'Import rezerwacji',
-                'result' => null,
-                'errorMessage' => 'Import przerwany: ' . AppErrorHandler::safeMessage($exception),
-            ]));
-        }
-    }
-
-    private static function importCsv(PDO $pdo, string $path): array
-    {
-        $handle = fopen($path, 'rb');
-
-        if ($handle === false) {
-            throw new RuntimeException('Nie udało się otworzyć przesłanego pliku.');
-        }
-
-        $headers = fgetcsv($handle, 0, ';');
-
-        if ($headers === false || $headers === [null]) {
-            fclose($handle);
-
-            throw new RuntimeException('Plik CSV jest pusty albo ma niepoprawny format.');
-        }
-
-        $headers = array_map(
-            static fn (string $header): string => self::normalizeHeader($header),
-            $headers
-        );
-
-        $requiredColumns = [
-            'id',
-            'room_id',
-            'guest_id',
-            'check_in',
-            'check_out',
-            'adults_count',
-            'children_count',
-            'total_price',
-            'paid_amount',
-            'status',
-            'payment_status',
-            'source',
-        ];
-
-        $missingColumns = [];
-
-        foreach ($requiredColumns as $requiredColumn) {
-            if (!in_array($requiredColumn, $headers, true)) {
-                $missingColumns[] = $requiredColumn;
-            }
-        }
-
-        if ($missingColumns !== []) {
-            fclose($handle);
-
-            throw new RuntimeException('Brakuje kolumn w CSV: ' . implode(', ', $missingColumns));
-        }
-
-        $inserted = 0;
-        $updated = 0;
-        $skipped = 0;
-        $rowNumber = 1;
-
-        $pdo->beginTransaction();
-
-        try {
-            while (($row = fgetcsv($handle, 0, ';')) !== false) {
-                $rowNumber++;
-
-                if ($row === [] || $row === [null]) {
-                    continue;
-                }
-
-                $csvRow = self::mapCsvRow($headers, $row);
-                $reservation = self::reservationDataFromBase44($pdo, $csvRow, $rowNumber);
-
-                if ($reservation === null) {
-                    $skipped++;
-                    continue;
-                }
-
-                $existingReservation = self::findExistingReservation(
-                    $pdo,
-                    $reservation['external_id']
-                );
-
-                if ($existingReservation !== null) {
-                    self::updateReservation($pdo, (int) $existingReservation['id'], $reservation);
-                    $updated++;
-
-                    continue;
-                }
-
-                self::insertReservation($pdo, $reservation);
-                $inserted++;
-            }
-
-            $pdo->commit();
-        } catch (Throwable $exception) {
-            $pdo->rollBack();
-            fclose($handle);
-
-            throw new RuntimeException('Błąd w okolicy wiersza ' . $rowNumber . ': ' . AppErrorHandler::safeMessage($exception));
-        }
-
-        fclose($handle);
-
-        return [
-            'inserted' => $inserted,
-            'updated' => $updated,
-            'skipped' => $skipped,
-            'total' => $inserted + $updated + $skipped,
-        ];
-    }
-
-    private static function ensureReservationsImportColumns(PDO $pdo): void
-    {
-        $columns = self::tableColumns($pdo, 'reservations');
-
-        if (!in_array('external_id', $columns, true)) {
-            $pdo->exec('ALTER TABLE reservations ADD COLUMN external_id VARCHAR(80) NULL AFTER id');
-        }
-
-        $indexes = self::tableIndexes($pdo, 'reservations');
-
-        if (!in_array('idx_reservations_external_id', $indexes, true)) {
-            $pdo->exec('CREATE INDEX idx_reservations_external_id ON reservations (external_id)');
-        }
-    }
-
-    private static function tableColumns(PDO $pdo, string $table): array
-    {
-        $statement = $pdo->query('SHOW COLUMNS FROM `' . $table . '`');
-
-        if ($statement === false) {
-            return [];
-        }
-
-        $columns = [];
-
-        foreach ($statement->fetchAll() as $row) {
-            $columns[] = (string) $row['Field'];
-        }
-
-        return $columns;
-    }
-
-    private static function tableIndexes(PDO $pdo, string $table): array
-    {
-        $statement = $pdo->query('SHOW INDEX FROM `' . $table . '`');
-
-        if ($statement === false) {
-            return [];
-        }
-
-        $indexes = [];
-
-        foreach ($statement->fetchAll() as $row) {
-            $indexes[] = (string) $row['Key_name'];
-        }
-
-        return array_values(array_unique($indexes));
-    }
-
-    private static function normalizeHeader(string $header): string
-    {
-        $header = preg_replace('/^\xEF\xBB\xBF/', '', $header) ?? $header;
-
-        return strtolower(trim($header));
-    }
-
-    private static function mapCsvRow(array $headers, array $row): array
-    {
-        $result = [];
-
-        foreach ($headers as $index => $header) {
-            $result[$header] = isset($row[$index]) ? trim((string) $row[$index]) : '';
-        }
-
-        return $result;
-    }
-
-    private static function reservationDataFromBase44(PDO $pdo, array $row, int $rowNumber): ?array
-    {
-        $externalId = self::cleanText($row['id'] ?? '');
-        $roomExternalId = self::cleanText($row['room_id'] ?? '');
-        $guestExternalId = self::cleanText($row['guest_id'] ?? '');
-        $cabinName = self::cleanText(self::valueFromAnyKey($row, ['domek (nazwa)', 'domek', 'cabin_name', 'room_name']));
-        $guestName = self::cleanText(self::valueFromAnyKey($row, ['gość (imię)', 'gosc (imie)', 'gość', 'gosc', 'guest_name', 'ordered_by']));
-
-        $startDate = self::normalizeDate($row['check_in'] ?? '');
-        $endDate = self::normalizeDate($row['check_out'] ?? '');
-
-        if ($externalId === '' || $startDate === null || $endDate === null) {
             return null;
         }
 
-        $cabin = self::findCabinForReservation($pdo, $roomExternalId, $cabinName);
+        $path = (string) (
+            $file['tmp_name']
+            ?? ''
+        );
 
-        if ($cabin === null) {
-            throw new RuntimeException('Nie znaleziono domku dla rezerwacji ' . $externalId . ' / ' . $cabinName);
+        if (
+            $path === ''
+            || !is_uploaded_file($path)
+        ) {
+            self::renderError(
+                'Przesłany plik jest nieprawidłowy.'
+            );
+
+            return null;
         }
 
-        $guest = self::findGuestForReservation($pdo, $guestExternalId);
+        return $path;
+    }
 
-        if ($guestName === '' && $guest !== null) {
-            $guestName = trim((string) $guest['first_name'] . ' ' . (string) $guest['last_name']);
-        }
+    private static function renderError(
+        string $message
+    ): void {
+        Response::html(
+            View::render(
+                'pages/admin_reservations_import',
+                [
+                    'title' =>
+                        'Import rezerwacji CSV',
+                    'result' => null,
+                    'errorMessage' => $message,
+                ]
+            )
+        );
+    }
 
-        if ($guestName === '') {
-            $guestName = 'Gość Base44';
-        }
+    /**
+     * @return array{
+     *     inserted:int,
+     *     updated:int,
+     *     skipped:int,
+     *     total:int
+     * }
+     */
+    private static function importCsv(
+        PDO $pdo,
+        string $path
+    ): array {
+        $handle = fopen(
+            $path,
+            'rb'
+        );
 
-        $nameParts = preg_split('/\s+/', $guestName) ?: [];
-        $firstName = $nameParts[0] ?? null;
-        $lastNameParts = array_slice($nameParts, 1);
-        $lastName = implode(' ', $lastNameParts);
-
-        if ($lastName === '') {
-            $lastName = null;
-        }
-
-        if ($guest === null && $guestName !== '') {
-            $guest = self::findGuestByName($pdo, $guestName);
-        }
-
-        if ($guest === null) {
-            $guest = self::createGuestFromReservation(
-                $pdo,
-                $guestExternalId !== '' ? $guestExternalId : null,
-                $guestName,
-                $externalId
+        if ($handle === false) {
+            throw new RuntimeException(
+                'Nie udało się otworzyć przesłanego pliku.'
             );
         }
 
-        $email = $guest !== null && trim((string) ($guest['email'] ?? '')) !== ''
-            ? strtolower(trim((string) $guest['email']))
-            : 'brak-email-rezerwacja-' . preg_replace('/[^a-zA-Z0-9_-]/', '', $externalId) . '@base44.local';
+        try {
+            $headers =
+                self::readHeaders(
+                    $handle
+                );
 
-        $phone = $guest !== null && trim((string) ($guest['phone'] ?? '')) !== ''
-            ? trim((string) $guest['phone'])
-            : null;
+            self::requireColumns(
+                $headers,
+                [
+                    'cabin',
+                    'first_name',
+                    'last_name',
+                    'email',
+                    'check_in',
+                    'check_out',
+                ]
+            );
 
-        $adults = self::positiveInt($row['adults_count'] ?? '', 1);
-        $children = self::nonNegativeInt($row['children_count'] ?? '', 0);
-        $guests = max(1, $adults + $children);
-        $nights = self::calculateNights($startDate, $endDate);
-        $totalPrice = self::moneyValue($row['total_price'] ?? '');
-        $paidAmount = self::moneyValue($row['paid_amount'] ?? '');
-        $pricePerNight = $nights > 0 && $totalPrice !== null
-            ? round($totalPrice / $nights, 2)
-            : null;
+            $inserted = 0;
+            $updated = 0;
+            $skipped = 0;
+            $rowNumber = 1;
 
-        $notesParts = [];
+            $pdo->beginTransaction();
 
-        $specialRequests = self::cleanText($row['special_requests'] ?? '');
+            try {
+                while (
+                    (
+                        $row = fgetcsv(
+                            $handle,
+                            0,
+                            ';'
+                        )
+                    ) !== false
+                ) {
+                    $rowNumber++;
 
-        if ($specialRequests !== '') {
-            $notesParts[] = $specialRequests;
+                    if (
+                        self::rowIsEmpty(
+                            $row
+                        )
+                    ) {
+                        continue;
+                    }
+
+                    $csv = self::mapCsvRow(
+                        $headers,
+                        $row
+                    );
+
+                    $reservation =
+                        self::reservationData(
+                            $pdo,
+                            $csv,
+                            $rowNumber
+                        );
+
+                    $existing =
+                        self::findExistingReservation(
+                            $pdo,
+                            (int) $reservation[
+                                'cabin_id'
+                            ],
+                            (int) $reservation[
+                                'guest_id'
+                            ],
+                            (string) $reservation[
+                                'email'
+                            ],
+                            (string) $reservation[
+                                'start_date'
+                            ],
+                            (string) $reservation[
+                                'end_date'
+                            ]
+                        );
+
+                    if ($existing !== null) {
+                        self::updateReservation(
+                            $pdo,
+                            (int) $existing['id'],
+                            $reservation
+                        );
+
+                        $updated++;
+
+                        continue;
+                    }
+
+                    self::insertReservation(
+                        $pdo,
+                        $reservation
+                    );
+
+                    $inserted++;
+                }
+
+                $pdo->commit();
+            } catch (Throwable $exception) {
+                if (
+                    $pdo->inTransaction()
+                ) {
+                    $pdo->rollBack();
+                }
+
+                throw new RuntimeException(
+                    'Błąd w okolicy wiersza '
+                    . $rowNumber
+                    . ': '
+                    . AppErrorHandler::safeMessage(
+                        $exception
+                    )
+                );
+            }
+
+            return [
+                'inserted' => $inserted,
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'total' =>
+                    $inserted
+                    + $updated
+                    + $skipped,
+            ];
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * @param array<string, string> $csv
+     * @return array<string, mixed>
+     */
+    private static function reservationData(
+        PDO $pdo,
+        array $csv,
+        int $rowNumber
+    ): array {
+        $cabinValue =
+            self::cleanText(
+                $csv['cabin']
+                ?? ''
+            );
+
+        if ($cabinValue === '') {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': cabin jest wymagane.'
+            );
         }
 
-        $orderedBy = self::cleanText($row['ordered_by'] ?? '');
+        $cabin =
+            self::findCabin(
+                $pdo,
+                $cabinValue
+            );
 
-        if ($orderedBy !== '') {
-            $notesParts[] = 'Zamawiający: ' . $orderedBy;
+        if ($cabin === null) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': nie znaleziono domku "'
+                . $cabinValue
+                . '".'
+            );
         }
 
-        $createdBy = self::cleanText($row['created_by'] ?? '');
+        $firstName =
+            self::cleanText(
+                $csv['first_name']
+                ?? ''
+            );
 
-        if ($createdBy !== '') {
-            $notesParts[] = 'Utworzył w Base44: ' . $createdBy;
+        $lastName =
+            self::cleanText(
+                $csv['last_name']
+                ?? ''
+            );
+
+        $email = strtolower(
+            self::cleanText(
+                $csv['email']
+                ?? ''
+            )
+        );
+
+        if (
+            $firstName === ''
+            || $lastName === ''
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': imię i nazwisko są wymagane.'
+            );
         }
+
+        if (
+            $email === ''
+            || !filter_var(
+                $email,
+                FILTER_VALIDATE_EMAIL
+            )
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': podaj poprawny adres e-mail.'
+            );
+        }
+
+        $phone =
+            self::nullIfEmpty(
+                self::cleanText(
+                    $csv['phone']
+                    ?? ''
+                )
+            );
+
+        $source =
+            self::mapSource(
+                $csv['source']
+                ?? ''
+            );
+
+        $addressForm = [
+            'street' =>
+                self::cleanText(
+                    $csv['street']
+                    ?? ''
+                ),
+            'postal_code' =>
+                self::cleanText(
+                    $csv[
+                        'postal_code'
+                    ]
+                    ?? ''
+                ),
+            'city' =>
+                self::cleanText(
+                    $csv['city']
+                    ?? ''
+                ),
+            'country' =>
+                self::cleanText(
+                    $csv['country']
+                    ?? ''
+                ),
+            'full_address' => '',
+        ];
+
+        if (
+            function_exists(
+                'normalizeGuestAddressForm'
+            )
+        ) {
+            $addressForm =
+                normalizeGuestAddressForm(
+                    $addressForm
+                );
+        }
+
+        $guest =
+            self::findGuest(
+                $pdo,
+                $email,
+                $phone
+            );
+
+        if ($guest === null) {
+            $guest =
+                self::createGuest(
+                    $pdo,
+                    [
+                        'first_name' =>
+                            $firstName,
+                        'last_name' =>
+                            $lastName,
+                        'email' =>
+                            $email,
+                        'phone' =>
+                            $phone,
+                        'country' =>
+                            self::nullIfEmpty(
+                                (string) (
+                                    $addressForm[
+                                        'country'
+                                    ]
+                                    ?? ''
+                                )
+                            ),
+                        'street' =>
+                            self::nullIfEmpty(
+                                (string) (
+                                    $addressForm[
+                                        'street'
+                                    ]
+                                    ?? ''
+                                )
+                            ),
+                        'postal_code' =>
+                            self::nullIfEmpty(
+                                (string) (
+                                    $addressForm[
+                                        'postal_code'
+                                    ]
+                                    ?? ''
+                                )
+                            ),
+                        'city' =>
+                            self::nullIfEmpty(
+                                (string) (
+                                    $addressForm[
+                                        'city'
+                                    ]
+                                    ?? ''
+                                )
+                            ),
+                        'full_address' =>
+                            self::nullIfEmpty(
+                                (string) (
+                                    $addressForm[
+                                        'full_address'
+                                    ]
+                                    ?? ''
+                                )
+                            ),
+                        'source' =>
+                            $source,
+                    ]
+                );
+        } else {
+            self::completeGuestData(
+                $pdo,
+                (int) $guest['id'],
+                [
+                    'first_name' =>
+                        $firstName,
+                    'last_name' =>
+                        $lastName,
+                    'email' =>
+                        $email,
+                    'phone' =>
+                        $phone,
+                    'country' =>
+                        self::nullIfEmpty(
+                            (string) (
+                                $addressForm[
+                                    'country'
+                                ]
+                                ?? ''
+                            )
+                        ),
+                    'street' =>
+                        self::nullIfEmpty(
+                            (string) (
+                                $addressForm[
+                                    'street'
+                                ]
+                                ?? ''
+                            )
+                        ),
+                    'postal_code' =>
+                        self::nullIfEmpty(
+                            (string) (
+                                $addressForm[
+                                    'postal_code'
+                                ]
+                                ?? ''
+                            )
+                        ),
+                    'city' =>
+                        self::nullIfEmpty(
+                            (string) (
+                                $addressForm[
+                                    'city'
+                                ]
+                                ?? ''
+                            )
+                        ),
+                    'full_address' =>
+                        self::nullIfEmpty(
+                            (string) (
+                                $addressForm[
+                                    'full_address'
+                                ]
+                                ?? ''
+                            )
+                        ),
+                ]
+            );
+
+            $guest =
+                self::findGuestById(
+                    $pdo,
+                    (int) $guest['id']
+                )
+                ?? $guest;
+        }
+
+        $startDate =
+            self::requiredDate(
+                $csv['check_in']
+                ?? '',
+                $rowNumber,
+                'check_in'
+            );
+
+        $endDate =
+            self::requiredDate(
+                $csv['check_out']
+                ?? '',
+                $rowNumber,
+                'check_out'
+            );
+
+        if ($endDate <= $startDate) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': check_out musi być później niż check_in.'
+            );
+        }
+
+        $nights =
+            self::calculateNights(
+                $startDate,
+                $endDate
+            );
+
+        $adults =
+            self::positiveInt(
+                $csv['adults']
+                ?? '',
+                1,
+                'adults',
+                $rowNumber
+            );
+
+        $children =
+            self::nonNegativeInt(
+                $csv['children']
+                ?? '',
+                0,
+                'children',
+                $rowNumber
+            );
+
+        $guests =
+            $adults
+            + $children;
+
+        if (
+            $guests > (int) (
+                $cabin['max_guests']
+                ?? 0
+            )
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': liczba gości ('
+                . $guests
+                . ') przekracza pojemność domku '
+                . (string) (
+                    $cabin['short_name']
+                    ?? $cabin['name']
+                    ?? ''
+                )
+                . ' ('
+                . (int) (
+                    $cabin['max_guests']
+                    ?? 0
+                )
+                . ').'
+            );
+        }
+
+        $totalPrice =
+            self::optionalMoney(
+                $csv['total_price']
+                ?? '',
+                $rowNumber,
+                'total_price'
+            );
+
+        if ($totalPrice === null) {
+            $totalPrice =
+                $nights
+                * self::nightPrice(
+                    $cabin,
+                    $nights
+                );
+        }
+
+        $paidAmount =
+            self::optionalMoney(
+                $csv['paid_amount']
+                ?? '',
+                $rowNumber,
+                'paid_amount'
+            )
+            ?? 0.0;
+
+        if (
+            $paidAmount
+            > $totalPrice
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': paid_amount nie może być większe od total_price.'
+            );
+        }
+
+        $paymentStatus =
+            self::paymentStatus(
+                $csv['payment_status']
+                ?? '',
+                $paidAmount,
+                $totalPrice
+            );
+
+        $status =
+            self::reservationStatus(
+                $csv['status']
+                ?? ''
+            );
+
+        $guestName = trim(
+            $firstName
+            . ' '
+            . $lastName
+        );
 
         return [
-            'external_id' => $externalId,
-            'cabin_id' => (int) $cabin['id'],
-            'guest_id' => $guest !== null ? (int) $guest['id'] : null,
-            'guest_name' => $guestName,
+            'cabin_id' =>
+                (int) $cabin['id'],
+            'guest_id' =>
+                (int) $guest['id'],
+            'guest_name' =>
+                $guestName,
             'email' => $email,
-            'phone' => $phone,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'check_in_at' => self::combineDateAndTime($startDate, $row['check_in_time'] ?? ''),
-            'check_out_at' => self::combineDateAndTime($endDate, $row['check_out_time'] ?? ''),
+            'phone' =>
+                $phone
+                ?? (
+                    isset($guest['phone'])
+                    && $guest['phone'] !== null
+                        ? (string) $guest[
+                            'phone'
+                        ]
+                        : null
+                ),
+            'first_name' =>
+                $firstName,
+            'last_name' =>
+                $lastName,
+            'start_date' =>
+                $startDate,
+            'end_date' =>
+                $endDate,
+            'check_in_at' =>
+                self::combineDateAndTime(
+                    $startDate,
+                    $csv[
+                        'check_in_time'
+                    ]
+                    ?? '',
+                    '15:00'
+                ),
+            'check_out_at' =>
+                self::combineDateAndTime(
+                    $endDate,
+                    $csv[
+                        'check_out_time'
+                    ]
+                    ?? '',
+                    '11:00'
+                ),
             'nights' => $nights,
-            'price_per_night' => $pricePerNight,
+            'price_per_night' =>
+                $nights > 0
+                    ? round(
+                        $totalPrice
+                        / $nights,
+                        2
+                    )
+                    : $totalPrice,
             'guests' => $guests,
             'adults' => $adults,
             'children' => $children,
-            'status' => self::mapStatus($row['status'] ?? ''),
-            'source' => self::mapSource($row['source'] ?? ''),
-            'payment_status' => self::mapPaymentStatus($row['payment_status'] ?? ''),
-            'total_price' => $totalPrice,
-            'paid_amount' => $paidAmount,
-            'street' => null,
-            'postal_code' => null,
-            'city' => $guest['city'] ?? null,
-            'country' => $guest['country'] ?? null,
-            'notes' => $notesParts !== [] ? implode("\n", $notesParts) : null,
+            'status' => $status,
+            'source' => $source,
+            'payment_status' =>
+                $paymentStatus,
+            'total_price' =>
+                $totalPrice,
+            'paid_amount' =>
+                $paidAmount,
+            'street' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'street'
+                        ]
+                        ?? (
+                            $guest['street']
+                            ?? ''
+                        )
+                    )
+                ),
+            'postal_code' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'postal_code'
+                        ]
+                        ?? (
+                            $guest[
+                                'postal_code'
+                            ]
+                            ?? ''
+                        )
+                    )
+                ),
+            'city' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'city'
+                        ]
+                        ?? (
+                            $guest['city']
+                            ?? ''
+                        )
+                    )
+                ),
+            'country' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'country'
+                        ]
+                        ?? (
+                            $guest[
+                                'country'
+                            ]
+                            ?? ''
+                        )
+                    )
+                ),
+            'notes' =>
+                self::nullIfEmpty(
+                    self::cleanText(
+                        $csv['notes']
+                        ?? ''
+                    )
+                ),
         ];
     }
 
-    private static function cleanText(string $value): string
-    {
-        $value = preg_replace('/^\xEF\xBB\xBF/', '', $value) ?? $value;
-        $value = trim($value);
-        $value = str_replace(["\r\n", "\r"], "\n", $value);
-        $value = preg_replace('/[ \t]+/', ' ', $value) ?? $value;
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function findCabin(
+        PDO $pdo,
+        string $value
+    ): ?array {
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM cabins
+            WHERE UPPER(short_name)
+                = UPPER(:value)
+            LIMIT 1'
+        );
 
-        return trim($value);
-    }
+        $statement->execute([
+            'value' => $value,
+        ]);
 
-    private static function valueFromAnyKey(array $row, array $keys): string
-    {
-        foreach ($keys as $key) {
-            if (array_key_exists($key, $row)) {
-                return (string) $row[$key];
-            }
+        $row = $statement->fetch();
+
+        if (is_array($row)) {
+            return $row;
         }
 
-        return '';
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM cabins
+            WHERE LOWER(name)
+                = LOWER(:value)
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'value' => $value,
+        ]);
+
+        $row = $statement->fetch();
+
+        return is_array($row)
+            ? $row
+            : null;
     }
 
-    private static function normalizeDate(string $value): ?string
-    {
-        $value = trim($value);
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function findGuest(
+        PDO $pdo,
+        string $email,
+        ?string $phone
+    ): ?array {
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM guests
+            WHERE LOWER(email)
+                = LOWER(:email)
+            LIMIT 1'
+        );
 
-        if ($value === '') {
+        $statement->execute([
+            'email' => $email,
+        ]);
+
+        $row = $statement->fetch();
+
+        if (is_array($row)) {
+            return $row;
+        }
+
+        $phoneKey =
+            self::phoneKey(
+                $phone
+            );
+
+        if ($phoneKey === '') {
             return null;
         }
 
-        try {
-            return (new DateTimeImmutable($value))->format('Y-m-d');
-        } catch (Throwable $exception) {
-            return null;
-        }
-    }
+        $statement = $pdo->query(
+            'SELECT *
+            FROM guests
+            WHERE phone IS NOT NULL
+            AND phone <> ""'
+        );
 
-    private static function combineDateAndTime(string $date, string $time): ?string
-    {
-        $time = trim($time);
-
-        if ($date === '') {
+        if ($statement === false) {
             return null;
         }
 
-        if ($time === '') {
-            return null;
-        }
-
-        try {
-            if (preg_match('/^\d{1,2}:\d{2}/', $time)) {
-                return (new DateTimeImmutable($date . ' ' . $time))->format('Y-m-d H:i:s');
-            }
-
-            return (new DateTimeImmutable($time))->format('Y-m-d H:i:s');
-        } catch (Throwable $exception) {
-            return null;
-        }
-    }
-
-    private static function positiveInt(string $value, int $fallback): int
-    {
-        $number = self::nonNegativeInt($value, 0);
-
-        return $number > 0 ? $number : $fallback;
-    }
-
-    private static function nonNegativeInt(string $value, int $fallback): int
-    {
-        $value = preg_replace('/\D+/', '', trim($value)) ?? '';
-
-        if ($value === '') {
-            return $fallback;
-        }
-
-        return max(0, (int) $value);
-    }
-
-    private static function moneyValue(string $value): ?float
-    {
-        $value = str_replace(',', '.', trim($value));
-
-        if ($value === '') {
-            return null;
-        }
-
-        if (!is_numeric($value)) {
-            return null;
-        }
-
-        return round((float) $value, 2);
-    }
-
-    private static function calculateNights(string $startDate, string $endDate): int
-    {
-        try {
-            $start = new DateTimeImmutable($startDate);
-            $end = new DateTimeImmutable($endDate);
-            $days = (int) $start->diff($end)->days;
-
-            return max(1, $days);
-        } catch (Throwable $exception) {
-            return 1;
-        }
-    }
-
-    private static function mapStatus(string $status): string
-    {
-        $status = strtolower(trim($status));
-
-        return match ($status) {
-            'confirmed', 'potwierdzona', 'potwierdzony' => 'CONFIRMED',
-            'checked_in', 'check_in', 'zameldowany' => 'CHECKED_IN',
-            'checked_out', 'completed', 'wymeldowany' => 'CHECKED_OUT',
-            'cancelled', 'canceled', 'anulowana', 'anulowany' => 'CANCELLED',
-            default => 'PENDING',
-        };
-    }
-
-    private static function mapPaymentStatus(string $status): string
-    {
-        $status = strtolower(trim($status));
-
-        return match ($status) {
-            'paid', 'opłacona', 'oplacona' => 'PAID',
-            'partial', 'partially_paid', 'częściowa', 'czesciowa' => 'PARTIAL',
-            'refunded', 'zwrócona', 'zwrocona' => 'REFUNDED',
-            default => 'PENDING',
-        };
-    }
-
-    private static function mapSource(string $source): string
-    {
-        $source = strtolower(trim($source));
-
-        return match ($source) {
-            'booking_com', 'booking.com', 'booking' => 'BOOKING',
-            'airbnb' => 'AIRBNB',
-            'www', 'website', 'strona' => 'WWW',
-            'phone', 'telefon' => 'PHONE',
-            default => 'MANUAL',
-        };
-    }
-
-    private static function findCabinForReservation(PDO $pdo, string $roomExternalId, string $cabinName): ?array
-    {
-        if ($roomExternalId !== '') {
-            $statement = $pdo->prepare('SELECT id FROM cabins WHERE external_id = :external_id LIMIT 1');
-            $statement->execute([
-                'external_id' => $roomExternalId,
-            ]);
-
-            $row = $statement->fetch();
-
-            if (is_array($row)) {
-                return $row;
-            }
-        }
-
-        if ($cabinName !== '') {
-            $statement = $pdo->prepare('SELECT id FROM cabins WHERE LOWER(name) = LOWER(:name) LIMIT 1');
-            $statement->execute([
-                'name' => $cabinName,
-            ]);
-
-            $row = $statement->fetch();
-
-            if (is_array($row)) {
-                return $row;
+        foreach (
+            $statement->fetchAll()
+            as $candidate
+        ) {
+            if (
+                !is_array($candidate)
+            ) {
+                continue;
             }
 
-            $number = preg_replace('/\D+/', '', $cabinName) ?? '';
-
-            if ($number !== '') {
-                $shortName = 'D' . (string) ((int) $number);
-
-                $statement = $pdo->prepare('SELECT id FROM cabins WHERE short_name = :short_name LIMIT 1');
-                $statement->execute([
-                    'short_name' => $shortName,
-                ]);
-
-                $row = $statement->fetch();
-
-                if (is_array($row)) {
-                    return $row;
-                }
+            if (
+                self::phoneKey(
+                    isset(
+                        $candidate['phone']
+                    )
+                        ? (string) $candidate[
+                            'phone'
+                        ]
+                        : null
+                ) === $phoneKey
+            ) {
+                return $candidate;
             }
         }
 
         return null;
     }
 
-    private static function findGuestForReservation(PDO $pdo, string $guestExternalId): ?array
-    {
-        if ($guestExternalId === '') {
-            return null;
-        }
-
-        $statement = $pdo->prepare(
-            'SELECT
-                id,
-                first_name,
-                last_name,
-                email,
-                phone,
-                city,
-                country
-            FROM guests
-            WHERE external_id = :external_id
-            LIMIT 1'
-        );
-
-        $statement->execute([
-            'external_id' => $guestExternalId,
-        ]);
-
-        $row = $statement->fetch();
-
-        return is_array($row) ? $row : null;
-    }
-
-    private static function findGuestByName(PDO $pdo, string $guestName): ?array
-    {
-        $guestName = trim($guestName);
-
-        if ($guestName === '') {
-            return null;
-        }
-
-        $statement = $pdo->prepare(
-            'SELECT
-                id,
-                first_name,
-                last_name,
-                email,
-                phone,
-                city,
-                country
-            FROM guests
-            WHERE LOWER(CONCAT(first_name, " ", last_name)) = LOWER(:guest_name)
-            LIMIT 1'
-        );
-
-        $statement->execute([
-            'guest_name' => $guestName,
-        ]);
-
-        $row = $statement->fetch();
-
-        return is_array($row) ? $row : null;
-    }
-
-    private static function createGuestFromReservation(
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function findGuestById(
         PDO $pdo,
-        ?string $guestExternalId,
-        string $guestName,
-        string $reservationExternalId
+        int $id
+    ): ?array {
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM guests
+            WHERE id = :id
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'id' => $id,
+        ]);
+
+        $row = $statement->fetch();
+
+        return is_array($row)
+            ? $row
+            : null;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private static function createGuest(
+        PDO $pdo,
+        array $data
     ): array {
-        $guestName = trim($guestName);
-
-        if ($guestName === '') {
-            $guestName = 'Gość Base44';
-        }
-
-        $nameParts = preg_split('/\s+/', $guestName) ?: [];
-        $firstName = $nameParts[0] ?? 'Gość';
-        $lastNameParts = array_slice($nameParts, 1);
-        $lastName = implode(' ', $lastNameParts);
-
-        if ($lastName === '') {
-            $lastName = '—';
-        }
-
-        $email = 'brak-email-rezerwacja-' . preg_replace('/[^a-zA-Z0-9_-]/', '', $reservationExternalId) . '@base44.local';
-
         $statement = $pdo->prepare(
             'INSERT INTO guests (
-                external_id,
                 first_name,
                 last_name,
                 email,
                 phone,
                 country,
+                street,
+                postal_code,
                 city,
+                full_address,
                 is_vip,
                 source,
                 notes
             ) VALUES (
-                :external_id,
                 :first_name,
                 :last_name,
                 :email,
-                NULL,
-                NULL,
-                NULL,
+                :phone,
+                :country,
+                :street,
+                :postal_code,
+                :city,
+                :full_address,
                 0,
                 :source,
                 :notes
@@ -675,42 +1000,155 @@ final class ReservationImportController
         );
 
         $statement->execute([
-            'external_id' => $guestExternalId,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'email' => $email,
-            'source' => 'BASE44',
-            'notes' => 'Gość utworzony automatycznie podczas importu rezerwacji Base44.',
+            'first_name' =>
+                $data['first_name'],
+            'last_name' =>
+                $data['last_name'],
+            'email' =>
+                $data['email'],
+            'phone' =>
+                $data['phone'],
+            'country' =>
+                $data['country'],
+            'street' =>
+                $data['street'],
+            'postal_code' =>
+                $data['postal_code'],
+            'city' =>
+                $data['city'],
+            'full_address' =>
+                $data['full_address'],
+            'source' =>
+                $data['source'],
+            'notes' =>
+                'Gość utworzony automatycznie podczas importu CSV rezerwacji.',
         ]);
 
-        return [
-            'id' => (int) $pdo->lastInsertId(),
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'email' => $email,
-            'phone' => null,
-            'city' => null,
-            'country' => null,
+        $id = (int) $pdo
+            ->lastInsertId();
+
+        return self::findGuestById(
+            $pdo,
+            $id
+        ) ?? [
+            'id' => $id,
+            'first_name' =>
+                $data['first_name'],
+            'last_name' =>
+                $data['last_name'],
+            'email' =>
+                $data['email'],
+            'phone' =>
+                $data['phone'],
+            'country' =>
+                $data['country'],
+            'street' =>
+                $data['street'],
+            'postal_code' =>
+                $data['postal_code'],
+            'city' =>
+                $data['city'],
         ];
     }
 
-    private static function findExistingReservation(PDO $pdo, string $externalId): ?array
-    {
-        $statement = $pdo->prepare('SELECT id FROM reservations WHERE external_id = :external_id LIMIT 1');
+    /**
+     * Uzupełniamy brakujące dane istniejącego gościa,
+     * ale nie zmieniamy jego źródła.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function completeGuestData(
+        PDO $pdo,
+        int $id,
+        array $data
+    ): void {
+        $data['id'] = $id;
+
+        $statement = $pdo->prepare(
+            'UPDATE guests
+            SET
+                first_name = :first_name,
+                last_name = :last_name,
+                email = :email,
+                phone = COALESCE(
+                    phone,
+                    :phone
+                ),
+                country = COALESCE(
+                    country,
+                    :country
+                ),
+                street = COALESCE(
+                    street,
+                    :street
+                ),
+                postal_code = COALESCE(
+                    postal_code,
+                    :postal_code
+                ),
+                city = COALESCE(
+                    city,
+                    :city
+                ),
+                full_address = COALESCE(
+                    full_address,
+                    :full_address
+                )
+            WHERE id = :id'
+        );
+
+        $statement->execute($data);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function findExistingReservation(
+        PDO $pdo,
+        int $cabinId,
+        int $guestId,
+        string $email,
+        string $startDate,
+        string $endDate
+    ): ?array {
+        $statement = $pdo->prepare(
+            'SELECT id
+            FROM reservations
+            WHERE cabin_id = :cabin_id
+            AND start_date = :start_date
+            AND end_date = :end_date
+            AND (
+                guest_id = :guest_id
+                OR LOWER(email)
+                    = LOWER(:email)
+            )
+            LIMIT 1'
+        );
+
         $statement->execute([
-            'external_id' => $externalId,
+            'cabin_id' => $cabinId,
+            'guest_id' => $guestId,
+            'email' => $email,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
         ]);
 
         $row = $statement->fetch();
 
-        return is_array($row) ? $row : null;
+        return is_array($row)
+            ? $row
+            : null;
     }
 
-    private static function insertReservation(PDO $pdo, array $reservation): void
-    {
+    /**
+     * @param array<string, mixed> $data
+     */
+    private static function insertReservation(
+        PDO $pdo,
+        array $data
+    ): void {
         $statement = $pdo->prepare(
             'INSERT INTO reservations (
-                external_id,
                 cabin_id,
                 guest_id,
                 guest_name,
@@ -738,7 +1176,6 @@ final class ReservationImportController
                 country,
                 notes
             ) VALUES (
-                :external_id,
                 :cabin_id,
                 :guest_id,
                 :guest_name,
@@ -768,17 +1205,24 @@ final class ReservationImportController
             )'
         );
 
-        $statement->execute($reservation);
+        $statement->execute(
+            $data
+        );
     }
 
-    private static function updateReservation(PDO $pdo, int $id, array $reservation): void
-    {
-        $reservation['id'] = $id;
+    /**
+     * @param array<string, mixed> $data
+     */
+    private static function updateReservation(
+        PDO $pdo,
+        int $id,
+        array $data
+    ): void {
+        $data['id'] = $id;
 
         $statement = $pdo->prepare(
             'UPDATE reservations
             SET
-                external_id = :external_id,
                 cabin_id = :cabin_id,
                 guest_id = :guest_id,
                 guest_name = :guest_name,
@@ -808,6 +1252,546 @@ final class ReservationImportController
             WHERE id = :id'
         );
 
-        $statement->execute($reservation);
+        $statement->execute(
+            $data
+        );
+    }
+
+    /**
+     * @param resource $handle
+     * @return array<int, string>
+     */
+    private static function readHeaders(
+        $handle
+    ): array {
+        $headers = fgetcsv(
+            $handle,
+            0,
+            ';'
+        );
+
+        if (
+            $headers === false
+            || $headers === [null]
+        ) {
+            throw new RuntimeException(
+                'Plik CSV jest pusty albo ma niepoprawny format.'
+            );
+        }
+
+        return array_map(
+            static fn (
+                mixed $header
+            ): string =>
+                self::normalizeHeader(
+                    (string) $header
+                ),
+            $headers
+        );
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, string> $required
+     */
+    private static function requireColumns(
+        array $headers,
+        array $required
+    ): void {
+        $missing = [];
+
+        foreach ($required as $column) {
+            if (
+                !in_array(
+                    $column,
+                    $headers,
+                    true
+                )
+            ) {
+                $missing[] = $column;
+            }
+        }
+
+        if ($missing !== []) {
+            throw new RuntimeException(
+                'Brakuje wymaganych kolumn: '
+                . implode(
+                    ', ',
+                    $missing
+                )
+            );
+        }
+    }
+
+    private static function normalizeHeader(
+        string $header
+    ): string {
+        $header =
+            preg_replace(
+                '/^\xEF\xBB\xBF/',
+                '',
+                $header
+            )
+            ?? $header;
+
+        return strtolower(
+            trim($header)
+        );
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, mixed> $row
+     * @return array<string, string>
+     */
+    private static function mapCsvRow(
+        array $headers,
+        array $row
+    ): array {
+        $result = [];
+
+        foreach (
+            $headers
+            as $index => $header
+        ) {
+            $result[$header] =
+                isset($row[$index])
+                    ? trim(
+                        (string) $row[
+                            $index
+                        ]
+                    )
+                    : '';
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array<int, mixed> $row
+     */
+    private static function rowIsEmpty(
+        array $row
+    ): bool {
+        foreach ($row as $value) {
+            if (
+                trim(
+                    (string) $value
+                ) !== ''
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function cleanText(
+        string $value
+    ): string {
+        $value =
+            preg_replace(
+                '/^\xEF\xBB\xBF/',
+                '',
+                $value
+            )
+            ?? $value;
+
+        $value = trim($value);
+
+        $value = str_replace(
+            [
+                "\r\n",
+                "\r",
+            ],
+            "\n",
+            $value
+        );
+
+        return trim(
+            preg_replace(
+                '/[ \t]+/',
+                ' ',
+                $value
+            )
+            ?? $value
+        );
+    }
+
+    private static function nullIfEmpty(
+        string $value
+    ): ?string {
+        $value = trim(
+            $value
+        );
+
+        return $value !== ''
+            ? $value
+            : null;
+    }
+
+    private static function phoneKey(
+        ?string $phone
+    ): string {
+        if ($phone === null) {
+            return '';
+        }
+
+        return preg_replace(
+            '/\D+/',
+            '',
+            $phone
+        )
+        ?? '';
+    }
+
+    private static function requiredDate(
+        string $value,
+        int $rowNumber,
+        string $field
+    ): string {
+        $value = trim(
+            $value
+        );
+
+        if ($value === '') {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': '
+                . $field
+                . ' jest wymagane.'
+            );
+        }
+
+        try {
+            return (
+                new DateTimeImmutable(
+                    $value
+                )
+            )->format(
+                'Y-m-d'
+            );
+        } catch (Throwable $exception) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': nieprawidłowa data '
+                . $field
+                . '.'
+            );
+        }
+    }
+
+    private static function combineDateAndTime(
+        string $date,
+        string $time,
+        string $fallback
+    ): string {
+        $time = trim(
+            $time
+        );
+
+        if ($time === '') {
+            $time = $fallback;
+        }
+
+        try {
+            return (
+                new DateTimeImmutable(
+                    $date
+                    . ' '
+                    . $time
+                )
+            )->format(
+                'Y-m-d H:i:s'
+            );
+        } catch (Throwable $exception) {
+            throw new RuntimeException(
+                'Nieprawidłowa godzina: '
+                . $time
+            );
+        }
+    }
+
+    private static function calculateNights(
+        string $startDate,
+        string $endDate
+    ): int {
+        $start =
+            new DateTimeImmutable(
+                $startDate
+            );
+
+        $end =
+            new DateTimeImmutable(
+                $endDate
+            );
+
+        return (int) $start
+            ->diff($end)
+            ->days;
+    }
+
+    private static function positiveInt(
+        string $value,
+        int $default,
+        string $field,
+        int $rowNumber
+    ): int {
+        $value = trim(
+            $value
+        );
+
+        if ($value === '') {
+            return $default;
+        }
+
+        if (
+            filter_var(
+                $value,
+                FILTER_VALIDATE_INT
+            ) === false
+            || (int) $value < 1
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': '
+                . $field
+                . ' musi być dodatnią liczbą całkowitą.'
+            );
+        }
+
+        return (int) $value;
+    }
+
+    private static function nonNegativeInt(
+        string $value,
+        int $default,
+        string $field,
+        int $rowNumber
+    ): int {
+        $value = trim(
+            $value
+        );
+
+        if ($value === '') {
+            return $default;
+        }
+
+        if (
+            filter_var(
+                $value,
+                FILTER_VALIDATE_INT
+            ) === false
+            || (int) $value < 0
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': '
+                . $field
+                . ' musi być nieujemną liczbą całkowitą.'
+            );
+        }
+
+        return (int) $value;
+    }
+
+    private static function optionalMoney(
+        string $value,
+        int $rowNumber,
+        string $field
+    ): ?float {
+        $value = str_replace(
+            ',',
+            '.',
+            trim($value)
+        );
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (
+            !is_numeric($value)
+            || (float) $value < 0
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': nieprawidłowa kwota '
+                . $field
+                . '.'
+            );
+        }
+
+        return round(
+            (float) $value,
+            2
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $cabin
+     */
+    private static function nightPrice(
+        array $cabin,
+        int $nights
+    ): float {
+        $key = match (true) {
+            $nights <= 1 =>
+                'price_one_night',
+            $nights === 2 =>
+                'price_two_nights',
+            $nights === 3 =>
+                'price_three_nights',
+            $nights === 4 =>
+                'price_four_nights',
+            $nights === 5 =>
+                'price_five_nights',
+            $nights === 6 =>
+                'price_six_nights',
+            default =>
+                'price_seven_plus_nights',
+        };
+
+        return (float) (
+            $cabin[$key]
+            ?? $cabin[
+                'price_per_night'
+            ]
+            ?? 0
+        );
+    }
+
+    private static function reservationStatus(
+        string $status
+    ): string {
+        $status = strtolower(
+            trim($status)
+        );
+
+        if ($status === '') {
+            return 'CONFIRMED';
+        }
+
+        return match ($status) {
+            'pending',
+            'oczekujaca',
+            'oczekująca' =>
+                'PENDING',
+
+            'confirmed',
+            'potwierdzona',
+            'potwierdzony' =>
+                'CONFIRMED',
+
+            'checked_in',
+            'check_in',
+            'zameldowany' =>
+                'CHECKED_IN',
+
+            'checked_out',
+            'completed',
+            'wymeldowany' =>
+                'CHECKED_OUT',
+
+            'cancelled',
+            'canceled',
+            'anulowana',
+            'anulowany' =>
+                'CANCELLED',
+
+            default =>
+                throw new RuntimeException(
+                    'Nieprawidłowy status rezerwacji: '
+                    . $status
+                ),
+        };
+    }
+
+    private static function paymentStatus(
+        string $status,
+        float $paidAmount,
+        float $totalPrice
+    ): string {
+        $status = strtolower(
+            trim($status)
+        );
+
+        if (
+            in_array(
+                $status,
+                [
+                    'refunded',
+                    'zwrócona',
+                    'zwrocona',
+                ],
+                true
+            )
+        ) {
+            return 'REFUNDED';
+        }
+
+        if (
+            $totalPrice > 0
+            && $paidAmount >= $totalPrice
+        ) {
+            return 'PAID';
+        }
+
+        if ($paidAmount > 0) {
+            return 'PARTIAL';
+        }
+
+        return 'PENDING';
+    }
+
+    private static function mapSource(
+        string $source
+    ): string {
+        $source = trim(
+            $source
+        );
+
+        if ($source === '') {
+            return 'MANUAL';
+        }
+
+        $normalized =
+            function_exists(
+                'normalizePmsSource'
+            )
+                ? normalizePmsSource(
+                    $source
+                )
+                : strtoupper(
+                    $source
+                );
+
+        if (
+            !in_array(
+                $normalized,
+                [
+                    'MANUAL',
+                    'DIRECT',
+                    'WWW',
+                    'BOOKING',
+                    'PHONE',
+                    'AIRBNB',
+                    'ICAL_OTHER',
+                ],
+                true
+            )
+        ) {
+            throw new RuntimeException(
+                'Nieprawidłowe źródło rezerwacji: '
+                . $source
+            );
+        }
+
+        return $normalized;
     }
 }

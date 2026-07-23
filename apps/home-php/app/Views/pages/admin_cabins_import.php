@@ -19,15 +19,20 @@ declare(strict_types=1);
                         <div>
                             <p class="eyebrow">Domki</p>
 
-                            <h1>Import domków Base44</h1>
+                            <h1>Import domków CSV</h1>
 
                             <p>
-                                Wgraj plik CSV z eksportu Base44. Importer dopasuje domki po ID Base44,
-                                skrócie D1–D4 albo nazwie domku.
+                                Neutralny import CSV bez zależności od Base44.
+                                Istniejący domek jest rozpoznawany najpierw po
+                                <code>short_name</code>, a następnie po nazwie.
                             </p>
                         </div>
 
                         <div class="page-header__actions">
+                            <a class="button button--secondary" href="/templates/import-domki.csv">
+                                Pobierz wzór CSV
+                            </a>
+
                             <a class="button button--secondary" href="/admin/domki">
                                 Wróć do domków
                             </a>
@@ -54,10 +59,16 @@ declare(strict_types=1);
                         </div>
                     <?php endif; ?>
 
-                    <form method="post" action="/admin/domki/import" enctype="multipart/form-data" class="form-grid">
-    <?= csrfField() ?>
+                    <form
+                        method="post"
+                        action="/admin/domki/import"
+                        enctype="multipart/form-data"
+                        class="form-grid"
+                    >
+                        <?= csrfField() ?>
+
                         <label>
-                            Plik CSV z Base44
+                            Plik CSV
 
                             <input
                                 type="file"
@@ -68,17 +79,27 @@ declare(strict_types=1);
                         </label>
 
                         <div class="empty-state" style="text-align: left;">
-                            <strong>Mapowanie danych</strong>
+                            <strong>Jak przygotować CSV</strong>
 
                             <p>
-                                Base44 <code>id</code> zapisujemy jako <code>external_id</code>.
-                                Numer <code>01</code> zostanie dopasowany do skrótu <code>D1</code>,
-                                <code>02</code> do <code>D2</code> itd.
+                                Separator: <code>;</code>, kodowanie: UTF-8.
+                                Wymagane są tylko kolumny:
+                                <code>short_name;name</code>.
                             </p>
 
                             <p>
-                                Import drugi raz nie powinien tworzyć duplikatów. Zaktualizuje istniejące domki
-                                po <code>external_id</code>, <code>short_name</code> albo nazwie.
+                                Opcjonalnie możesz dodać:
+                                <code>description</code>,
+                                <code>max_guests</code>,
+                                <code>area_sqm</code>,
+                                <code>bedrooms</code>,
+                                <code>bathrooms</code>,
+                                ceny, wyposażenie, lokalizację i status.
+                            </p>
+
+                            <p>
+                                Przy ponownym imporcie domek zostanie zaktualizowany
+                                po <code>short_name</code> albo nazwie.
                             </p>
                         </div>
 

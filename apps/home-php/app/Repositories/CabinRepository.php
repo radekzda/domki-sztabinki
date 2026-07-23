@@ -570,7 +570,7 @@ final class CabinRepository
                 'ALTER TABLE cabins
                 ADD COLUMN invoice_seller_id
                     INT UNSIGNED NULL
-                AFTER external_id'
+                AFTER id'
             );
 
             $columns[] = 'invoice_seller_id';

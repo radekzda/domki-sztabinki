@@ -6,456 +6,543 @@ final class CabinImportController
 {
     public static function show(): void
     {
-        Response::html(View::render('pages/admin_cabins_import', [
-            'title' => 'Import domków',
-            'result' => null,
-            'errorMessage' => null,
-        ]));
+        Response::html(
+            View::render(
+                'pages/admin_cabins_import',
+                [
+                    'title' =>
+                        'Import domków CSV',
+                    'result' => null,
+                    'errorMessage' => null,
+                ]
+            )
+        );
     }
 
     public static function store(): void
     {
-        if (!Database::canAttemptConnection()) {
-            Response::html(View::render('pages/admin_cabins_import', [
-                'title' => 'Import domków',
-                'result' => null,
-                'errorMessage' => 'Baza danych nie jest jeszcze skonfigurowana.',
-            ]));
+        if (
+            !Database::canAttemptConnection()
+        ) {
+            self::renderError(
+                'Baza danych nie jest jeszcze skonfigurowana.'
+            );
 
             return;
         }
 
-        if (!isset($_FILES['csv_file']) || !is_array($_FILES['csv_file'])) {
-            Response::html(View::render('pages/admin_cabins_import', [
-                'title' => 'Import domków',
-                'result' => null,
-                'errorMessage' => 'Nie wybrano pliku CSV.',
-            ]));
+        $path = self::uploadedCsvPath();
 
+        if ($path === null) {
             return;
+        }
+
+        try {
+            $result = self::importCsv(
+                Database::connection(),
+                $path
+            );
+
+            Response::html(
+                View::render(
+                    'pages/admin_cabins_import',
+                    [
+                        'title' =>
+                            'Import domków CSV',
+                        'result' => $result,
+                        'errorMessage' => null,
+                    ]
+                )
+            );
+        } catch (Throwable $exception) {
+            self::renderError(
+                'Import przerwany: '
+                . AppErrorHandler::safeMessage(
+                    $exception
+                )
+            );
+        }
+    }
+
+    private static function uploadedCsvPath(): ?string
+    {
+        if (
+            !isset($_FILES['csv_file'])
+            || !is_array(
+                $_FILES['csv_file']
+            )
+        ) {
+            self::renderError(
+                'Nie wybrano pliku CSV.'
+            );
+
+            return null;
         }
 
         $file = $_FILES['csv_file'];
 
-        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            Response::html(View::render('pages/admin_cabins_import', [
-                'title' => 'Import domków',
-                'result' => null,
-                'errorMessage' => 'Nie udało się wczytać pliku CSV. Kod błędu: ' . (string) ($file['error'] ?? 'brak'),
-            ]));
+        if (
+            (
+                $file['error']
+                ?? UPLOAD_ERR_NO_FILE
+            ) !== UPLOAD_ERR_OK
+        ) {
+            self::renderError(
+                'Nie udało się wczytać pliku CSV. Kod błędu: '
+                . (string) (
+                    $file['error']
+                    ?? 'brak'
+                )
+            );
 
-            return;
-        }
-
-        $tmpName = (string) ($file['tmp_name'] ?? '');
-
-        if ($tmpName === '' || !is_uploaded_file($tmpName)) {
-            Response::html(View::render('pages/admin_cabins_import', [
-                'title' => 'Import domków',
-                'result' => null,
-                'errorMessage' => 'Przesłany plik jest nieprawidłowy.',
-            ]));
-
-            return;
-        }
-
-        try {
-            $pdo = Database::connection();
-            self::ensureCabinsImportColumns($pdo);
-            $result = self::importCsv($pdo, $tmpName);
-
-            Response::html(View::render('pages/admin_cabins_import', [
-                'title' => 'Import domków',
-                'result' => $result,
-                'errorMessage' => null,
-            ]));
-        } catch (Throwable $exception) {
-            Response::html(View::render('pages/admin_cabins_import', [
-                'title' => 'Import domków',
-                'result' => null,
-                'errorMessage' => 'Import przerwany: ' . AppErrorHandler::safeMessage($exception),
-            ]));
-        }
-    }
-
-    private static function importCsv(PDO $pdo, string $path): array
-    {
-        $handle = fopen($path, 'rb');
-
-        if ($handle === false) {
-            throw new RuntimeException('Nie udało się otworzyć przesłanego pliku.');
-        }
-
-        $headers = fgetcsv($handle, 0, ';');
-
-        if ($headers === false || $headers === [null]) {
-            fclose($handle);
-
-            throw new RuntimeException('Plik CSV jest pusty albo ma niepoprawny format.');
-        }
-
-        $headers = array_map(
-            static fn (string $header): string => self::normalizeHeader($header),
-            $headers
-        );
-
-        $requiredColumns = [
-            'id',
-            'name',
-            'number',
-            'description',
-            'max_guests',
-            'area_sqm',
-            'bedrooms',
-            'bathrooms',
-            'price_1_night',
-            'price_2_nights',
-            'price_3_nights',
-            'price_4_nights',
-            'price_5_nights',
-            'price_6_nights',
-            'price_7_plus_nights',
-            'price_per_night',
-            'amenities',
-            'location',
-            'type',
-            'status',
-            'pets_allowed',
-            'has_parking',
-            'has_kitchen',
-        ];
-
-        $missingColumns = [];
-
-        foreach ($requiredColumns as $requiredColumn) {
-            if (!in_array($requiredColumn, $headers, true)) {
-                $missingColumns[] = $requiredColumn;
-            }
-        }
-
-        if ($missingColumns !== []) {
-            fclose($handle);
-
-            throw new RuntimeException('Brakuje kolumn w CSV: ' . implode(', ', $missingColumns));
-        }
-
-        $inserted = 0;
-        $updated = 0;
-        $skipped = 0;
-        $rowNumber = 1;
-
-        $pdo->beginTransaction();
-
-        try {
-            while (($row = fgetcsv($handle, 0, ';')) !== false) {
-                $rowNumber++;
-
-                if ($row === [] || $row === [null]) {
-                    continue;
-                }
-
-                $csvRow = self::mapCsvRow($headers, $row);
-                $cabin = self::cabinDataFromBase44($csvRow, $rowNumber);
-
-                if ($cabin === null) {
-                    $skipped++;
-                    continue;
-                }
-
-                $existingCabin = self::findExistingCabin(
-                    $pdo,
-                    $cabin['external_id'],
-                    $cabin['short_name'],
-                    $cabin['name']
-                );
-
-                if ($existingCabin !== null) {
-                    self::updateCabin($pdo, (int) $existingCabin['id'], $cabin);
-                    $updated++;
-
-                    continue;
-                }
-
-                self::insertCabin($pdo, $cabin);
-                $inserted++;
-            }
-
-            $pdo->commit();
-        } catch (Throwable $exception) {
-            $pdo->rollBack();
-            fclose($handle);
-
-            throw new RuntimeException('Błąd w okolicy wiersza ' . $rowNumber . ': ' . AppErrorHandler::safeMessage($exception));
-        }
-
-        fclose($handle);
-
-        return [
-            'inserted' => $inserted,
-            'updated' => $updated,
-            'skipped' => $skipped,
-            'total' => $inserted + $updated + $skipped,
-        ];
-    }
-
-    private static function ensureCabinsImportColumns(PDO $pdo): void
-    {
-        $columns = self::tableColumns($pdo, 'cabins');
-
-        if (!in_array('external_id', $columns, true)) {
-            $pdo->exec('ALTER TABLE cabins ADD COLUMN external_id VARCHAR(80) NULL AFTER id');
-        }
-
-        if (!in_array('area_sqm', $columns, true)) {
-            $pdo->exec('ALTER TABLE cabins ADD COLUMN area_sqm INT NULL AFTER max_guests');
-        }
-
-        if (!in_array('amenities', $columns, true)) {
-            $pdo->exec('ALTER TABLE cabins ADD COLUMN amenities TEXT NULL AFTER description');
-        }
-
-        if (!in_array('location', $columns, true)) {
-            $pdo->exec('ALTER TABLE cabins ADD COLUMN location VARCHAR(120) NULL AFTER amenities');
-        }
-
-        if (!in_array('cabin_type', $columns, true)) {
-            $pdo->exec('ALTER TABLE cabins ADD COLUMN cabin_type VARCHAR(80) NULL AFTER location');
-        }
-
-        if (!in_array('pets_allowed', $columns, true)) {
-            $pdo->exec('ALTER TABLE cabins ADD COLUMN pets_allowed TINYINT(1) NOT NULL DEFAULT 0 AFTER cabin_type');
-        }
-
-        if (!in_array('has_parking', $columns, true)) {
-            $pdo->exec('ALTER TABLE cabins ADD COLUMN has_parking TINYINT(1) NOT NULL DEFAULT 0 AFTER pets_allowed');
-        }
-
-        if (!in_array('has_kitchen', $columns, true)) {
-            $pdo->exec('ALTER TABLE cabins ADD COLUMN has_kitchen TINYINT(1) NOT NULL DEFAULT 0 AFTER has_parking');
-        }
-
-        $indexes = self::tableIndexes($pdo, 'cabins');
-
-        if (!in_array('idx_cabins_external_id', $indexes, true)) {
-            $pdo->exec('CREATE INDEX idx_cabins_external_id ON cabins (external_id)');
-        }
-    }
-
-    private static function tableColumns(PDO $pdo, string $table): array
-    {
-        $statement = $pdo->query('SHOW COLUMNS FROM `' . $table . '`');
-
-        if ($statement === false) {
-            return [];
-        }
-
-        $columns = [];
-
-        foreach ($statement->fetchAll() as $row) {
-            $columns[] = (string) $row['Field'];
-        }
-
-        return $columns;
-    }
-
-    private static function tableIndexes(PDO $pdo, string $table): array
-    {
-        $statement = $pdo->query('SHOW INDEX FROM `' . $table . '`');
-
-        if ($statement === false) {
-            return [];
-        }
-
-        $indexes = [];
-
-        foreach ($statement->fetchAll() as $row) {
-            $indexes[] = (string) $row['Key_name'];
-        }
-
-        return array_values(array_unique($indexes));
-    }
-
-    private static function normalizeHeader(string $header): string
-    {
-        $header = preg_replace('/^\xEF\xBB\xBF/', '', $header) ?? $header;
-
-        return strtolower(trim($header));
-    }
-
-    private static function mapCsvRow(array $headers, array $row): array
-    {
-        $result = [];
-
-        foreach ($headers as $index => $header) {
-            $result[$header] = isset($row[$index]) ? trim((string) $row[$index]) : '';
-        }
-
-        return $result;
-    }
-
-    private static function cabinDataFromBase44(array $row, int $rowNumber): ?array
-    {
-        $externalId = self::cleanText($row['id'] ?? '');
-        $name = self::cleanText($row['name'] ?? '');
-        $number = self::cleanText($row['number'] ?? '');
-
-        if ($externalId === '' && $name === '' && $number === '') {
             return null;
         }
 
-        if ($name === '') {
-            $name = 'Domek ' . ($number !== '' ? $number : (string) $rowNumber);
+        $path = (string) (
+            $file['tmp_name']
+            ?? ''
+        );
+
+        if (
+            $path === ''
+            || !is_uploaded_file($path)
+        ) {
+            self::renderError(
+                'Przesłany plik jest nieprawidłowy.'
+            );
+
+            return null;
         }
 
-        $sortOrder = self::normalizeInt($number);
+        return $path;
+    }
 
-        if ($sortOrder < 1) {
-            $sortOrder = $rowNumber;
+    private static function renderError(
+        string $message
+    ): void {
+        Response::html(
+            View::render(
+                'pages/admin_cabins_import',
+                [
+                    'title' =>
+                        'Import domków CSV',
+                    'result' => null,
+                    'errorMessage' => $message,
+                ]
+            )
+        );
+    }
+
+    private static function importCsv(
+        PDO $pdo,
+        string $path
+    ): array {
+        $handle = fopen(
+            $path,
+            'rb'
+        );
+
+        if ($handle === false) {
+            throw new RuntimeException(
+                'Nie udało się otworzyć pliku CSV.'
+            );
         }
 
-        $shortName = 'D' . (string) $sortOrder;
+        try {
+            $headers =
+                self::readHeaders(
+                    $handle
+                );
+
+            self::requireColumns(
+                $headers,
+                [
+                    'short_name',
+                    'name',
+                ]
+            );
+
+            $inserted = 0;
+            $updated = 0;
+            $skipped = 0;
+            $rowNumber = 1;
+
+            $pdo->beginTransaction();
+
+            try {
+                while (
+                    (
+                        $row = fgetcsv(
+                            $handle,
+                            0,
+                            ';'
+                        )
+                    ) !== false
+                ) {
+                    $rowNumber++;
+
+                    if (
+                        self::rowIsEmpty($row)
+                    ) {
+                        continue;
+                    }
+
+                    $csv = self::mapCsvRow(
+                        $headers,
+                        $row
+                    );
+
+                    $shortName =
+                        strtoupper(
+                            self::cleanText(
+                                $csv[
+                                    'short_name'
+                                ]
+                                ?? ''
+                            )
+                        );
+
+                    $name =
+                        self::cleanText(
+                            $csv['name']
+                            ?? ''
+                        );
+
+                    if (
+                        $shortName === ''
+                        || $name === ''
+                    ) {
+                        throw new RuntimeException(
+                            'Wiersz '
+                            . $rowNumber
+                            . ': short_name i name są wymagane.'
+                        );
+                    }
+
+                    $existing =
+                        self::findExistingCabin(
+                            $pdo,
+                            $shortName,
+                            $name
+                        );
+
+                    $data =
+                        self::buildCabinData(
+                            $csv,
+                            $existing,
+                            $rowNumber,
+                            $shortName,
+                            $name
+                        );
+
+                    if ($existing !== null) {
+                        self::updateCabin(
+                            $pdo,
+                            (int) $existing['id'],
+                            $data
+                        );
+
+                        $updated++;
+
+                        continue;
+                    }
+
+                    self::insertCabin(
+                        $pdo,
+                        $data
+                    );
+
+                    $inserted++;
+                }
+
+                $pdo->commit();
+            } catch (Throwable $exception) {
+                if (
+                    $pdo->inTransaction()
+                ) {
+                    $pdo->rollBack();
+                }
+
+                throw $exception;
+            }
+
+            return [
+                'inserted' => $inserted,
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'total' =>
+                    $inserted
+                    + $updated
+                    + $skipped,
+            ];
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    private static function buildCabinData(
+        array $csv,
+        ?array $existing,
+        int $rowNumber,
+        string $shortName,
+        string $name
+    ): array {
+        $existing = $existing ?? [];
+
+        $sortOrder =
+            self::optionalInt(
+                $csv['sort_order']
+                ?? ''
+            );
+
+        if ($sortOrder === null) {
+            $number =
+                preg_replace(
+                    '/\D+/',
+                    '',
+                    $shortName
+                )
+                ?? '';
+
+            $sortOrder =
+                $number !== ''
+                    ? (int) $number
+                    : (
+                        isset(
+                            $existing[
+                                'sort_order'
+                            ]
+                        )
+                            ? (int) $existing[
+                                'sort_order'
+                            ]
+                            : $rowNumber
+                    );
+        }
 
         return [
-            'external_id' => $externalId !== '' ? $externalId : null,
             'name' => $name,
             'short_name' => $shortName,
-            'description' => self::cleanText($row['description'] ?? ''),
-            'max_guests' => self::positiveInt($row['max_guests'] ?? '', 6),
-            'area_sqm' => self::nullablePositiveInt($row['area_sqm'] ?? ''),
-            'bedrooms' => self::positiveInt($row['bedrooms'] ?? '', 2),
-            'bathrooms' => self::positiveInt($row['bathrooms'] ?? '', 1),
-            'price_per_night' => self::moneyInt($row['price_per_night'] ?? '', 0),
-            'price_one_night' => self::moneyInt($row['price_1_night'] ?? '', 0),
-            'price_two_nights' => self::moneyInt($row['price_2_nights'] ?? '', 0),
-            'price_three_nights' => self::moneyInt($row['price_3_nights'] ?? '', 0),
-            'price_four_nights' => self::moneyInt($row['price_4_nights'] ?? '', 0),
-            'price_five_nights' => self::moneyInt($row['price_5_nights'] ?? '', 0),
-            'price_six_nights' => self::moneyInt($row['price_6_nights'] ?? '', 0),
-            'price_seven_plus_nights' => self::moneyInt($row['price_7_plus_nights'] ?? '', 0),
-            'amenities' => self::cleanText($row['amenities'] ?? ''),
-            'location' => self::cleanText($row['location'] ?? ''),
-            'cabin_type' => self::cleanText($row['type'] ?? ''),
-            'pets_allowed' => self::normalizeBoolean($row['pets_allowed'] ?? '') ? 1 : 0,
-            'has_parking' => self::normalizeBoolean($row['has_parking'] ?? '') ? 1 : 0,
-            'has_kitchen' => self::normalizeBoolean($row['has_kitchen'] ?? '') ? 1 : 0,
-            'is_active' => self::statusIsActive($row['status'] ?? '') ? 1 : 0,
+            'description' =>
+                self::textOrExisting(
+                    $csv,
+                    'description',
+                    $existing,
+                    ''
+                ),
+            'max_guests' =>
+                self::positiveIntOrExisting(
+                    $csv,
+                    'max_guests',
+                    $existing,
+                    6
+                ),
+            'area_sqm' =>
+                self::nullablePositiveIntOrExisting(
+                    $csv,
+                    'area_sqm',
+                    $existing
+                ),
+            'bedrooms' =>
+                self::positiveIntOrExisting(
+                    $csv,
+                    'bedrooms',
+                    $existing,
+                    2
+                ),
+            'bathrooms' =>
+                self::positiveIntOrExisting(
+                    $csv,
+                    'bathrooms',
+                    $existing,
+                    1
+                ),
+            'price_per_night' =>
+                self::priceOrExisting(
+                    $csv,
+                    [
+                        'price_per_night',
+                    ],
+                    $existing,
+                    'price_per_night',
+                    440
+                ),
+            'price_one_night' =>
+                self::priceOrExisting(
+                    $csv,
+                    [
+                        'price_one_night',
+                        'price_1_night',
+                    ],
+                    $existing,
+                    'price_one_night',
+                    800
+                ),
+            'price_two_nights' =>
+                self::priceOrExisting(
+                    $csv,
+                    [
+                        'price_two_nights',
+                        'price_2_nights',
+                    ],
+                    $existing,
+                    'price_two_nights',
+                    440
+                ),
+            'price_three_nights' =>
+                self::priceOrExisting(
+                    $csv,
+                    [
+                        'price_three_nights',
+                        'price_3_nights',
+                    ],
+                    $existing,
+                    'price_three_nights',
+                    430
+                ),
+            'price_four_nights' =>
+                self::priceOrExisting(
+                    $csv,
+                    [
+                        'price_four_nights',
+                        'price_4_nights',
+                    ],
+                    $existing,
+                    'price_four_nights',
+                    420
+                ),
+            'price_five_nights' =>
+                self::priceOrExisting(
+                    $csv,
+                    [
+                        'price_five_nights',
+                        'price_5_nights',
+                    ],
+                    $existing,
+                    'price_five_nights',
+                    410
+                ),
+            'price_six_nights' =>
+                self::priceOrExisting(
+                    $csv,
+                    [
+                        'price_six_nights',
+                        'price_6_nights',
+                    ],
+                    $existing,
+                    'price_six_nights',
+                    400
+                ),
+            'price_seven_plus_nights' =>
+                self::priceOrExisting(
+                    $csv,
+                    [
+                        'price_seven_plus_nights',
+                        'price_7_plus_nights',
+                    ],
+                    $existing,
+                    'price_seven_plus_nights',
+                    350
+                ),
+            'amenities' =>
+                self::nullableTextOrExisting(
+                    $csv,
+                    'amenities',
+                    $existing
+                ),
+            'location' =>
+                self::nullableTextOrExisting(
+                    $csv,
+                    'location',
+                    $existing
+                ),
+            'cabin_type' =>
+                self::nullableTextOrExisting(
+                    $csv,
+                    'cabin_type',
+                    $existing,
+                    $csv['type']
+                    ?? ''
+                ),
+            'pets_allowed' =>
+                self::booleanOrExisting(
+                    $csv,
+                    'pets_allowed',
+                    $existing,
+                    0
+                ),
+            'has_parking' =>
+                self::booleanOrExisting(
+                    $csv,
+                    'has_parking',
+                    $existing,
+                    0
+                ),
+            'has_kitchen' =>
+                self::booleanOrExisting(
+                    $csv,
+                    'has_kitchen',
+                    $existing,
+                    0
+                ),
+            'is_active' =>
+                self::statusOrExisting(
+                    $csv['status']
+                    ?? '',
+                    $existing
+                ),
             'sort_order' => $sortOrder,
         ];
     }
 
-    private static function cleanText(string $value): string
-    {
-        $value = preg_replace('/^\xEF\xBB\xBF/', '', $value) ?? $value;
-        $value = trim($value);
-        $value = str_replace(["\r\n", "\r"], "\n", $value);
-        $value = preg_replace('/[ \t]+/', ' ', $value) ?? $value;
+    private static function findExistingCabin(
+        PDO $pdo,
+        string $shortName,
+        string $name
+    ): ?array {
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM cabins
+            WHERE UPPER(short_name)
+                = UPPER(:short_name)
+            LIMIT 1'
+        );
 
-        return trim($value);
-    }
+        $statement->execute([
+            'short_name' => $shortName,
+        ]);
 
-    private static function normalizeInt(string $value): int
-    {
-        $value = preg_replace('/\D+/', '', $value) ?? '';
+        $row = $statement->fetch();
 
-        if ($value === '') {
-            return 0;
+        if (is_array($row)) {
+            return $row;
         }
 
-        return (int) $value;
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM cabins
+            WHERE LOWER(name)
+                = LOWER(:name)
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'name' => $name,
+        ]);
+
+        $row = $statement->fetch();
+
+        return is_array($row)
+            ? $row
+            : null;
     }
 
-    private static function positiveInt(string $value, int $fallback): int
-    {
-        $number = self::normalizeInt($value);
-
-        return $number > 0 ? $number : $fallback;
-    }
-
-    private static function nullablePositiveInt(string $value): ?int
-    {
-        $number = self::normalizeInt($value);
-
-        return $number > 0 ? $number : null;
-    }
-
-    private static function moneyInt(string $value, int $fallback): int
-    {
-        $value = str_replace(',', '.', trim($value));
-
-        if ($value === '') {
-            return $fallback;
-        }
-
-        if (!is_numeric($value)) {
-            return $fallback;
-        }
-
-        return (int) round((float) $value);
-    }
-
-    private static function normalizeBoolean(string $value): bool
-    {
-        $value = strtolower(trim($value));
-
-        return in_array($value, ['1', 'true', 'yes', 'tak', 't'], true);
-    }
-
-    private static function statusIsActive(string $value): bool
-    {
-        $value = strtolower(trim($value));
-
-        return in_array($value, ['dostepny', 'dostępny', 'active', 'aktywny', '1', 'true'], true);
-    }
-
-    private static function findExistingCabin(PDO $pdo, ?string $externalId, string $shortName, string $name): ?array
-    {
-        if ($externalId !== null && $externalId !== '') {
-            $statement = $pdo->prepare('SELECT id FROM cabins WHERE external_id = :external_id LIMIT 1');
-            $statement->execute([
-                'external_id' => $externalId,
-            ]);
-
-            $row = $statement->fetch();
-
-            if (is_array($row)) {
-                return $row;
-            }
-        }
-
-        if ($shortName !== '') {
-            $statement = $pdo->prepare('SELECT id FROM cabins WHERE short_name = :short_name LIMIT 1');
-            $statement->execute([
-                'short_name' => $shortName,
-            ]);
-
-            $row = $statement->fetch();
-
-            if (is_array($row)) {
-                return $row;
-            }
-        }
-
-        if ($name !== '') {
-            $statement = $pdo->prepare('SELECT id FROM cabins WHERE LOWER(name) = LOWER(:name) LIMIT 1');
-            $statement->execute([
-                'name' => $name,
-            ]);
-
-            $row = $statement->fetch();
-
-            if (is_array($row)) {
-                return $row;
-            }
-        }
-
-        return null;
-    }
-
-    private static function insertCabin(PDO $pdo, array $cabin): void
-    {
+    private static function insertCabin(
+        PDO $pdo,
+        array $data
+    ): void {
         $statement = $pdo->prepare(
             'INSERT INTO cabins (
-                external_id,
                 name,
                 short_name,
                 description,
@@ -480,7 +567,6 @@ final class CabinImportController
                 is_active,
                 sort_order
             ) VALUES (
-                :external_id,
                 :name,
                 :short_name,
                 :description,
@@ -507,17 +593,19 @@ final class CabinImportController
             )'
         );
 
-        $statement->execute($cabin);
+        $statement->execute($data);
     }
 
-    private static function updateCabin(PDO $pdo, int $id, array $cabin): void
-    {
-        $cabin['id'] = $id;
+    private static function updateCabin(
+        PDO $pdo,
+        int $id,
+        array $data
+    ): void {
+        $data['id'] = $id;
 
         $statement = $pdo->prepare(
             'UPDATE cabins
             SET
-                external_id = COALESCE(:external_id, external_id),
                 name = :name,
                 short_name = :short_name,
                 description = :description,
@@ -544,6 +632,458 @@ final class CabinImportController
             WHERE id = :id'
         );
 
-        $statement->execute($cabin);
+        $statement->execute($data);
+    }
+
+    private static function readHeaders(
+        $handle
+    ): array {
+        $headers = fgetcsv(
+            $handle,
+            0,
+            ';'
+        );
+
+        if (
+            $headers === false
+            || $headers === [null]
+        ) {
+            throw new RuntimeException(
+                'Plik CSV jest pusty albo ma niepoprawny format.'
+            );
+        }
+
+        return array_map(
+            static fn (
+                mixed $header
+            ): string =>
+                self::normalizeHeader(
+                    (string) $header
+                ),
+            $headers
+        );
+    }
+
+    private static function requireColumns(
+        array $headers,
+        array $required
+    ): void {
+        $missing = [];
+
+        foreach ($required as $column) {
+            if (
+                !in_array(
+                    $column,
+                    $headers,
+                    true
+                )
+            ) {
+                $missing[] = $column;
+            }
+        }
+
+        if ($missing !== []) {
+            throw new RuntimeException(
+                'Brakuje wymaganych kolumn: '
+                . implode(
+                    ', ',
+                    $missing
+                )
+            );
+        }
+    }
+
+    private static function normalizeHeader(
+        string $header
+    ): string {
+        $header =
+            preg_replace(
+                '/^\xEF\xBB\xBF/',
+                '',
+                $header
+            )
+            ?? $header;
+
+        return strtolower(
+            trim($header)
+        );
+    }
+
+    private static function mapCsvRow(
+        array $headers,
+        array $row
+    ): array {
+        $result = [];
+
+        foreach (
+            $headers
+            as $index => $header
+        ) {
+            $result[$header] =
+                isset($row[$index])
+                    ? trim(
+                        (string) $row[
+                            $index
+                        ]
+                    )
+                    : '';
+        }
+
+        return $result;
+    }
+
+    private static function rowIsEmpty(
+        array $row
+    ): bool {
+        foreach ($row as $value) {
+            if (
+                trim(
+                    (string) $value
+                ) !== ''
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function cleanText(
+        string $value
+    ): string {
+        $value =
+            preg_replace(
+                '/^\xEF\xBB\xBF/',
+                '',
+                $value
+            )
+            ?? $value;
+
+        return trim(
+            preg_replace(
+                '/[ \t]+/',
+                ' ',
+                str_replace(
+                    [
+                        "\r\n",
+                        "\r",
+                    ],
+                    "\n",
+                    trim($value)
+                )
+            )
+            ?? $value
+        );
+    }
+
+    private static function textOrExisting(
+        array $csv,
+        string $key,
+        array $existing,
+        string $default
+    ): string {
+        $value =
+            self::cleanText(
+                $csv[$key]
+                ?? ''
+            );
+
+        if ($value !== '') {
+            return $value;
+        }
+
+        return isset(
+            $existing[$key]
+        )
+            ? (string) $existing[$key]
+            : $default;
+    }
+
+    private static function nullableTextOrExisting(
+        array $csv,
+        string $key,
+        array $existing,
+        string $alternative = ''
+    ): ?string {
+        $value =
+            self::cleanText(
+                $csv[$key]
+                ?? $alternative
+            );
+
+        if ($value !== '') {
+            return $value;
+        }
+
+        return isset(
+            $existing[$key]
+        )
+        && $existing[$key] !== null
+            ? (string) $existing[$key]
+            : null;
+    }
+
+    private static function optionalInt(
+        string $value
+    ): ?int {
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (
+            filter_var(
+                $value,
+                FILTER_VALIDATE_INT
+            ) === false
+        ) {
+            throw new RuntimeException(
+                'Nieprawidłowa liczba całkowita: '
+                . $value
+            );
+        }
+
+        return (int) $value;
+    }
+
+    private static function optionalMoneyInt(
+        string $value
+    ): ?int {
+        $value = str_replace(
+            ',',
+            '.',
+            trim($value)
+        );
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (
+            !is_numeric($value)
+            || (float) $value < 0
+        ) {
+            throw new RuntimeException(
+                'Nieprawidłowa cena: '
+                . $value
+            );
+        }
+
+        return (int) round(
+            (float) $value
+        );
+    }
+
+    private static function positiveIntOrExisting(
+        array $csv,
+        string $key,
+        array $existing,
+        int $default
+    ): int {
+        $value = self::optionalInt(
+            $csv[$key]
+            ?? ''
+        );
+
+        if ($value !== null) {
+            if ($value < 1) {
+                throw new RuntimeException(
+                    $key
+                    . ' musi być większe od 0.'
+                );
+            }
+
+            return $value;
+        }
+
+        return isset(
+            $existing[$key]
+        )
+            ? (int) $existing[$key]
+            : $default;
+    }
+
+    private static function nullablePositiveIntOrExisting(
+        array $csv,
+        string $key,
+        array $existing
+    ): ?int {
+        $value = self::optionalInt(
+            $csv[$key]
+            ?? ''
+        );
+
+        if ($value !== null) {
+            if ($value < 1) {
+                throw new RuntimeException(
+                    $key
+                    . ' musi być większe od 0.'
+                );
+            }
+
+            return $value;
+        }
+
+        return isset(
+            $existing[$key]
+        )
+        && $existing[$key] !== null
+            ? (int) $existing[$key]
+            : null;
+    }
+
+    private static function priceOrExisting(
+        array $csv,
+        array $keys,
+        array $existing,
+        string $existingKey,
+        int $default
+    ): int {
+        foreach ($keys as $key) {
+            if (
+                isset($csv[$key])
+                && trim(
+                    $csv[$key]
+                ) !== ''
+            ) {
+                $value =
+                    self::optionalMoneyInt(
+                        $csv[$key]
+                    );
+
+                if ($value !== null) {
+                    return $value;
+                }
+            }
+        }
+
+        return isset(
+            $existing[$existingKey]
+        )
+            ? (int) $existing[
+                $existingKey
+            ]
+            : $default;
+    }
+
+    private static function booleanOrExisting(
+        array $csv,
+        string $key,
+        array $existing,
+        int $default
+    ): int {
+        $value = strtolower(
+            trim(
+                $csv[$key]
+                ?? ''
+            )
+        );
+
+        if ($value === '') {
+            return isset(
+                $existing[$key]
+            )
+                ? (int) $existing[$key]
+                : $default;
+        }
+
+        if (
+            in_array(
+                $value,
+                [
+                    '1',
+                    'true',
+                    'yes',
+                    'tak',
+                    't',
+                ],
+                true
+            )
+        ) {
+            return 1;
+        }
+
+        if (
+            in_array(
+                $value,
+                [
+                    '0',
+                    'false',
+                    'no',
+                    'nie',
+                    'n',
+                ],
+                true
+            )
+        ) {
+            return 0;
+        }
+
+        throw new RuntimeException(
+            'Nieprawidłowa wartość logiczna w '
+            . $key
+            . ': '
+            . $value
+        );
+    }
+
+    private static function statusOrExisting(
+        string $value,
+        array $existing
+    ): int {
+        $value = strtolower(
+            trim($value)
+        );
+
+        if ($value === '') {
+            return isset(
+                $existing['is_active']
+            )
+                ? (int) $existing[
+                    'is_active'
+                ]
+                : 1;
+        }
+
+        if (
+            in_array(
+                $value,
+                [
+                    'active',
+                    'aktywny',
+                    'dostępny',
+                    'dostepny',
+                    '1',
+                    'true',
+                    'tak',
+                ],
+                true
+            )
+        ) {
+            return 1;
+        }
+
+        if (
+            in_array(
+                $value,
+                [
+                    'inactive',
+                    'nieaktywny',
+                    'ukryty',
+                    '0',
+                    'false',
+                    'nie',
+                ],
+                true
+            )
+        ) {
+            return 0;
+        }
+
+        throw new RuntimeException(
+            'Nieprawidłowy status domku: '
+            . $value
+        );
     }
 }

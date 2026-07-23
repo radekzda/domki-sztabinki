@@ -192,7 +192,6 @@ final class IcalEventRepository
 
         $sql = 'SELECT
                 id,
-                external_id,
                 cabin_id,
                 guest_name,
                 start_date,
@@ -251,7 +250,6 @@ final class IcalEventRepository
         $statement = $connection->prepare(
             'SELECT
                 id,
-                external_id,
                 cabin_id,
                 guest_name,
                 start_date,
@@ -289,7 +287,6 @@ final class IcalEventRepository
         $statement = $connection->prepare(
             'SELECT
                 id,
-                external_id,
                 cabin_id,
                 guest_name,
                 start_date,

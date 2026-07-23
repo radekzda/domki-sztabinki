@@ -35,7 +35,6 @@ final class ReservationRepository
         $statement = $connection->query(
             'SELECT
                 reservations.id,
-                reservations.external_id,
                 reservations.cabin_id,
                 reservations.guest_id,
                 cabins.name AS cabin_name,
@@ -151,7 +150,6 @@ final class ReservationRepository
         $statement = $connection->prepare(
             'SELECT
                 reservations.id,
-                reservations.external_id,
                 reservations.cabin_id,
                 reservations.guest_id,
                 cabins.name AS cabin_name,
@@ -199,7 +197,6 @@ final class ReservationRepository
 
         return [
             'id' => (int) ($row['id'] ?? 0),
-              'external_id' => isset($row['external_id']) ? (string) $row['external_id'] : null,
             'cabin_id' => (int) ($row['cabin_id'] ?? 0),
             'guest_id' => isset($row['guest_id']) ? (int) $row['guest_id'] : null,
             'cabin_name' => isset($row['cabin_name']) ? (string) $row['cabin_name'] : null,

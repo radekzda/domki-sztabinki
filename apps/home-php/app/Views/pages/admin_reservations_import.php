@@ -19,15 +19,20 @@ declare(strict_types=1);
                         <div>
                             <p class="eyebrow">Rezerwacje</p>
 
-                            <h1>Import rezerwacji Base44</h1>
+                            <h1>Import rezerwacji CSV</h1>
 
                             <p>
-                                Wgraj plik CSV z eksportu Base44. Importer połączy rezerwacje z domkami
-                                i gośćmi na podstawie identyfikatorów z Base44.
+                                Neutralny import CSV bez zależności od Base44.
+                                Domek jest rozpoznawany po skrócie lub nazwie,
+                                a gość po e-mailu lub numerze telefonu.
                             </p>
                         </div>
 
                         <div class="page-header__actions">
+                            <a class="button button--secondary" href="/templates/import-rezerwacje.csv">
+                                Pobierz wzór CSV
+                            </a>
+
                             <a class="button button--secondary" href="/admin/rezerwacje">
                                 Wróć do rezerwacji
                             </a>
@@ -54,10 +59,16 @@ declare(strict_types=1);
                         </div>
                     <?php endif; ?>
 
-                    <form method="post" action="/admin/rezerwacje/import" enctype="multipart/form-data" class="form-grid">
-    <?= csrfField() ?>
+                    <form
+                        method="post"
+                        action="/admin/rezerwacje/import"
+                        enctype="multipart/form-data"
+                        class="form-grid"
+                    >
+                        <?= csrfField() ?>
+
                         <label>
-                            Plik CSV z Base44
+                            Plik CSV
 
                             <input
                                 type="file"
@@ -68,17 +79,33 @@ declare(strict_types=1);
                         </label>
 
                         <div class="empty-state" style="text-align: left;">
-                            <strong>Ważne przed importem</strong>
+                            <strong>Jak przygotować CSV</strong>
 
                             <p>
-                                Najpierw powinny być zaimportowane domki i goście z Base44.
-                                Rezerwacje są dopasowywane do domków przez <code>room_id</code>
-                                oraz do gości przez <code>guest_id</code>.
+                                Separator: <code>;</code>, kodowanie: UTF-8.
+                                Wymagane kolumny:
+                                <code>cabin;first_name;last_name;email;check_in;check_out</code>.
                             </p>
 
                             <p>
-                                Import można uruchomić drugi raz. Istniejące rezerwacje zostaną zaktualizowane
-                                po <code>external_id</code>, a nie zdublowane.
+                                W kolumnie <code>cabin</code> wpisz skrót domku,
+                                np. <code>D5</code>, albo jego pełną nazwę.
+                                Gość zostanie znaleziony po e-mailu lub telefonie.
+                                Jeżeli gościa nie ma, zostanie utworzony.
+                            </p>
+
+                            <p>
+                                Ponowny import aktualizuje rezerwację o tym samym
+                                domku, gościu i terminie.
+                                <code>room_id</code> i <code>guest_id</code>
+                                nie są używane.
+                            </p>
+
+                            <p>
+                                Jeżeli <code>total_price</code> jest puste,
+                                importer wyliczy wartość z cennika domku.
+                                Status płatności jest ustalany na podstawie
+                                <code>paid_amount</code> i <code>total_price</code>.
                             </p>
                         </div>
 

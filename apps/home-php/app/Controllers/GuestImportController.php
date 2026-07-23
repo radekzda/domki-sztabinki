@@ -6,313 +6,904 @@ final class GuestImportController
 {
     public static function show(): void
     {
-        Response::html(View::render('pages/admin_guests_import', [
-            'title' => 'Import gości',
-            'result' => null,
-            'errorMessage' => null,
-        ]));
+        Response::html(
+            View::render(
+                'pages/admin_guests_import',
+                [
+                    'title' =>
+                        'Import gości CSV',
+                    'result' => null,
+                    'errorMessage' => null,
+                ]
+            )
+        );
     }
 
     public static function store(): void
     {
-        if (!Database::canAttemptConnection()) {
-            Response::html(View::render('pages/admin_guests_import', [
-                'title' => 'Import gości',
-                'result' => null,
-                'errorMessage' => 'Baza danych nie jest jeszcze skonfigurowana.',
-            ]));
+        if (
+            !Database::canAttemptConnection()
+        ) {
+            self::renderError(
+                'Baza danych nie jest jeszcze skonfigurowana.'
+            );
 
             return;
         }
 
-        if (!isset($_FILES['csv_file']) || !is_array($_FILES['csv_file'])) {
-            Response::html(View::render('pages/admin_guests_import', [
-                'title' => 'Import gości',
-                'result' => null,
-                'errorMessage' => 'Nie wybrano pliku CSV.',
-            ]));
+        $path = self::uploadedCsvPath();
 
+        if ($path === null) {
             return;
+        }
+
+        try {
+            $result = self::importCsv(
+                Database::connection(),
+                $path
+            );
+
+            Response::html(
+                View::render(
+                    'pages/admin_guests_import',
+                    [
+                        'title' =>
+                            'Import gości CSV',
+                        'result' => $result,
+                        'errorMessage' => null,
+                    ]
+                )
+            );
+        } catch (Throwable $exception) {
+            self::renderError(
+                'Import przerwany: '
+                . AppErrorHandler::safeMessage(
+                    $exception
+                )
+            );
+        }
+    }
+
+    private static function uploadedCsvPath(): ?string
+    {
+        if (
+            !isset($_FILES['csv_file'])
+            || !is_array(
+                $_FILES['csv_file']
+            )
+        ) {
+            self::renderError(
+                'Nie wybrano pliku CSV.'
+            );
+
+            return null;
         }
 
         $file = $_FILES['csv_file'];
 
-        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            Response::html(View::render('pages/admin_guests_import', [
-                'title' => 'Import gości',
-                'result' => null,
-                'errorMessage' => 'Nie udało się wczytać pliku CSV. Kod błędu: ' . (string) ($file['error'] ?? 'brak'),
-            ]));
+        if (
+            (
+                $file['error']
+                ?? UPLOAD_ERR_NO_FILE
+            ) !== UPLOAD_ERR_OK
+        ) {
+            self::renderError(
+                'Nie udało się wczytać pliku CSV. Kod błędu: '
+                . (string) (
+                    $file['error']
+                    ?? 'brak'
+                )
+            );
 
-            return;
+            return null;
         }
 
-        $tmpName = (string) ($file['tmp_name'] ?? '');
+        $path = (string) (
+            $file['tmp_name']
+            ?? ''
+        );
 
-        if ($tmpName === '' || !is_uploaded_file($tmpName)) {
-            Response::html(View::render('pages/admin_guests_import', [
-                'title' => 'Import gości',
-                'result' => null,
-                'errorMessage' => 'Przesłany plik jest nieprawidłowy.',
-            ]));
+        if (
+            $path === ''
+            || !is_uploaded_file($path)
+        ) {
+            self::renderError(
+                'Przesłany plik jest nieprawidłowy.'
+            );
 
-            return;
+            return null;
+        }
+
+        return $path;
+    }
+
+    private static function renderError(
+        string $message
+    ): void {
+        Response::html(
+            View::render(
+                'pages/admin_guests_import',
+                [
+                    'title' =>
+                        'Import gości CSV',
+                    'result' => null,
+                    'errorMessage' => $message,
+                ]
+            )
+        );
+    }
+
+    /**
+     * @return array{
+     *     inserted:int,
+     *     updated:int,
+     *     skipped:int,
+     *     total:int
+     * }
+     */
+    private static function importCsv(
+        PDO $pdo,
+        string $path
+    ): array {
+        $handle = fopen(
+            $path,
+            'rb'
+        );
+
+        if ($handle === false) {
+            throw new RuntimeException(
+                'Nie udało się otworzyć przesłanego pliku.'
+            );
         }
 
         try {
-            $pdo = Database::connection();
-            self::ensureGuestsImportColumns($pdo);
-            $result = self::importCsv($pdo, $tmpName);
+            $headers =
+                self::readHeaders(
+                    $handle
+                );
 
-            Response::html(View::render('pages/admin_guests_import', [
-                'title' => 'Import gości',
-                'result' => $result,
-                'errorMessage' => null,
-            ]));
-        } catch (Throwable $exception) {
-            Response::html(View::render('pages/admin_guests_import', [
-                'title' => 'Import gości',
-                'result' => null,
-                'errorMessage' => 'Import przerwany: ' . AppErrorHandler::safeMessage($exception),
-            ]));
+            self::requireColumns(
+                $headers,
+                [
+                    'first_name',
+                    'last_name',
+                    'email',
+                ]
+            );
+
+            $inserted = 0;
+            $updated = 0;
+            $skipped = 0;
+            $rowNumber = 1;
+
+            $pdo->beginTransaction();
+
+            try {
+                while (
+                    (
+                        $row = fgetcsv(
+                            $handle,
+                            0,
+                            ';'
+                        )
+                    ) !== false
+                ) {
+                    $rowNumber++;
+
+                    if (
+                        self::rowIsEmpty(
+                            $row
+                        )
+                    ) {
+                        continue;
+                    }
+
+                    $csv = self::mapCsvRow(
+                        $headers,
+                        $row
+                    );
+
+                    $data = self::guestData(
+                        $csv,
+                        $rowNumber
+                    );
+
+                    $existing =
+                        self::findExistingGuest(
+                            $pdo,
+                            (string) $data['email'],
+                            $data['phone']
+                        );
+
+                    if ($existing !== null) {
+                        self::updateGuest(
+                            $pdo,
+                            (int) $existing['id'],
+                            $data
+                        );
+
+                        $updated++;
+
+                        continue;
+                    }
+
+                    self::insertGuest(
+                        $pdo,
+                        $data
+                    );
+
+                    $inserted++;
+                }
+
+                $pdo->commit();
+            } catch (Throwable $exception) {
+                if (
+                    $pdo->inTransaction()
+                ) {
+                    $pdo->rollBack();
+                }
+
+                throw new RuntimeException(
+                    'Błąd w okolicy wiersza '
+                    . $rowNumber
+                    . ': '
+                    . AppErrorHandler::safeMessage(
+                        $exception
+                    )
+                );
+            }
+
+            return [
+                'inserted' => $inserted,
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'total' =>
+                    $inserted
+                    + $updated
+                    + $skipped,
+            ];
+        } finally {
+            fclose($handle);
         }
     }
 
-    private static function importCsv(PDO $pdo, string $path): array
-    {
-        $handle = fopen($path, 'rb');
+    /**
+     * @param array<string, string> $csv
+     * @return array<string, mixed>
+     */
+    private static function guestData(
+        array $csv,
+        int $rowNumber
+    ): array {
+        $firstName =
+            self::cleanText(
+                $csv['first_name']
+                ?? ''
+            );
 
-        if ($handle === false) {
-            throw new RuntimeException('Nie udało się otworzyć przesłanego pliku.');
-        }
+        $lastName =
+            self::cleanText(
+                $csv['last_name']
+                ?? ''
+            );
 
-        $headers = fgetcsv($handle, 0, ';');
-
-        if ($headers === false || $headers === [null]) {
-            fclose($handle);
-
-            throw new RuntimeException('Plik CSV jest pusty albo ma niepoprawny format.');
-        }
-
-        $headers = array_map(
-            static fn (string $header): string => self::normalizeHeader($header),
-            $headers
+        $email = strtolower(
+            self::cleanText(
+                $csv['email']
+                ?? ''
+            )
         );
 
-        $inserted = 0;
-        $updated = 0;
-        $skipped = 0;
-        $rowNumber = 1;
-
-        $pdo->beginTransaction();
-
-        try {
-            while (($row = fgetcsv($handle, 0, ';')) !== false) {
-                $rowNumber++;
-
-                if ($row === [] || $row === [null]) {
-                    continue;
-                }
-
-                $csvRow = self::mapCsvRow($headers, $row);
-                $guest = self::guestDataFromBase44($csvRow, $rowNumber);
-
-                if ($guest === null) {
-                    $skipped++;
-                    continue;
-                }
-
-                $existingGuest = self::findExistingGuest(
-                    $pdo,
-                    $guest['external_id'],
-                    $guest['email']
-                );
-
-                if ($existingGuest !== null) {
-                    self::updateGuest($pdo, (int) $existingGuest['id'], $guest);
-                    $updated++;
-
-                    continue;
-                }
-
-                self::insertGuest($pdo, $guest);
-                $inserted++;
-            }
-
-            $pdo->commit();
-        } catch (Throwable $exception) {
-            $pdo->rollBack();
-            fclose($handle);
-
-            throw new RuntimeException('Błąd w okolicy wiersza ' . $rowNumber . ': ' . AppErrorHandler::safeMessage($exception));
+        if (
+            $firstName === ''
+            || $lastName === ''
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': imię i nazwisko są wymagane.'
+            );
         }
 
-        fclose($handle);
+        if (
+            $email === ''
+            || !filter_var(
+                $email,
+                FILTER_VALIDATE_EMAIL
+            )
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': podaj poprawny adres e-mail.'
+            );
+        }
+
+        $phone =
+            self::nullIfEmpty(
+                self::cleanText(
+                    $csv['phone']
+                    ?? ''
+                )
+            );
+
+        $addressForm = [
+            'street' =>
+                self::cleanText(
+                    $csv['street']
+                    ?? ''
+                ),
+            'postal_code' =>
+                self::cleanText(
+                    $csv[
+                        'postal_code'
+                    ]
+                    ?? ''
+                ),
+            'city' =>
+                self::cleanText(
+                    $csv['city']
+                    ?? ''
+                ),
+            'country' =>
+                self::cleanText(
+                    $csv['country']
+                    ?? ''
+                ),
+            'full_address' =>
+                self::cleanText(
+                    $csv[
+                        'full_address'
+                    ]
+                    ?? (
+                        $csv['address']
+                        ?? ''
+                    )
+                ),
+        ];
+
+        if (
+            function_exists(
+                'normalizeGuestAddressForm'
+            )
+        ) {
+            $addressForm =
+                normalizeGuestAddressForm(
+                    $addressForm
+                );
+        }
+
+        $birthDate =
+            self::optionalDate(
+                $csv['birth_date']
+                ?? (
+                    $csv[
+                        'date_of_birth'
+                    ]
+                    ?? ''
+                ),
+                $rowNumber
+            );
+
+        $source =
+            self::mapSource(
+                $csv['source']
+                ?? ''
+            );
+
+        $preferredContact =
+            self::optionalPreferredContact(
+                $csv[
+                    'preferred_contact'
+                ]
+                ?? '',
+                $rowNumber
+            );
 
         return [
-            'inserted' => $inserted,
-            'updated' => $updated,
-            'skipped' => $skipped,
-            'total' => $inserted + $updated + $skipped,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'phone' => $phone,
+            'country' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'country'
+                        ]
+                        ?? ''
+                    )
+                ),
+            'street' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'street'
+                        ]
+                        ?? ''
+                    )
+                ),
+            'postal_code' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'postal_code'
+                        ]
+                        ?? ''
+                    )
+                ),
+            'city' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'city'
+                        ]
+                        ?? ''
+                    )
+                ),
+            'full_address' =>
+                self::nullIfEmpty(
+                    (string) (
+                        $addressForm[
+                            'full_address'
+                        ]
+                        ?? ''
+                    )
+                ),
+            'pesel' =>
+                self::nullIfEmpty(
+                    preg_replace(
+                        '/\D+/',
+                        '',
+                        $csv['pesel']
+                        ?? ''
+                    )
+                    ?? ''
+                ),
+            'document_number' =>
+                self::nullIfEmpty(
+                    self::cleanText(
+                        $csv[
+                            'document_number'
+                        ]
+                        ?? (
+                            $csv[
+                                'id_document'
+                            ]
+                            ?? ''
+                        )
+                    )
+                ),
+            'birth_date' => $birthDate,
+            'notes' =>
+                self::nullIfEmpty(
+                    self::cleanText(
+                        $csv['notes']
+                        ?? ''
+                    )
+                ),
+            'preferred_contact' =>
+                $preferredContact,
+            'preferences' =>
+                self::nullIfEmpty(
+                    self::cleanText(
+                        $csv[
+                            'preferences'
+                        ]
+                        ?? ''
+                    )
+                ),
+            'important_notes' =>
+                self::nullIfEmpty(
+                    self::cleanText(
+                        $csv[
+                            'important_notes'
+                        ]
+                        ?? ''
+                    )
+                ),
+            'source' => $source,
         ];
     }
 
-    private static function ensureGuestsImportColumns(PDO $pdo): void
-    {
-        $columns = self::tableColumns($pdo, 'guests');
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function findExistingGuest(
+        PDO $pdo,
+        string $email,
+        ?string $phone
+    ): ?array {
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM guests
+            WHERE LOWER(email)
+                = LOWER(:email)
+            LIMIT 1'
+        );
 
-        if (!in_array('external_id', $columns, true)) {
-            $pdo->exec('ALTER TABLE guests ADD COLUMN external_id VARCHAR(80) NULL AFTER id');
+        $statement->execute([
+            'email' => $email,
+        ]);
+
+        $row = $statement->fetch();
+
+        if (is_array($row)) {
+            return $row;
         }
 
-        if (!in_array('full_address', $columns, true)) {
-            $pdo->exec('ALTER TABLE guests ADD COLUMN full_address VARCHAR(255) NULL AFTER city');
+        $phoneKey =
+            self::phoneKey(
+                $phone
+            );
+
+        if ($phoneKey === '') {
+            return null;
         }
 
-        if (!in_array('pesel', $columns, true)) {
-            $pdo->exec('ALTER TABLE guests ADD COLUMN pesel VARCHAR(30) NULL AFTER full_address');
-        }
-
-        if (!in_array('document_number', $columns, true)) {
-            $pdo->exec('ALTER TABLE guests ADD COLUMN document_number VARCHAR(80) NULL AFTER pesel');
-        }
-
-        if (!in_array('nationality', $columns, true)) {
-            $pdo->exec('ALTER TABLE guests ADD COLUMN nationality VARCHAR(120) NULL AFTER document_number');
-        }
-
-        if (!in_array('birth_date', $columns, true)) {
-            $pdo->exec('ALTER TABLE guests ADD COLUMN birth_date DATE NULL AFTER nationality');
-        }
-
-        $indexes = self::tableIndexes($pdo, 'guests');
-
-        if (!in_array('idx_guests_external_id', $indexes, true)) {
-            $pdo->exec('CREATE INDEX idx_guests_external_id ON guests (external_id)');
-        }
-    }
-
-    private static function tableColumns(PDO $pdo, string $table): array
-    {
-        $statement = $pdo->query('SHOW COLUMNS FROM `' . $table . '`');
+        $statement = $pdo->query(
+            'SELECT *
+            FROM guests
+            WHERE phone IS NOT NULL
+            AND phone <> ""'
+        );
 
         if ($statement === false) {
-            return [];
+            return null;
         }
 
-        $columns = [];
+        foreach (
+            $statement->fetchAll()
+            as $candidate
+        ) {
+            if (
+                !is_array($candidate)
+            ) {
+                continue;
+            }
 
-        foreach ($statement->fetchAll() as $row) {
-            $columns[] = (string) $row['Field'];
+            if (
+                self::phoneKey(
+                    isset(
+                        $candidate['phone']
+                    )
+                        ? (string) $candidate[
+                            'phone'
+                        ]
+                        : null
+                ) === $phoneKey
+            ) {
+                return $candidate;
+            }
         }
 
-        return $columns;
+        return null;
     }
 
-    private static function tableIndexes(PDO $pdo, string $table): array
-    {
-        $statement = $pdo->query('SHOW INDEX FROM `' . $table . '`');
+    /**
+     * @param array<string, mixed> $data
+     */
+    private static function insertGuest(
+        PDO $pdo,
+        array $data
+    ): void {
+        $statement = $pdo->prepare(
+            'INSERT INTO guests (
+                first_name,
+                last_name,
+                email,
+                phone,
+                country,
+                street,
+                postal_code,
+                city,
+                full_address,
+                pesel,
+                document_number,
+                birth_date,
+                is_vip,
+                notes,
+                preferred_contact,
+                preferences,
+                important_notes,
+                source
+            ) VALUES (
+                :first_name,
+                :last_name,
+                :email,
+                :phone,
+                :country,
+                :street,
+                :postal_code,
+                :city,
+                :full_address,
+                :pesel,
+                :document_number,
+                :birth_date,
+                0,
+                :notes,
+                :preferred_contact,
+                :preferences,
+                :important_notes,
+                :source
+            )'
+        );
 
-        if ($statement === false) {
-            return [];
-        }
-
-        $indexes = [];
-
-        foreach ($statement->fetchAll() as $row) {
-            $indexes[] = (string) $row['Key_name'];
-        }
-
-        return array_values(array_unique($indexes));
+        $statement->execute($data);
     }
 
-    private static function normalizeHeader(string $header): string
-    {
-        $header = preg_replace('/^\xEF\xBB\xBF/', '', $header) ?? $header;
+    /**
+     * Aktualizujemy dane kontaktowe i adresowe,
+     * ale NIE nadpisujemy źródła istniejącego gościa.
+     * Źródło gościa oznacza pierwsze pozyskanie gościa.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function updateGuest(
+        PDO $pdo,
+        int $id,
+        array $data
+    ): void {
+        unset(
+            $data['source']
+        );
 
-        return strtolower(trim($header));
+        $data['id'] = $id;
+
+        $statement = $pdo->prepare(
+            'UPDATE guests
+            SET
+                first_name = :first_name,
+                last_name = :last_name,
+                email = :email,
+                phone = COALESCE(
+                    :phone,
+                    phone
+                ),
+                country = COALESCE(
+                    :country,
+                    country
+                ),
+                street = COALESCE(
+                    :street,
+                    street
+                ),
+                postal_code = COALESCE(
+                    :postal_code,
+                    postal_code
+                ),
+                city = COALESCE(
+                    :city,
+                    city
+                ),
+                full_address = COALESCE(
+                    :full_address,
+                    full_address
+                ),
+                pesel = COALESCE(
+                    :pesel,
+                    pesel
+                ),
+                document_number = COALESCE(
+                    :document_number,
+                    document_number
+                ),
+                birth_date = COALESCE(
+                    :birth_date,
+                    birth_date
+                ),
+                notes = COALESCE(
+                    :notes,
+                    notes
+                ),
+                preferred_contact = COALESCE(
+                    :preferred_contact,
+                    preferred_contact
+                ),
+                preferences = COALESCE(
+                    :preferences,
+                    preferences
+                ),
+                important_notes = COALESCE(
+                    :important_notes,
+                    important_notes
+                )
+            WHERE id = :id'
+        );
+
+        $statement->execute($data);
     }
 
-    private static function mapCsvRow(array $headers, array $row): array
-    {
+    /**
+     * @param resource $handle
+     * @return array<int, string>
+     */
+    private static function readHeaders(
+        $handle
+    ): array {
+        $headers = fgetcsv(
+            $handle,
+            0,
+            ';'
+        );
+
+        if (
+            $headers === false
+            || $headers === [null]
+        ) {
+            throw new RuntimeException(
+                'Plik CSV jest pusty albo ma niepoprawny format.'
+            );
+        }
+
+        return array_map(
+            static fn (
+                mixed $header
+            ): string =>
+                self::normalizeHeader(
+                    (string) $header
+                ),
+            $headers
+        );
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, string> $required
+     */
+    private static function requireColumns(
+        array $headers,
+        array $required
+    ): void {
+        $missing = [];
+
+        foreach ($required as $column) {
+            if (
+                !in_array(
+                    $column,
+                    $headers,
+                    true
+                )
+            ) {
+                $missing[] = $column;
+            }
+        }
+
+        if ($missing !== []) {
+            throw new RuntimeException(
+                'Brakuje wymaganych kolumn: '
+                . implode(
+                    ', ',
+                    $missing
+                )
+            );
+        }
+    }
+
+    private static function normalizeHeader(
+        string $header
+    ): string {
+        $header =
+            preg_replace(
+                '/^\xEF\xBB\xBF/',
+                '',
+                $header
+            )
+            ?? $header;
+
+        return strtolower(
+            trim($header)
+        );
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, mixed> $row
+     * @return array<string, string>
+     */
+    private static function mapCsvRow(
+        array $headers,
+        array $row
+    ): array {
         $result = [];
 
-        foreach ($headers as $index => $header) {
-            $result[$header] = isset($row[$index]) ? trim((string) $row[$index]) : '';
+        foreach (
+            $headers
+            as $index => $header
+        ) {
+            $result[$header] =
+                isset($row[$index])
+                    ? trim(
+                        (string) $row[
+                            $index
+                        ]
+                    )
+                    : '';
         }
 
         return $result;
     }
 
-    private static function guestDataFromBase44(array $row, int $rowNumber): ?array
-    {
-        $externalId = self::cleanText($row['id'] ?? '');
-        $firstName = self::cleanText($row['first_name'] ?? '');
-        $lastName = self::cleanText($row['last_name'] ?? '');
-        $email = strtolower(self::cleanText($row['email'] ?? ''));
-        $phone = self::cleanText($row['phone'] ?? '');
-        $fullAddress = self::cleanText($row['address'] ?? '');
-        $pesel = self::normalizePesel($row['pesel'] ?? '');
-        $documentNumber = self::cleanText($row['id_document'] ?? '');
-        $nationality = self::cleanText($row['nationality'] ?? '');
-        $birthDate = self::normalizeDate($row['date_of_birth'] ?? '');
-        $notes = self::cleanText($row['notes'] ?? '');
-        $isVip = self::normalizeBoolean($row['vip_status'] ?? '') ? 1 : 0;
-
-        if ($externalId === '' && $email === '') {
-            return null;
+    /**
+     * @param array<int, mixed> $row
+     */
+    private static function rowIsEmpty(
+        array $row
+    ): bool {
+        foreach ($row as $value) {
+            if (
+                trim(
+                    (string) $value
+                ) !== ''
+            ) {
+                return false;
+            }
         }
 
-        if ($firstName === '') {
-            $firstName = 'Gość';
-        }
-
-        if ($lastName === '') {
-            $lastName = '—';
-        }
-
-        if ($email === '') {
-            $safeId = $externalId !== '' ? $externalId : (string) $rowNumber;
-            $email = 'brak-email-' . preg_replace('/[^a-zA-Z0-9_-]/', '', $safeId) . '@base44.local';
-        }
-
-        return [
-            'external_id' => $externalId !== '' ? $externalId : null,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'email' => $email,
-            'phone' => $phone !== '' ? $phone : null,
-            'country' => $nationality !== '' ? $nationality : null,
-            'full_address' => $fullAddress !== '' ? $fullAddress : null,
-            'pesel' => $pesel,
-            'document_number' => $documentNumber !== '' ? $documentNumber : null,
-            'nationality' => $nationality !== '' ? $nationality : null,
-            'birth_date' => $birthDate,
-            'is_vip' => $isVip,
-            'notes' => $notes !== '' ? $notes : null,
-            'source' => 'BASE44',
-        ];
+        return true;
     }
 
-    private static function cleanText(string $value): string
-    {
-        $value = preg_replace('/^\xEF\xBB\xBF/', '', $value) ?? $value;
+    private static function cleanText(
+        string $value
+    ): string {
+        $value =
+            preg_replace(
+                '/^\xEF\xBB\xBF/',
+                '',
+                $value
+            )
+            ?? $value;
+
         $value = trim($value);
-        $value = str_replace(["\r\n", "\r"], "\n", $value);
-        $value = preg_replace('/[ \t]+/', ' ', $value) ?? $value;
 
-        return trim($value);
+        $value = str_replace(
+            [
+                "\r\n",
+                "\r",
+            ],
+            "\n",
+            $value
+        );
+
+        return trim(
+            preg_replace(
+                '/[ \t]+/',
+                ' ',
+                $value
+            )
+            ?? $value
+        );
     }
 
-    private static function normalizePesel(string $value): ?string
-    {
-        $value = preg_replace('/\D+/', '', $value) ?? '';
+    private static function nullIfEmpty(
+        string $value
+    ): ?string {
+        $value = trim($value);
 
-        return $value !== '' ? $value : null;
+        return $value !== ''
+            ? $value
+            : null;
     }
 
-    private static function normalizeDate(string $value): ?string
-    {
+    private static function phoneKey(
+        ?string $phone
+    ): string {
+        if ($phone === null) {
+            return '';
+        }
+
+        return preg_replace(
+            '/\D+/',
+            '',
+            $phone
+        )
+        ?? '';
+    }
+
+    private static function optionalDate(
+        string $value,
+        int $rowNumber
+    ): ?string {
         $value = trim($value);
 
         if ($value === '') {
@@ -320,113 +911,95 @@ final class GuestImportController
         }
 
         try {
-            return (new DateTimeImmutable($value))->format('Y-m-d');
+            return (
+                new DateTimeImmutable(
+                    $value
+                )
+            )->format(
+                'Y-m-d'
+            );
         } catch (Throwable $exception) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': nieprawidłowa data urodzenia.'
+            );
+        }
+    }
+
+    private static function optionalPreferredContact(
+        string $value,
+        int $rowNumber
+    ): ?string {
+        $value = strtoupper(
+            trim($value)
+        );
+
+        if ($value === '') {
             return null;
         }
-    }
 
-    private static function normalizeBoolean(string $value): bool
-    {
-        $value = strtolower(trim($value));
-
-        return in_array($value, ['1', 'true', 'yes', 'tak', 'vip'], true);
-    }
-
-    private static function findExistingGuest(PDO $pdo, ?string $externalId, string $email): ?array
-    {
-        if ($externalId !== null && $externalId !== '') {
-            $statement = $pdo->prepare('SELECT id FROM guests WHERE external_id = :external_id LIMIT 1');
-            $statement->execute([
-                'external_id' => $externalId,
-            ]);
-
-            $row = $statement->fetch();
-
-            if (is_array($row)) {
-                return $row;
-            }
+        if (
+            !in_array(
+                $value,
+                [
+                    'PHONE',
+                    'EMAIL',
+                    'SMS',
+                    'WHATSAPP',
+                ],
+                true
+            )
+        ) {
+            throw new RuntimeException(
+                'Wiersz '
+                . $rowNumber
+                . ': nieprawidłowy preferred_contact.'
+            );
         }
 
-        if ($email !== '') {
-            $statement = $pdo->prepare('SELECT id FROM guests WHERE email = :email LIMIT 1');
-            $statement->execute([
-                'email' => $email,
-            ]);
+        return $value;
+    }
 
-            $row = $statement->fetch();
+    private static function mapSource(
+        string $source
+    ): string {
+        $source = trim($source);
 
-            if (is_array($row)) {
-                return $row;
-            }
+        if ($source === '') {
+            return 'MANUAL';
         }
 
-        return null;
-    }
+        $normalized =
+            function_exists(
+                'normalizePmsSource'
+            )
+                ? normalizePmsSource(
+                    $source
+                )
+                : strtoupper($source);
 
-    private static function insertGuest(PDO $pdo, array $guest): void
-    {
-        $statement = $pdo->prepare(
-            'INSERT INTO guests (
-                external_id,
-                first_name,
-                last_name,
-                email,
-                phone,
-                country,
-                full_address,
-                pesel,
-                document_number,
-                nationality,
-                birth_date,
-                is_vip,
-                notes,
-                source
-            ) VALUES (
-                :external_id,
-                :first_name,
-                :last_name,
-                :email,
-                :phone,
-                :country,
-                :full_address,
-                :pesel,
-                :document_number,
-                :nationality,
-                :birth_date,
-                :is_vip,
-                :notes,
-                :source
-            )'
-        );
+        if (
+            !in_array(
+                $normalized,
+                [
+                    'MANUAL',
+                    'DIRECT',
+                    'WWW',
+                    'BOOKING',
+                    'PHONE',
+                    'AIRBNB',
+                    'ICAL_OTHER',
+                ],
+                true
+            )
+        ) {
+            throw new RuntimeException(
+                'Nieprawidłowe źródło gościa: '
+                . $source
+            );
+        }
 
-        $statement->execute($guest);
-    }
-
-    private static function updateGuest(PDO $pdo, int $id, array $guest): void
-    {
-        $guest['id'] = $id;
-
-        $statement = $pdo->prepare(
-            'UPDATE guests
-            SET
-                external_id = COALESCE(:external_id, external_id),
-                first_name = :first_name,
-                last_name = :last_name,
-                email = :email,
-                phone = :phone,
-                country = :country,
-                full_address = :full_address,
-                pesel = :pesel,
-                document_number = :document_number,
-                nationality = :nationality,
-                birth_date = :birth_date,
-                is_vip = :is_vip,
-                notes = :notes,
-                source = :source
-            WHERE id = :id'
-        );
-
-        $statement->execute($guest);
+        return $normalized;
     }
 }

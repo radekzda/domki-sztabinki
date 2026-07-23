@@ -15,7 +15,6 @@ final class GuestRepository
         $statement = $connection->query(
             'SELECT
                 id,
-                external_id,
                 first_name,
                 last_name,
                 email,
@@ -65,7 +64,6 @@ final class GuestRepository
         $statement = $connection->prepare(
             'SELECT
                 id,
-                external_id,
                 first_name,
                 last_name,
                 email,
@@ -113,7 +111,6 @@ final class GuestRepository
         $statement = $connection->prepare(
             'SELECT
                 id,
-                external_id,
                 first_name,
                 last_name,
                 email,
@@ -167,7 +164,6 @@ final class GuestRepository
         $statement = $connection->query(
             'SELECT
                 id,
-                external_id,
                 first_name,
                 last_name,
                 email,
@@ -240,7 +236,6 @@ final class GuestRepository
 
         $statement = $connection->prepare(
             'INSERT INTO guests (
-                external_id,
                 first_name,
                 last_name,
                 email,
@@ -261,7 +256,6 @@ final class GuestRepository
                 preferences,
                 important_notes
             ) VALUES (
-                :external_id,
                 :first_name,
                 :last_name,
                 :email,
@@ -285,7 +279,6 @@ final class GuestRepository
         );
 
         $statement->execute([
-            'external_id' => $data['external_id'] ?? null,
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'email' => $data['email'],
@@ -326,7 +319,6 @@ final class GuestRepository
         $statement = $connection->prepare(
             'UPDATE guests
             SET
-                external_id = :external_id,
                 first_name = :first_name,
                 last_name = :last_name,
                 email = :email,
@@ -351,7 +343,6 @@ final class GuestRepository
 
         $statement->execute([
             'id' => $id,
-            'external_id' => $data['external_id'] ?? null,
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'email' => $data['email'],
@@ -539,7 +530,6 @@ final class GuestRepository
         );
 
         return self::create([
-            'external_id' => null,
             'first_name' => $resolvedFirstName,
             'last_name' => $resolvedLastName,
             'email' => $email,
@@ -704,7 +694,6 @@ final class GuestRepository
     {
         return [
             'id' => (int) ($row['id'] ?? 0),
-            'external_id' => isset($row['external_id']) ? (string) $row['external_id'] : null,
             'first_name' => (string) ($row['first_name'] ?? ''),
             'last_name' => (string) ($row['last_name'] ?? ''),
             'email' => (string) ($row['email'] ?? ''),

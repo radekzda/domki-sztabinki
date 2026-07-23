@@ -1,0 +1,2 @@
+cabin;first_name;last_name;email;phone;check_in;check_out;adults;children;total_price;paid_amount;status;payment_status;source;check_in_time;check_out_time;street;postal_code;city;country;notes
+D5;Jan;Kowalski;jan@example.com;+48123123123;2026-08-01;2026-08-06;2;1;2400;500;CONFIRMED;PARTIAL;BOOKING;15:00;11:00;Leśna 10;16-500;Sejny;Polska;Import z Booking

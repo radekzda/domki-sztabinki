@@ -36,7 +36,6 @@ COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS cabins (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    external_id VARCHAR(80) NULL,
     invoice_seller_id INT UNSIGNED NULL,
     name VARCHAR(160) NOT NULL,
     short_name VARCHAR(80) NULL,
@@ -73,7 +72,6 @@ CREATE TABLE IF NOT EXISTS cabins (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    INDEX idx_cabins_external_id (external_id),
     INDEX cabins_is_active_index (is_active),
     INDEX cabins_sort_order_index (sort_order),
     INDEX cabins_invoice_seller_index (
@@ -103,7 +101,6 @@ CREATE TABLE IF NOT EXISTS cabin_images (
 
 CREATE TABLE IF NOT EXISTS guests (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    external_id VARCHAR(80) NULL,
     first_name VARCHAR(120) NOT NULL,
     last_name VARCHAR(120) NOT NULL,
     email VARCHAR(190) NOT NULL,
@@ -126,7 +123,6 @@ CREATE TABLE IF NOT EXISTS guests (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    INDEX idx_guests_external_id (external_id),
     INDEX guests_email_index (email),
     INDEX guests_phone_index (phone),
     INDEX guests_source_index (source)
@@ -134,7 +130,6 @@ CREATE TABLE IF NOT EXISTS guests (
 
 CREATE TABLE IF NOT EXISTS reservations (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    external_id VARCHAR(80) NULL,
     cabin_id INT UNSIGNED NOT NULL,
     guest_id INT UNSIGNED NULL,
     guest_name VARCHAR(190) NOT NULL,
@@ -164,7 +159,6 @@ CREATE TABLE IF NOT EXISTS reservations (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    INDEX idx_reservations_external_id (external_id),
     INDEX reservations_cabin_id_index (cabin_id),
     INDEX reservations_guest_id_index (guest_id),
     INDEX reservations_status_index (status),

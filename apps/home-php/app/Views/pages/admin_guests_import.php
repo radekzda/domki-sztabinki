@@ -19,15 +19,20 @@ declare(strict_types=1);
                         <div>
                             <p class="eyebrow">Goście</p>
 
-                            <h1>Import gości Base44</h1>
+                            <h1>Import gości CSV</h1>
 
                             <p>
-                                Wgraj plik CSV z eksportu Base44. Importer dopasuje gości po identyfikatorze Base44
-                                albo po adresie e-mail.
+                                Neutralny import CSV bez zależności od Base44.
+                                Istniejący gość jest dopasowywany najpierw po
+                                adresie e-mail, a następnie po numerze telefonu.
                             </p>
                         </div>
 
                         <div class="page-header__actions">
+                            <a class="button button--secondary" href="/templates/import-goscie.csv">
+                                Pobierz wzór CSV
+                            </a>
+
                             <a class="button button--secondary" href="/admin/goscie">
                                 Wróć do gości
                             </a>
@@ -54,10 +59,16 @@ declare(strict_types=1);
                         </div>
                     <?php endif; ?>
 
-                    <form method="post" action="/admin/goscie/import" enctype="multipart/form-data" class="form-grid">
-    <?= csrfField() ?>
+                    <form
+                        method="post"
+                        action="/admin/goscie/import"
+                        enctype="multipart/form-data"
+                        class="form-grid"
+                    >
+                        <?= csrfField() ?>
+
                         <label>
-                            Plik CSV z Base44
+                            Plik CSV
 
                             <input
                                 type="file"
@@ -68,17 +79,30 @@ declare(strict_types=1);
                         </label>
 
                         <div class="empty-state" style="text-align: left;">
-                            <strong>Mapowanie danych</strong>
+                            <strong>Jak przygotować CSV</strong>
 
                             <p>
-                                Base44 <code>id</code> zapisujemy jako <code>external_id</code>.
-                                Adres trafia do <code>full_address</code>, dokument do <code>document_number</code>,
-                                data urodzenia do <code>birth_date</code>, a źródło do <code>BASE44</code>.
+                                Separator: <code>;</code>, kodowanie: UTF-8.
+                                Wymagane kolumny:
+                                <code>first_name;last_name;email</code>.
                             </p>
 
                             <p>
-                                Jeżeli uruchomisz import drugi raz, importer nie powinien dodać duplikatów.
-                                Zaktualizuje istniejących gości po <code>external_id</code> albo po e-mailu.
+                                Opcjonalnie możesz dodać:
+                                <code>phone</code>,
+                                <code>street</code>,
+                                <code>postal_code</code>,
+                                <code>city</code>,
+                                <code>country</code>,
+                                <code>full_address</code>,
+                                PESEL, numer dokumentu, datę urodzenia,
+                                notatki i źródło.
+                            </p>
+
+                            <p>
+                                Przy ponownym imporcie gość zostanie rozpoznany
+                                po e-mailu albo telefonie. Źródło istniejącego
+                                gościa nie jest nadpisywane.
                             </p>
                         </div>
 
