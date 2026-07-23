@@ -134,6 +134,71 @@ final class InvoiceReminderService
         ];
     }
 
+    /**
+     * Wysyła testową wiadomość na ten sam adres,
+     * na który trafiają właściwe przypomnienia o fakturach.
+     *
+     * Test nie zapisuje informacji o wysłanym przypomnieniu
+     * i nie blokuje późniejszej prawdziwej wiadomości.
+     *
+     * @return array{sent: bool, recipient: string}
+     */
+    public static function sendTestNotification(): array
+    {
+        $recipient =
+            self::adminRecipient();
+
+        if ($recipient === null) {
+            throw new RuntimeException(
+                'Nie znaleziono prawidłowego adresu e-mail '
+                . 'administratora do wysłania testu.'
+            );
+        }
+
+        if (!Mailer::isEnabled()) {
+            throw new RuntimeException(
+                'Wysyłka e-mail jest wyłączona. '
+                . 'Ustaw MAIL_ENABLED=true w pliku .env.'
+            );
+        }
+
+        $subject =
+            '[TEST] Faktura do wystawienia - Domki Sztabinki';
+
+        $body = implode(
+            "\n",
+            [
+                'To jest test powiadomienia o konieczności wystawienia faktury.',
+                '',
+                'Jeżeli otrzymałeś tę wiadomość, wysyłka e-mail z systemu działa poprawnie.',
+                '',
+                'Po wymeldowaniu rezerwacji, dla której nie ma jeszcze faktury,',
+                'system wyśle przypomnienie administratorowi.',
+                '',
+                'Ta wiadomość testowa nie oznacza żadnej rezerwacji jako powiadomionej.',
+            ]
+        );
+
+        $sent = Mailer::sendSafely(
+            $recipient,
+            $subject,
+            $body
+        );
+
+        if (!$sent) {
+            throw new RuntimeException(
+                'Nie udało się wysłać testowego '
+                . 'powiadomienia e-mail.'
+            );
+        }
+
+        return [
+            'sent' => true,
+            'recipient' =>
+                $recipient,
+        ];
+    }
+
     private static function ensureStructure(): void
     {
         if (self::$structureEnsured) {

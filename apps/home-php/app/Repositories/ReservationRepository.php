@@ -368,7 +368,7 @@ final class ReservationRepository
             LEFT JOIN cabins
                 ON cabins.id = reservations.cabin_id
             WHERE reservations.end_date = :end_date
-            AND reservations.status <> "CANCELLED"
+            AND reservations.status = "CHECKED_OUT"
             AND NOT EXISTS (
                 SELECT 1
                 FROM invoices
@@ -389,6 +389,68 @@ final class ReservationRepository
             ? $rows
             : [];
     }
+    /**
+     * Rezerwacje, które osiągnęły godzinę wymeldowania
+     * i nadal nie mają statusu CHECKED_OUT.
+     *
+     * Dla rezerwacji bez indywidualnego check_out_at
+     * obowiązuje 11:00 w dniu end_date.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function automaticCheckoutCandidates(
+        DateTimeImmutable $now
+    ): array {
+        $statement = Database::connection()->prepare(
+            'SELECT
+                reservations.id,
+                reservations.cabin_id,
+                reservations.guest_name,
+                reservations.end_date,
+                reservations.check_out_at,
+                reservations.status,
+                cabins.name AS cabin_name
+            FROM reservations
+            LEFT JOIN cabins
+                ON cabins.id = reservations.cabin_id
+            WHERE reservations.status IN (
+                "CONFIRMED",
+                "CHECKED_IN"
+            )
+            AND COALESCE(
+                reservations.check_out_at,
+                CONCAT(
+                    reservations.end_date,
+                    " 11:00:00"
+                )
+            ) <= :current_datetime
+            ORDER BY
+                COALESCE(
+                    reservations.check_out_at,
+                    CONCAT(
+                        reservations.end_date,
+                        " 11:00:00"
+                    )
+                ) ASC,
+                reservations.id ASC'
+        );
+
+        $statement->execute([
+            'current_datetime' =>
+                $now->format(
+                    'Y-m-d H:i:s'
+                ),
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        return is_array(
+            $rows
+        )
+            ? $rows
+            : [];
+    }
+
     /**
      * Rezerwacje PMS eksportowane do zewnętrznego kalendarza.
      *

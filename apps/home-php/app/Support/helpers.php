@@ -2213,7 +2213,7 @@ function defaultSettingsForm(): array
 {
     return [
         'property_name' => 'Domki Sztabinki',
-        'contact_email' => 'kontakt@domkisztabinki.pl',
+        'contact_email' => 'radekzdancewicz@gmail.com',
         'contact_phone' => '',
         'address_line' => 'Sztabinki',
         'postal_code' => '',
