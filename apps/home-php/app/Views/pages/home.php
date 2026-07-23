@@ -1541,13 +1541,8 @@ if (isset($settings) && is_array($settings)) {
         color: #991b1b;
     }
 
-    .public-date-field--readonly .public-input {
-        background: #f8fafc;
-        color: #334155;
-        cursor: pointer;
-    }
-
-    .public-date-field--readonly .public-help {
+    .public-date-help {
+        display: block;
         margin-top: 6px;
         color: #64748b;
         font-size: 12px;
@@ -2448,7 +2443,7 @@ if (isset($settings) && is_array($settings)) {
                                     id="email"
                                     name="email"
                                     type="email"
-                                    placeholder="radekzdancewicz@gmail.com"
+                                    placeholder="jan.kowalski@gmail.com"
                                     value="<?= htmlspecialchars($form['email'], ENT_QUOTES, 'UTF-8') ?>"
                                 >
 
@@ -2538,6 +2533,9 @@ if (isset($settings) && is_array($settings)) {
                                     value="<?= htmlspecialchars($form['date_from'], ENT_QUOTES, 'UTF-8') ?>"
                                     required
                                 >
+                                <span class="public-date-help">
+                                    Wpisz datę ręcznie lub wybierz ją z kalendarza.
+                                </span>
 
                                 <?php if (isset($errors['date_from'])): ?>
                                     <span class="public-error"><?= htmlspecialchars($errors['date_from'], ENT_QUOTES, 'UTF-8') ?></span>
@@ -2554,6 +2552,9 @@ if (isset($settings) && is_array($settings)) {
                                     value="<?= htmlspecialchars($form['date_to'], ENT_QUOTES, 'UTF-8') ?>"
                                     required
                                 >
+                                <span class="public-date-help">
+                                    Wpisz datę ręcznie lub wybierz ją z kalendarza.
+                                </span>
 
                                 <?php if (isset($errors['date_to'])): ?>
                                     <span class="public-error"><?= htmlspecialchars($errors['date_to'], ENT_QUOTES, 'UTF-8') ?></span>
@@ -2920,19 +2921,6 @@ if (isset($settings) && is_array($settings)) {
             return;
         }
 
-        dateFromInput.readOnly = true;
-        dateToInput.readOnly = true;
-
-        const dateFromField = dateFromInput.closest('.public-form-field, .public-field, label, div');
-        const dateToField = dateToInput.closest('.public-form-field, .public-field, label, div');
-
-        if (dateFromField) {
-            dateFromField.classList.add('public-date-field--readonly');
-        }
-
-        if (dateToField) {
-            dateToField.classList.add('public-date-field--readonly');
-        }
 
         const cabinField = cabinSelect.closest('.public-form-field, .public-field, label, div');
 
@@ -3094,7 +3082,7 @@ if (isset($settings) && is_array($settings)) {
 
         function selectedRangeIsValid() {
             if (!selectedStart || !selectedEnd) {
-                showAvailabilityMessage('warning', 'Wybierz datę przyjazdu i datę wyjazdu z kalendarza.');
+                showAvailabilityMessage('warning', 'Wpisz datę przyjazdu i wyjazdu lub wybierz je z kalendarza.');
                 return false;
             }
 
@@ -3106,7 +3094,7 @@ if (isset($settings) && is_array($settings)) {
             }
 
             if (rangeTouchesBusy(cabinSelect.value, selectedStart, selectedEnd)) {
-                showAvailabilityMessage('error', 'Ten termin jest niedostępny dla wybranego domku. Wybierz inny termin z kalendarza.');
+                showAvailabilityMessage('error', 'Ten termin jest niedostępny dla wybranego domku. Wpisz lub wybierz inny termin.');
                 return false;
             }
 
@@ -3280,7 +3268,7 @@ if (isset($settings) && is_array($settings)) {
             }
 
             if (rangeTouchesBusy(cabinId, selectedStart, dateValue)) {
-                clearSelectedEndOnly('Ten termin jest niedostępny dla wybranego domku. Wybierz inny termin z kalendarza.');
+                clearSelectedEndOnly('Ten termin jest niedostępny dla wybranego domku. Wpisz lub wybierz inny termin.');
                 statusBox.textContent = 'Wybrany zakres zahacza o zajęty termin.';
                 return;
             }
