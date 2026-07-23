@@ -2078,15 +2078,8 @@ $router->post('/admin/rezerwacje/nowa', function (): void {
                 : null
         );
 
-        if ($form['payment_status'] === 'PAID') {
-            $form['paid_amount'] =
-                (string) $calculatedTotalPrice;
-        } elseif (
-            $form['payment_status']
-            === 'PENDING'
-        ) {
-            $form['paid_amount'] = '0';
-        }
+        // Status płatności wylicza repozytorium z kwoty wpłaconej.
+        // Jedynym statusem zachowywanym ręcznie jest REFUNDED.
 
         $reservationId = ReservationRepository::create(
             reservationDataFromForm(
@@ -2934,15 +2927,8 @@ $router->post('/admin/rezerwacje/edytuj', function (): void {
                 : null
         );
 
-        if ($form['payment_status'] === 'PAID') {
-            $form['paid_amount'] =
-                (string) $calculatedTotalPrice;
-        } elseif (
-            $form['payment_status']
-            === 'PENDING'
-        ) {
-            $form['paid_amount'] = '0';
-        }
+        // Status płatności wylicza repozytorium z kwoty wpłaconej.
+        // Jedynym statusem zachowywanym ręcznie jest REFUNDED.
         ReservationRepository::update($id, reservationDataFromForm($form, $calculatedNights, $calculatedTotalPrice, $guestId));
 
         // M13.63 return to calendar after edit
