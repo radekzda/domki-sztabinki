@@ -336,6 +336,108 @@ $inquiryGuestName = static function (
     }
 
     /*
+     * Akcja faktury przy dzisiejszym wyjeździe
+     */
+    .dashboard-departure-row {
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    .dashboard-departure-row__reservation {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .dashboard-departure-row__reservation:hover span,
+    .dashboard-departure-row__reservation:hover strong {
+        color: #111827;
+    }
+
+    .dashboard-invoice-action {
+        flex-shrink: 0;
+        min-height: 36px;
+        padding: 8px 11px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #334155;
+        font-size: 12px;
+        line-height: 1.2;
+        font-weight: 750;
+        text-align: center;
+        text-decoration: none;
+        white-space: nowrap;
+        transition:
+            transform 0.15s ease,
+            background 0.15s ease,
+            border-color 0.15s ease,
+            box-shadow 0.15s ease;
+    }
+
+    .dashboard-invoice-action:hover {
+        transform: translateY(-1px);
+        background: #f8fafc;
+        border-color: #94a3b8;
+        box-shadow:
+            0 4px 10px rgba(15, 23, 42, 0.08);
+    }
+
+    .dashboard-invoice-action--create {
+        border-color: #f59e0b;
+        background: #fef3c7;
+        color: #92400e;
+        animation:
+            dashboard-invoice-pulse
+            1.15s
+            ease-in-out
+            infinite;
+    }
+
+    .dashboard-invoice-action--create:hover {
+        background: #fde68a;
+        border-color: #d97706;
+        color: #78350f;
+    }
+
+    .dashboard-invoice-action--existing {
+        border-color: #86efac;
+        background: #f0fdf4;
+        color: #166534;
+    }
+
+    .dashboard-invoice-action--existing:hover {
+        background: #dcfce7;
+        border-color: #4ade80;
+        color: #14532d;
+    }
+
+    @keyframes dashboard-invoice-pulse {
+        0%,
+        100% {
+            box-shadow:
+                0 0 0 0
+                rgba(245, 158, 11, 0.08);
+            opacity: 1;
+        }
+
+        50% {
+            box-shadow:
+                0 0 0 5px
+                rgba(245, 158, 11, 0.18);
+            opacity: 0.72;
+        }
+    }
+
+    /*
      * Puste karty
      */
     .dashboard-today-section__header:has(p) {
@@ -481,6 +583,19 @@ $inquiryGuestName = static function (
         .dashboard-cleaning-row form,
         .dashboard-cleaning-row .button {
             width: 100%;
+        }
+
+        .dashboard-departure-row {
+            flex-direction: column;
+        }
+
+        .dashboard-departure-row__reservation,
+        .dashboard-invoice-action {
+            width: 100%;
+        }
+
+        .dashboard-invoice-action {
+            white-space: normal;
         }
     }
 </style>
@@ -659,33 +774,87 @@ $inquiryGuestName = static function (
                                     $todayDepartures
                                     as $reservation
                                 ): ?>
-                                    <a
-                                        class="status-row"
-                                        href="/admin/rezerwacje/pokaz?id=<?= (int) (
-                                            $reservation['id']
-                                            ?? 0
-                                        ) ?>"
-                                    >
-                                        <span>
-                                            <?= htmlspecialchars(
-                                                $reservationCabinName(
-                                                    $reservation
-                                                ),
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </span>
+                                    <?php
+                                    $reservationId = (int) (
+                                        $reservation['id']
+                                        ?? 0
+                                    );
 
-                                        <strong>
-                                            <?= htmlspecialchars(
-                                                $reservationGuestName(
-                                                    $reservation
-                                                ),
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </strong>
-                                    </a>
+                                    $departureInvoice =
+                                        $reservationId > 0
+                                            ? InvoiceRepository::firstForReservation(
+                                                $reservationId
+                                            )
+                                            : null;
+
+                                    $departureInvoiceId = (int) (
+                                        $departureInvoice['id']
+                                        ?? 0
+                                    );
+
+                                    $departureInvoiceNumber = trim(
+                                        (string) (
+                                            $departureInvoice[
+                                                'invoice_number'
+                                            ]
+                                            ?? ''
+                                        )
+                                    );
+                                    ?>
+
+                                    <div
+                                        class="status-row dashboard-departure-row"
+                                    >
+                                        <a
+                                            class="dashboard-departure-row__reservation"
+                                            href="/admin/rezerwacje/pokaz?id=<?= $reservationId ?>"
+                                        >
+                                            <span>
+                                                <?= htmlspecialchars(
+                                                    $reservationCabinName(
+                                                        $reservation
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </span>
+
+                                            <strong>
+                                                <?= htmlspecialchars(
+                                                    $reservationGuestName(
+                                                        $reservation
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </strong>
+                                        </a>
+
+                                        <?php if (
+                                            $departureInvoiceId > 0
+                                        ): ?>
+                                            <a
+                                                class="dashboard-invoice-action dashboard-invoice-action--existing"
+                                                href="/admin/faktury/pokaz?id=<?= $departureInvoiceId ?>"
+                                                title="Otwórz wystawioną fakturę"
+                                            >
+                                                <?= htmlspecialchars(
+                                                    $departureInvoiceNumber !== ''
+                                                        ? $departureInvoiceNumber
+                                                        : 'Faktura',
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </a>
+                                        <?php else: ?>
+                                            <a
+                                                class="dashboard-invoice-action dashboard-invoice-action--create"
+                                                href="/admin/faktury/nowa?reservation_id=<?= $reservationId ?>"
+                                            >
+                                                Wystaw fakturę
+                                            </a>
+                                        <?php endif; ?>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
