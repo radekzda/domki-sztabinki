@@ -77,6 +77,8 @@ for ($day = 1; $day <= $daysInMonth; $day++) {
         'day' => $date->format('d'),
         'weekday' => $weekdayShortNames[$date->format('N')] ?? '',
         'is_weekend' => in_array($date->format('N'), ['6', '7'], true),
+        'is_saturday' => $date->format('N') === '6',
+        'is_sunday' => $date->format('N') === '7',
         'is_today' => $date->format('Y-m-d') === date('Y-m-d'),
     ];
 }
@@ -2066,6 +2068,347 @@ $summaryCards = [
         pointer-events: none !important;
     }
 
+    /*
+     * Wyraźne oznaczenie sobót, niedziel i dzisiejszego dnia.
+     */
+    .pms-calendar-day-head--saturday,
+    .pms-calendar-day-head--sunday,
+    .pms-calendar-day-head--today {
+        margin: -4px -2px;
+        padding: 5px 2px;
+        border-radius: 7px;
+    }
+
+    .pms-calendar-day-head--saturday {
+        background: #dbeafe;
+        box-shadow: inset 0 0 0 1px #93c5fd;
+    }
+
+    .pms-calendar-day-head--saturday strong,
+    .pms-calendar-day-head--saturday span {
+        color: #1d4ed8 !important;
+        font-weight: 850 !important;
+    }
+
+    .pms-calendar-day-head--sunday {
+        background: #fee2e2;
+        box-shadow: inset 0 0 0 1px #fca5a5;
+    }
+
+    .pms-calendar-day-head--sunday strong,
+    .pms-calendar-day-head--sunday span {
+        color: #b91c1c !important;
+        font-weight: 850 !important;
+    }
+
+    .pms-calendar-day-head--today {
+        background: #dcfce7 !important;
+        box-shadow:
+            inset 0 0 0 2px #15803d,
+            0 0 0 1px rgba(21, 128, 61, 0.12) !important;
+    }
+
+    .pms-calendar-day-head--today strong,
+    .pms-calendar-day-head--today span {
+        color: #166534 !important;
+        font-weight: 950 !important;
+    }
+
+    .pms-calendar-bg-cell--saturday {
+        background: #eff6ff !important;
+        box-shadow:
+            inset 1px 0 0 #bfdbfe,
+            inset -1px 0 0 #bfdbfe;
+    }
+
+    .pms-calendar-bg-cell--sunday {
+        background: #fff1f2 !important;
+        box-shadow:
+            inset 1px 0 0 #fecdd3,
+            inset -1px 0 0 #fecdd3;
+    }
+
+    .pms-calendar-bg-cell--today {
+        background: #dcfce7 !important;
+        box-shadow:
+            inset 3px 0 0 #15803d,
+            inset -3px 0 0 #15803d !important;
+    }
+
+    .pms-calendar-print-header {
+        display: none;
+    }
+
+    /*
+     * M6.15.12 — druk miesięcznego kalendarza rezerwacji
+     */
+    @media print {
+        @page {
+            size: A4 landscape;
+            margin: 7mm;
+        }
+
+        html,
+        body {
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+        }
+
+        body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .admin-sidebar,
+        .calendar-panel > .page-header,
+        body > .pms-calendar-tooltip {
+            display: none !important;
+        }
+
+        .page-section,
+        .container,
+        .admin-shell,
+        .admin-content,
+        .panel,
+        .calendar-panel {
+            display: block !important;
+            width: 100% !important;
+            max-width: none !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+        }
+
+        .pms-calendar-print-header {
+            display: flex !important;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 8mm;
+            margin: 0 0 4mm;
+            padding: 0 0 2.5mm;
+            border-bottom: 0.4mm solid #111827;
+        }
+
+        .pms-calendar-print-header h1 {
+            margin: 0;
+            font-size: 16pt;
+            line-height: 1.1;
+            color: #111827;
+        }
+
+        .pms-calendar-print-header p {
+            margin: 0;
+            font-size: 8pt;
+            font-weight: 700;
+            color: #4b5563;
+            white-space: nowrap;
+        }
+
+        .alert {
+            margin: 0 0 3mm !important;
+            padding: 2mm 3mm !important;
+            font-size: 8pt !important;
+        }
+
+        .pms-calendar-summary {
+            grid-template-columns: repeat(
+                5,
+                minmax(0, 1fr)
+            ) !important;
+            gap: 2mm !important;
+            margin: 0 0 3mm !important;
+        }
+
+        .pms-calendar-summary__card {
+            min-height: 0 !important;
+            padding: 2mm 2.5mm !important;
+            border: 0.25mm solid #d1d5db !important;
+            border-radius: 1.5mm !important;
+            box-shadow: none !important;
+        }
+
+        .pms-calendar-summary__card span {
+            font-size: 6.5pt !important;
+        }
+
+        .pms-calendar-summary__card strong {
+            font-size: 9pt !important;
+        }
+
+        .pms-calendar-table-wrap {
+            margin: 0 !important;
+            overflow: visible !important;
+            border: 0.25mm solid #9ca3af !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        .pms-calendar-table {
+            width: 100% !important;
+            min-width: 0 !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            border-radius: 0 !important;
+        }
+
+        .pms-calendar-table thead {
+            display: table-header-group;
+        }
+
+        .pms-calendar-table tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .pms-calendar-table th {
+            height: 7mm !important;
+            padding: 1mm 0.4mm !important;
+            border-color: #cbd5e1 !important;
+            background: #f3f4f6 !important;
+        }
+
+        .pms-calendar-table__cabin {
+            width: 25mm !important;
+            min-width: 25mm !important;
+            padding: 1.5mm 2mm !important;
+        }
+
+        .pms-calendar-cabin-name {
+            font-size: 7.5pt !important;
+            line-height: 1.1 !important;
+        }
+
+        .pms-calendar-day-head strong {
+            font-size: 6.5pt !important;
+        }
+
+        .pms-calendar-day-head span {
+            font-size: 5.5pt !important;
+        }
+
+        .pms-calendar-row-cell {
+            height: 15mm !important;
+            min-height: 15mm !important;
+            padding: 0 !important;
+        }
+
+        .pms-calendar-row-grid {
+            height: 15mm !important;
+            min-height: 15mm !important;
+            grid-template-rows: 15mm !important;
+        }
+
+        .pms-calendar-bg-cell {
+            height: 15mm !important;
+            min-height: 15mm !important;
+            border-color: #e5e7eb !important;
+        }
+
+        .pms-calendar-day-head--saturday {
+            background: #dbeafe !important;
+            box-shadow: inset 0 0 0 0.3mm #60a5fa !important;
+        }
+
+        .pms-calendar-day-head--sunday {
+            background: #fee2e2 !important;
+            box-shadow: inset 0 0 0 0.3mm #f87171 !important;
+        }
+
+        .pms-calendar-day-head--today {
+            background: #dcfce7 !important;
+            box-shadow: inset 0 0 0 0.55mm #15803d !important;
+        }
+
+        .pms-calendar-bg-cell--saturday {
+            background: #eff6ff !important;
+            box-shadow:
+                inset 0.25mm 0 0 #93c5fd,
+                inset -0.25mm 0 0 #93c5fd !important;
+        }
+
+        .pms-calendar-bg-cell--sunday {
+            background: #fff1f2 !important;
+            box-shadow:
+                inset 0.25mm 0 0 #fda4af,
+                inset -0.25mm 0 0 #fda4af !important;
+        }
+
+        .pms-calendar-bg-cell--today {
+            background: #dcfce7 !important;
+            box-shadow:
+                inset 0.7mm 0 0 #15803d,
+                inset -0.7mm 0 0 #15803d !important;
+        }
+
+        .pms-calendar-bar {
+            top: 1.5mm !important;
+            bottom: auto !important;
+            height: 12mm !important;
+            min-height: 12mm !important;
+            padding: 1mm 1.2mm !important;
+            gap: 0.5mm !important;
+            border-radius: 1.5mm !important;
+            box-shadow: none !important;
+            transform: none !important;
+            filter: none !important;
+            text-decoration: none !important;
+            overflow: hidden !important;
+        }
+
+        .pms-calendar-bar:hover {
+            transform: none !important;
+            filter: none !important;
+            box-shadow: none !important;
+        }
+
+        .pms-calendar-bar__guest {
+            font-size: 6.8pt !important;
+            line-height: 1.05 !important;
+        }
+
+        .pms-calendar-bar__line {
+            font-size: 5.8pt !important;
+            line-height: 1.05 !important;
+        }
+
+        .pms-calendar-tooltip {
+            display: none !important;
+        }
+
+        .pms-calendar-legend--bottom {
+            margin: 3mm 0 0 !important;
+            padding: 2mm 2.5mm !important;
+            gap: 2mm 4mm !important;
+            border: 0.25mm solid #d1d5db !important;
+            border-radius: 1.5mm !important;
+            background: #f8fafc !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .pms-calendar-legend__item {
+            gap: 1mm !important;
+            font-size: 6.5pt !important;
+        }
+
+        .pms-calendar-legend__dot {
+            width: 2.5mm !important;
+            height: 2.5mm !important;
+        }
+
+        a,
+        a:visited {
+            color: inherit !important;
+            text-decoration: none !important;
+        }
+    }
+
 </style>
 
 <section class="page-section">
@@ -2075,6 +2418,18 @@ $summaryCards = [
 
             <div class="admin-content">
                 <div class="panel calendar-panel">
+                    <div
+                        class="pms-calendar-print-header"
+                        aria-hidden="true"
+                    >
+                        <h1>
+                            Kalendarz rezerwacji —
+                            <?= htmlspecialchars(ucfirst($monthLabel), ENT_QUOTES, 'UTF-8') ?>
+                        </h1>
+
+                        <p>Domki Sztabinki</p>
+                    </div>
+
                     <div class="page-header">
                         <div>
                             <p class="eyebrow">Kalendarz</p>
@@ -2089,6 +2444,14 @@ $summaryCards = [
                             >
                                 Nowa rezerwacja
                             </a>
+
+                            <button
+                                class="button button--secondary pms-calendar-print-button"
+                                type="button"
+                                onclick="window.print()"
+                            >
+                                Drukuj miesiąc
+                            </button>
 
                             <form
                                 method="get"
@@ -2155,7 +2518,7 @@ $summaryCards = [
 
                                         <?php foreach ($days as $day): ?>
                                             <th>
-                                                <span class="pms-calendar-day-head <?= $day['is_today'] ? 'pms-calendar-day-head--today' : '' ?>">
+                                                <span class="pms-calendar-day-head <?= $day['is_saturday'] ? 'pms-calendar-day-head--saturday' : '' ?> <?= $day['is_sunday'] ? 'pms-calendar-day-head--sunday' : '' ?> <?= $day['is_today'] ? 'pms-calendar-day-head--today' : '' ?>">
                                                     <strong><?= htmlspecialchars($day['day'], ENT_QUOTES, 'UTF-8') ?></strong>
                                                     <span><?= htmlspecialchars($day['weekday'], ENT_QUOTES, 'UTF-8') ?></span>
                                                 </span>
@@ -2195,6 +2558,14 @@ $summaryCards = [
 
                                                         if ($day['is_weekend']) {
                                                             $dayClass .= ' pms-calendar-bg-cell--weekend';
+                                                        }
+
+                                                        if ($day['is_saturday']) {
+                                                            $dayClass .= ' pms-calendar-bg-cell--saturday';
+                                                        }
+
+                                                        if ($day['is_sunday']) {
+                                                            $dayClass .= ' pms-calendar-bg-cell--sunday';
                                                         }
 
                                                         if ($day['is_today']) {
