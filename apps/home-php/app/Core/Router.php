@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/Url.php';
+
 final class Router
 {
     /**
@@ -32,6 +34,7 @@ final class Router
             $path = '/';
         }
 
+        $path = Url::stripBasePath($path);
         $path = $this->normalizePath($path);
         $method = strtoupper($method);
 

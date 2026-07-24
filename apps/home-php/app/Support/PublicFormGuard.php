@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once dirname(__DIR__) . '/Core/Url.php';
+
 final class PublicFormGuard
 {
     private const SESSION_KEY = 'public_inquiry_submission_times';
@@ -75,7 +77,13 @@ final class PublicFormGuard
         echo '<main style="max-width:720px;margin:80px auto;padding:24px;font-family:Arial,sans-serif;">';
         echo '<h1>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</h1>';
         echo '<p>' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . '</p>';
-        echo '<p><a href="/">Wróć na stronę główną</a></p>';
+        echo '<p><a href="'
+            . htmlspecialchars(
+                Url::to('/'),
+                ENT_QUOTES,
+                'UTF-8'
+            )
+            . '">Wróć na stronę główną</a></p>';
         echo '</main>';
         echo '</body>';
         echo '</html>';
