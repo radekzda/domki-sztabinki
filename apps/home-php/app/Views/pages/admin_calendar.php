@@ -162,7 +162,18 @@ foreach ($reservations as $reservation) {
         continue;
     }
 
-    if ($reservationEnd <= $monthStartString || $reservationStart >= $monthEndString) {
+    $isDepartureOnMonthStart =
+        $reservationEnd === $monthStartString
+        && $reservationStart < $monthStartString;
+
+    if (
+        $reservationEnd < $monthStartString
+        || (
+            $reservationEnd === $monthStartString
+            && !$isDepartureOnMonthStart
+        )
+        || $reservationStart >= $monthEndString
+    ) {
         continue;
     }
 
@@ -172,7 +183,7 @@ foreach ($reservations as $reservation) {
         $arrivals++;
     }
 
-    if ($reservationEnd > $monthStartString && $reservationEnd <= $monthEndString) {
+    if ($reservationEnd >= $monthStartString && $reservationEnd <= $monthEndString) {
         $departures++;
     }
 
@@ -297,6 +308,18 @@ foreach ($barReservations as $reservation) {
         continue;
     }
 
+    $isDepartureTailOnly =
+        $reservationStartMoment < $monthStartMoment
+        && $reservationEnd === $monthStartString;
+
+    if (
+        $isDepartureTailOnly
+        && $reservationEndMoment <= $monthStartMoment
+    ) {
+        $reservationEndMoment =
+            $monthStartMoment->setTime(11, 0);
+    }
+
     $visibleStartMoment = $reservationStartMoment < $monthStartMoment
         ? $monthStartMoment
         : $reservationStartMoment;
@@ -319,6 +342,7 @@ foreach ($barReservations as $reservation) {
         'width_percent' => max(0.35, min(100, $widthPercent)),
         'starts_before_month' => $reservationStartMoment < $monthStartMoment,
         'ends_after_month' => $reservationEndMoment > $monthEndMoment,
+        'departure_tail_only' => $isDepartureTailOnly,
     ];
 }
 
@@ -2069,6 +2093,25 @@ $summaryCards = [
     }
 
     /*
+     * Końcówka rezerwacji rozpoczętej w poprzednim miesiącu.
+     * Pokazuje wyłącznie odcinek do godziny wymeldowania.
+     */
+    .pms-calendar-bar--departure-tail {
+        min-width: 8px;
+        padding: 0 !important;
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+        border-top-right-radius: 12px !important;
+        border-bottom-right-radius: 12px !important;
+        overflow: hidden !important;
+    }
+
+    .pms-calendar-bar--departure-tail:hover {
+        transform: none !important;
+        filter: brightness(0.98) !important;
+    }
+
+    /*
      * Wyraźne oznaczenie sobót, niedziel i dzisiejszego dnia.
      */
     .pms-calendar-day-head--saturday,
@@ -2587,6 +2630,12 @@ $summaryCards = [
                                                         <?php
                                                         $barKind = (string) ($bar['kind'] ?? 'RESERVATION');
                                                         $isIcalBar = $barKind === 'ICAL';
+                                                        $isDepartureTailOnly =
+                                                            !$isIcalBar
+                                                            && (bool) (
+                                                                $bar['departure_tail_only']
+                                                                ?? false
+                                                            );
                                                         $barClass = 'pms-calendar-bar';
 
                                                         if ($isIcalBar) {
@@ -2604,6 +2653,10 @@ $summaryCards = [
 
                                                         if ((bool) ($bar['ends_after_month'] ?? false)) {
                                                             $barClass .= ' pms-calendar-bar--continues-right';
+                                                        }
+
+                                                        if ($isDepartureTailOnly) {
+                                                            $barClass .= ' pms-calendar-bar--departure-tail';
                                                         }
 
                                                         $barStyle = 'left: '
@@ -2698,12 +2751,36 @@ $summaryCards = [
                                                             );
                                                             ?>
 
-                                                            <a
-                                                                class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
-                                                                style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
-                                                                href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
-                                                            >
-                                                                <span class="pms-calendar-bar__line pms-calendar-bar__guest">
+                                                            <?php if ($isDepartureTailOnly): ?>
+                                                                <a
+                                                                    class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
+                                                                    style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
+                                                                    href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
+                                                                    aria-label="<?= htmlspecialchars(
+                                                                        'Wyjazd: '
+                                                                        . $reservationGuestName($barReservation)
+                                                                        . ', '
+                                                                        . $formatDateTime(
+                                                                            $barReservation['check_out_at']
+                                                                            ?? (
+                                                                                (string) (
+                                                                                    $barReservation['end_date']
+                                                                                    ?? ''
+                                                                                )
+                                                                                . ' 11:00:00'
+                                                                            )
+                                                                        ),
+                                                                        ENT_QUOTES,
+                                                                        'UTF-8'
+                                                                    ) ?>"
+                                                                ></a>
+                                                            <?php else: ?>
+                                                                <a
+                                                                    class="<?= htmlspecialchars($barClass, ENT_QUOTES, 'UTF-8') ?>"
+                                                                    style="<?= htmlspecialchars($barStyle, ENT_QUOTES, 'UTF-8') ?>"
+                                                                    href="/admin/rezerwacje/pokaz?id=<?= htmlspecialchars((string) $reservationId, ENT_QUOTES, 'UTF-8') ?>&return=<?= urlencode('/admin/kalendarz?month=' . $monthStart->format('Y-m')) ?>"
+                                                                >
+                                                                    <span class="pms-calendar-bar__line pms-calendar-bar__guest">
                                                                     <?= htmlspecialchars($reservationGuestName($barReservation), ENT_QUOTES, 'UTF-8') ?>
                                                                 </span>
 
@@ -2788,7 +2865,8 @@ $summaryCards = [
                                                                         <b><?= htmlspecialchars(sourceLabelForDisplay((string) ($barReservation['source'] ?? '')), ENT_QUOTES, 'UTF-8') ?></b>
                                                                     </span>
                                                                 </span>
-                                                            </a>
+                                                                </a>
+                                                            <?php endif; ?>
                                                         <?php endif; ?>
                                                     <?php endforeach; ?>
                                                 </div>
