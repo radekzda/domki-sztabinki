@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'PRACOWNIK',
     is_active TINYINT(1) NOT NULL DEFAULT 1,
+    session_version INT UNSIGNED NOT NULL DEFAULT 1,
     last_login_at DATETIME NULL,
     password_changed_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -14,6 +15,25 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE KEY users_email_unique (email),
     INDEX users_role_index (role),
     INDEX users_active_index (is_active)
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    request_ip_hash CHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY password_reset_tokens_hash_unique (token_hash),
+    INDEX password_reset_tokens_user_index (user_id),
+    INDEX password_reset_tokens_expires_index (expires_at),
+    CONSTRAINT password_reset_tokens_user_foreign
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;

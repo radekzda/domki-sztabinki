@@ -42,6 +42,7 @@ try {
             password_hash VARCHAR(255) NOT NULL,
             role VARCHAR(30) NOT NULL DEFAULT "PRACOWNIK",
             is_active TINYINT(1) NOT NULL DEFAULT 1,
+            session_version INT UNSIGNED NOT NULL DEFAULT 1,
             last_login_at DATETIME NULL,
             password_changed_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -55,6 +56,31 @@ try {
         DEFAULT CHARSET=utf8mb4
         COLLATE=utf8mb4_unicode_ci'
     );
+
+    $sessionVersionStatement = $pdo->prepare(
+        'SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+        AND table_name = "users"
+        AND column_name = "session_version"'
+    );
+
+    $sessionVersionStatement->execute();
+
+    if (
+        (int) $sessionVersionStatement->fetchColumn()
+        === 0
+    ) {
+        $pdo->exec(
+            'ALTER TABLE users
+            ADD COLUMN session_version
+                INT UNSIGNED NOT NULL DEFAULT 1
+                AFTER is_active'
+        );
+
+        echo "OK: dodano users.session_version."
+            . PHP_EOL;
+    }
 
     $countStatement = $pdo->query(
         'SELECT COUNT(*) FROM users'

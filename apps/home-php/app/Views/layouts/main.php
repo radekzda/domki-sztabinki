@@ -50,6 +50,8 @@ if (
 
 $isPrivatePage =
     $requestPath === '/logowanie'
+    || $requestPath === '/nie-pamietam-hasla'
+    || $requestPath === '/odzyskaj-haslo'
     || $requestPath === '/admin'
     || str_starts_with(
         $requestPath,

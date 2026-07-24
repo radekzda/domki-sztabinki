@@ -19,6 +19,9 @@ final class Auth
     private const USER_ROLE_KEY =
         'domki_sztabinki_user_role';
 
+    private const USER_SESSION_VERSION_KEY =
+        'domki_sztabinki_user_session_version';
+
     private const LOGIN_ATTEMPTS_KEY =
         'domki_sztabinki_login_attempts';
 
@@ -387,6 +390,30 @@ final class Auth
             return false;
         }
 
+        $sessionVersion =
+            $_SESSION[
+                self::USER_SESSION_VERSION_KEY
+            ]
+            ?? null;
+
+        $databaseVersion = (int) (
+            $user['session_version']
+            ?? 1
+        );
+
+        /*
+         * Brak wersji oznacza starą sesję sprzed wdrożenia
+         * mechanizmu unieważniania. Taką sesję zamykamy.
+         */
+        if (
+            !is_int($sessionVersion)
+            || $sessionVersion !== $databaseVersion
+        ) {
+            self::clearUserSession();
+
+            return false;
+        }
+
         self::storeDatabaseUser($user);
 
         return true;
@@ -490,6 +517,8 @@ final class Auth
             (string) ($user['name'] ?? '');
         $_SESSION[self::USER_ROLE_KEY] =
             (string) ($user['role'] ?? '');
+        $_SESSION[self::USER_SESSION_VERSION_KEY] =
+            (int) ($user['session_version'] ?? 1);
         $_SESSION['admin_email'] =
             (string) ($user['email'] ?? '');
     }
@@ -502,6 +531,9 @@ final class Auth
             $_SESSION[self::USER_EMAIL_KEY],
             $_SESSION[self::USER_NAME_KEY],
             $_SESSION[self::USER_ROLE_KEY],
+            $_SESSION[
+                self::USER_SESSION_VERSION_KEY
+            ],
             $_SESSION['admin_email']
         );
     }

@@ -7,6 +7,7 @@ declare(strict_types=1);
  * @var string $email
  * @var string|null $error
  * @var bool $isAuthConfigured
+ * @var bool $passwordResetSuccess
  */
 ?>
 <section class="page-section">
@@ -20,11 +21,18 @@ declare(strict_types=1);
                 Zaloguj się przy użyciu swojego konta użytkownika.
             </p>
 
+            <?php if ($passwordResetSuccess): ?>
+                <div class="alert alert--success">
+                    Hasło zostało zmienione.
+                    Zaloguj się nowym hasłem.
+                </div>
+            <?php endif; ?>
+
             <?php if (!$isAuthConfigured): ?>
                 <div class="alert alert--warning">
                     Nie ma jeszcze aktywnego konta użytkownika.
                     Uruchom migrację
-                    <strong>bin/migrate-users.php</strong>,
+                    <strong>bin/users-migrate.php</strong>,
                     aby przenieść dotychczasowe konto administratora
                     z lokalnej konfiguracji do bazy danych.
                 </div>
@@ -83,6 +91,12 @@ declare(strict_types=1);
                         required
                     >
                 </div>
+
+                <p>
+                    <a href="/nie-pamietam-hasla">
+                        Nie pamiętam hasła
+                    </a>
+                </p>
 
                 <div class="form-actions">
                     <button

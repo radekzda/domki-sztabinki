@@ -51,6 +51,7 @@ final class UserRepository
                 email,
                 role,
                 is_active,
+                session_version,
                 last_login_at,
                 password_changed_at,
                 created_at,
@@ -90,6 +91,7 @@ final class UserRepository
                 password_hash,
                 role,
                 is_active,
+                session_version,
                 last_login_at,
                 password_changed_at,
                 created_at,
@@ -124,6 +126,7 @@ final class UserRepository
                 password_hash,
                 role,
                 is_active,
+                session_version,
                 last_login_at,
                 password_changed_at,
                 created_at,
@@ -250,6 +253,7 @@ final class UserRepository
         ) {
             $set[] = 'password_hash = :password_hash';
             $set[] = 'password_changed_at = NOW()';
+            $set[] = 'session_version = session_version + 1';
             $params['password_hash'] = $passwordHash;
         }
 
@@ -270,13 +274,34 @@ final class UserRepository
     ): void {
         $statement = Database::connection()->prepare(
             'UPDATE users
-            SET is_active = :is_active
+            SET
+                is_active = :is_active,
+                session_version = session_version + 1
             WHERE id = :id'
         );
 
         $statement->execute([
             'id' => $id,
             'is_active' => $isActive ? 1 : 0,
+        ]);
+    }
+
+    public static function updatePassword(
+        int $id,
+        string $passwordHash
+    ): void {
+        $statement = Database::connection()->prepare(
+            'UPDATE users
+            SET
+                password_hash = :password_hash,
+                password_changed_at = NOW(),
+                session_version = session_version + 1
+            WHERE id = :id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+            'password_hash' => $passwordHash,
         ]);
     }
 

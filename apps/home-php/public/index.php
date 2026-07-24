@@ -18,8 +18,10 @@ AppErrorHandler::register($config, dirname(__DIR__));
 require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
 require dirname(__DIR__) . '/app/Repositories/UserRepository.php';
+require dirname(__DIR__) . '/app/Repositories/PasswordResetRepository.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Core/Mailer.php';
+require dirname(__DIR__) . '/app/Services/PasswordResetService.php';
 require dirname(__DIR__) . '/app/Services/InquiryMailer.php';
 require dirname(__DIR__) . '/app/Services/IcalParser.php';
 require dirname(__DIR__) . '/app/Services/IcalCalendarClient.php';
@@ -37,6 +39,7 @@ require dirname(__DIR__) . '/app/Repositories/InvoiceRepository.php';
 require dirname(__DIR__) . '/app/Controllers/InvoiceController.php';
 require dirname(__DIR__) . '/app/Controllers/InvoiceSellerController.php';
 require dirname(__DIR__) . '/app/Controllers/UserController.php';
+require dirname(__DIR__) . '/app/Controllers/PasswordResetController.php';
 require dirname(__DIR__) . '/app/Repositories/IcalEventRepository.php';
 require dirname(__DIR__) . '/app/Repositories/AvailabilityRepository.php';
 require dirname(__DIR__) . '/app/Repositories/IcalSyncLogRepository.php';
@@ -398,6 +401,8 @@ $router->get('/logowanie', function (): void {
         'email' => '',
         'error' => null,
         'isAuthConfigured' => Auth::isConfigured(),
+        'passwordResetSuccess' =>
+            isset($_GET['password_reset']),
     ]));
 });
 
@@ -427,8 +432,37 @@ $router->post('/logowanie', function (): void {
                     : 'Logowanie nie jest skonfigurowane. Uruchom migrację użytkowników.'
             ),
         'isAuthConfigured' => Auth::isConfigured(),
+        'passwordResetSuccess' => false,
     ]), 422);
 });
+
+$router->get(
+    '/nie-pamietam-hasla',
+    function (): void {
+        PasswordResetController::requestForm();
+    }
+);
+
+$router->post(
+    '/nie-pamietam-hasla',
+    function (): void {
+        PasswordResetController::requestLink();
+    }
+);
+
+$router->get(
+    '/odzyskaj-haslo',
+    function (): void {
+        PasswordResetController::resetForm();
+    }
+);
+
+$router->post(
+    '/odzyskaj-haslo',
+    function (): void {
+        PasswordResetController::resetPassword();
+    }
+);
 
 $router->post('/wyloguj', function (): void {
     Auth::startSession();
