@@ -83,6 +83,11 @@ if (
     $requestPathForAccessControl = '/';
 }
 
+$requestPathForAccessControl =
+    Url::stripBasePath(
+        $requestPathForAccessControl
+    );
+
 $administratorOnlyPrefixes = [
     '/admin/uzytkownicy',
     '/admin/faktury',
