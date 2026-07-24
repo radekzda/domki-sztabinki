@@ -17,6 +17,7 @@ require dirname(__DIR__) . '/app/Core/AppErrorHandler.php';
 AppErrorHandler::register($config, dirname(__DIR__));
 require dirname(__DIR__) . '/app/Core/Router.php';
 require dirname(__DIR__) . '/app/Core/Database.php';
+require dirname(__DIR__) . '/app/Repositories/UserRepository.php';
 require dirname(__DIR__) . '/app/Core/Auth.php';
 require dirname(__DIR__) . '/app/Core/Mailer.php';
 require dirname(__DIR__) . '/app/Services/InquiryMailer.php';
@@ -35,6 +36,7 @@ require dirname(__DIR__) . '/app/Repositories/InvoiceSellerRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InvoiceRepository.php';
 require dirname(__DIR__) . '/app/Controllers/InvoiceController.php';
 require dirname(__DIR__) . '/app/Controllers/InvoiceSellerController.php';
+require dirname(__DIR__) . '/app/Controllers/UserController.php';
 require dirname(__DIR__) . '/app/Repositories/IcalEventRepository.php';
 require dirname(__DIR__) . '/app/Repositories/AvailabilityRepository.php';
 require dirname(__DIR__) . '/app/Repositories/IcalSyncLogRepository.php';
@@ -61,6 +63,74 @@ $isProduction = strtolower(
         )
     )
 ) === 'production';
+
+
+$requestPathForAccessControl = parse_url(
+    (string) (
+        $_SERVER['REQUEST_URI']
+        ?? '/'
+    ),
+    PHP_URL_PATH
+);
+
+if (
+    !is_string($requestPathForAccessControl)
+    || $requestPathForAccessControl === ''
+) {
+    $requestPathForAccessControl = '/';
+}
+
+$administratorOnlyPrefixes = [
+    '/admin/uzytkownicy',
+    '/admin/faktury',
+    '/admin/raporty',
+    '/admin/ustawienia',
+    '/admin/system',
+    '/admin/media',
+    '/admin/szablony',
+    '/admin/sprzedawcy-faktur',
+    '/admin/domki/import',
+    '/admin/goscie/import',
+    '/admin/rezerwacje/import',
+];
+
+$administratorOnlyExactPaths = [
+    '/admin/domki/usun',
+    '/admin/rezerwacje/usun',
+    '/admin/goscie/usun',
+    '/admin/zapytania/usun',
+    '/admin/faktury/usun',
+];
+
+$requiresAdministrator = in_array(
+    $requestPathForAccessControl,
+    $administratorOnlyExactPaths,
+    true
+);
+
+if (!$requiresAdministrator) {
+    foreach (
+        $administratorOnlyPrefixes
+        as $administratorOnlyPrefix
+    ) {
+        if (
+            $requestPathForAccessControl
+                === $administratorOnlyPrefix
+            || str_starts_with(
+                $requestPathForAccessControl,
+                $administratorOnlyPrefix . '/'
+            )
+        ) {
+            $requiresAdministrator = true;
+
+            break;
+        }
+    }
+}
+
+if ($requiresAdministrator) {
+    Auth::requireAdministrator();
+}
 
 
 $router->get('/ical/domek', function (): void {
@@ -325,7 +395,7 @@ $router->get('/logowanie', function (): void {
 
     Response::html(View::render('pages/login', [
         'title' => 'Logowanie',
-        'email' => Env::get('ADMIN_EMAIL', ''),
+        'email' => '',
         'error' => null,
         'isAuthConfigured' => Auth::isConfigured(),
     ]));
@@ -354,7 +424,7 @@ $router->post('/logowanie', function (): void {
             : (
                 Auth::isConfigured()
                     ? 'Nieprawidłowy adres e-mail lub hasło.'
-                    : 'Logowanie nie jest skonfigurowane w pliku .env.'
+                    : 'Logowanie nie jest skonfigurowane. Uruchom migrację użytkowników.'
             ),
         'isAuthConfigured' => Auth::isConfigured(),
     ]), 422);
@@ -367,6 +437,49 @@ $router->post('/wyloguj', function (): void {
 
     Response::redirect('/logowanie');
 });
+
+$router->get(
+    '/admin/uzytkownicy',
+    function (): void {
+        UserController::index();
+    }
+);
+
+$router->get(
+    '/admin/uzytkownicy/nowy',
+    function (): void {
+        UserController::create();
+    }
+);
+
+$router->post(
+    '/admin/uzytkownicy/nowy',
+    function (): void {
+        UserController::store();
+    }
+);
+
+$router->get(
+    '/admin/uzytkownicy/edytuj',
+    function (): void {
+        UserController::edit();
+    }
+);
+
+$router->post(
+    '/admin/uzytkownicy/edytuj',
+    function (): void {
+        UserController::update();
+    }
+);
+
+$router->post(
+    '/admin/uzytkownicy/status',
+    function (): void {
+        UserController::changeStatus();
+    }
+);
+
 
 $router->get('/admin', function (): void {
     Auth::requireAdmin();
@@ -4533,13 +4646,18 @@ $router->get('/admin/system', function () use ($config, $isProduction): void {
         'PDO MySQL' => extension_loaded('pdo_mysql') ? 'dostępne' : 'brak',
         'DB_DATABASE' => $dbDatabase !== '' && $dbDatabase !== 'CHANGE_ME_DATABASE' ? 'ustawione' : 'brak',
         'DB_USERNAME' => $dbUsername !== '' && $dbUsername !== 'CHANGE_ME_USERNAME' ? 'ustawione' : 'brak',
-        'Hasło administratora' => Auth::passwordMode() === 'hash'
-            ? 'hash password_hash — zalecane'
-            : (
-                Auth::passwordMode() === 'plain'
-                    ? 'zwykły tekst — zmień na ADMIN_PASSWORD_HASH przed produkcją'
-                    : 'brak'
-            ),
+        'Uwierzytelnianie użytkowników' =>
+            Auth::passwordMode() === 'database'
+                ? 'konta i hashe haseł w bazie danych'
+                : (
+                    Auth::passwordMode() === 'hash'
+                        ? 'konto przejściowe z ADMIN_PASSWORD_HASH'
+                        : (
+                            Auth::passwordMode() === 'plain'
+                                ? 'konto przejściowe z hasłem jawnym w .env — wykonaj migrację'
+                                : 'brak'
+                        )
+                ),
         'Instalator i seed DB' => $isProduction
             ? 'zablokowane w środowisku produkcyjnym'
             : 'dostępne poza produkcją',

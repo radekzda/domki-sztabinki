@@ -49,14 +49,22 @@ $paymentLabels = [
 
 $paymentStatus = $reservation['payment_status'] ?? '';
 
+$canManageInvoices =
+    class_exists('Auth')
+    && Auth::isAdministrator();
+
 $reservationInvoices = is_array(
     $reservationInvoices ?? null
 )
     ? $reservationInvoices
     : [];
 
-$primaryInvoice = $reservationInvoices[0]
-    ?? null;
+$primaryInvoice = $canManageInvoices
+    ? (
+        $reservationInvoices[0]
+        ?? null
+    )
+    : null;
 
 $historyValueLabel = static function (
     string $eventType,
@@ -206,50 +214,52 @@ $displayDateTime = static function (mixed $value): string {
                                     Wróć do kalendarza
                                 </a>
                             <?php endif; ?>
-                            <?php if (is_array($primaryInvoice)): ?>
-                                <a
-                                    class="button button--secondary"
-                                    href="/admin/faktury/pokaz?id=<?= htmlspecialchars(
-                                        (string) $primaryInvoice['id'],
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>"
-                                >
-                                    Faktura <?= htmlspecialchars(
-                                        (string) (
-                                            $primaryInvoice[
-                                                'invoice_number'
-                                            ]
-                                            ?? ''
-                                        ),
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>
-                                </a>
+                            <?php if ($canManageInvoices): ?>
+                                <?php if (is_array($primaryInvoice)): ?>
+                                    <a
+                                        class="button button--secondary"
+                                        href="/admin/faktury/pokaz?id=<?= htmlspecialchars(
+                                            (string) $primaryInvoice['id'],
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>"
+                                    >
+                                        Faktura <?= htmlspecialchars(
+                                            (string) (
+                                                $primaryInvoice[
+                                                    'invoice_number'
+                                                ]
+                                                ?? ''
+                                            ),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </a>
 
-                                <a
-                                    class="button button--secondary"
-                                    href="/admin/faktury/drukuj?id=<?= htmlspecialchars(
-                                        (string) $primaryInvoice['id'],
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>"
-                                    target="_blank"
-                                    rel="noopener"
-                                >
-                                    Drukuj fakturę
-                                </a>
-                            <?php else: ?>
-                                <a
-                                    class="button button--primary"
-                                    href="/admin/faktury/nowa?reservation_id=<?= htmlspecialchars(
-                                        (string) $reservation['id'],
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>"
-                                >
-                                    Wystaw fakturę
-                                </a>
+                                    <a
+                                        class="button button--secondary"
+                                        href="/admin/faktury/drukuj?id=<?= htmlspecialchars(
+                                            (string) $primaryInvoice['id'],
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>"
+                                        target="_blank"
+                                        rel="noopener"
+                                    >
+                                        Drukuj fakturę
+                                    </a>
+                                <?php else: ?>
+                                    <a
+                                        class="button button--primary"
+                                        href="/admin/faktury/nowa?reservation_id=<?= htmlspecialchars(
+                                            (string) $reservation['id'],
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>"
+                                    >
+                                        Wystaw fakturę
+                                    </a>
+                                <?php endif; ?>
                             <?php endif; ?>
 
                             <a

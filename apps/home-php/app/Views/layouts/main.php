@@ -111,6 +111,22 @@ $adminEmail = $isLoggedIn
     ? Auth::adminEmail()
     : '';
 
+$adminName = $isLoggedIn
+    ? Auth::currentUserName()
+    : '';
+
+$adminRole = $isLoggedIn
+    ? Auth::currentRole()
+    : '';
+
+$adminRoleLabel = $adminRole === 'ADMIN'
+    ? 'Administrator'
+    : (
+        $adminRole === 'PRACOWNIK'
+            ? 'Pracownik'
+            : ''
+    );
+
 $showGlobalChrome = !$isHomePage;
 ?>
 <!doctype html>
@@ -268,11 +284,28 @@ $showGlobalChrome = !$isHomePage;
                     </a>
 
                     <span class="site-nav__user">
-                        <?= htmlspecialchars(
-                            $adminEmail,
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>
+                        <?php if ($adminName !== ''): ?>
+                            <?= htmlspecialchars(
+                                $adminName,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>
+                        <?php else: ?>
+                            <?= htmlspecialchars(
+                                $adminEmail,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>
+                        <?php endif; ?>
+
+                        <?php if ($adminRoleLabel !== ''): ?>
+                            ·
+                            <?= htmlspecialchars(
+                                $adminRoleLabel,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>
+                        <?php endif; ?>
                     </span>
 
                     <form

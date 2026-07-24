@@ -44,6 +44,10 @@ $reservationCabinName = static function (
         : 'Domek';
 };
 
+$canManageInvoices =
+    class_exists('Auth')
+    && Auth::isAdministrator();
+
 $inquiryGuestName = static function (
     array $inquiry
 ): string {
@@ -781,7 +785,8 @@ $inquiryGuestName = static function (
                                     );
 
                                     $departureInvoice =
-                                        $reservationId > 0
+                                        $canManageInvoices
+                                        && $reservationId > 0
                                             ? InvoiceRepository::firstForReservation(
                                                 $reservationId
                                             )
@@ -830,29 +835,31 @@ $inquiryGuestName = static function (
                                             </strong>
                                         </a>
 
-                                        <?php if (
-                                            $departureInvoiceId > 0
-                                        ): ?>
-                                            <a
-                                                class="dashboard-invoice-action dashboard-invoice-action--existing"
-                                                href="/admin/faktury/pokaz?id=<?= $departureInvoiceId ?>"
-                                                title="Otwórz wystawioną fakturę"
-                                            >
-                                                <?= htmlspecialchars(
-                                                    $departureInvoiceNumber !== ''
-                                                        ? $departureInvoiceNumber
-                                                        : 'Faktura',
-                                                    ENT_QUOTES,
-                                                    'UTF-8'
-                                                ) ?>
-                                            </a>
-                                        <?php else: ?>
-                                            <a
-                                                class="dashboard-invoice-action dashboard-invoice-action--create"
-                                                href="/admin/faktury/nowa?reservation_id=<?= $reservationId ?>"
-                                            >
-                                                Wystaw fakturę
-                                            </a>
+                                        <?php if ($canManageInvoices): ?>
+                                            <?php if (
+                                                $departureInvoiceId > 0
+                                            ): ?>
+                                                <a
+                                                    class="dashboard-invoice-action dashboard-invoice-action--existing"
+                                                    href="/admin/faktury/pokaz?id=<?= $departureInvoiceId ?>"
+                                                    title="Otwórz wystawioną fakturę"
+                                                >
+                                                    <?= htmlspecialchars(
+                                                        $departureInvoiceNumber !== ''
+                                                            ? $departureInvoiceNumber
+                                                            : 'Faktura',
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
+                                                </a>
+                                            <?php else: ?>
+                                                <a
+                                                    class="dashboard-invoice-action dashboard-invoice-action--create"
+                                                    href="/admin/faktury/nowa?reservation_id=<?= $reservationId ?>"
+                                                >
+                                                    Wystaw fakturę
+                                                </a>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>

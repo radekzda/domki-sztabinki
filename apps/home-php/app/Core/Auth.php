@@ -4,9 +4,26 @@ declare(strict_types=1);
 
 final class Auth
 {
-    private const SESSION_KEY = 'domki_sztabinki_admin_logged_in';
-    private const LOGIN_ATTEMPTS_KEY = 'domki_sztabinki_login_attempts';
-    private const LOGIN_BLOCKED_UNTIL_KEY = 'domki_sztabinki_login_blocked_until';
+    private const LEGACY_SESSION_KEY =
+        'domki_sztabinki_admin_logged_in';
+
+    private const USER_ID_KEY =
+        'domki_sztabinki_user_id';
+
+    private const USER_EMAIL_KEY =
+        'domki_sztabinki_user_email';
+
+    private const USER_NAME_KEY =
+        'domki_sztabinki_user_name';
+
+    private const USER_ROLE_KEY =
+        'domki_sztabinki_user_role';
+
+    private const LOGIN_ATTEMPTS_KEY =
+        'domki_sztabinki_login_attempts';
+
+    private const LOGIN_BLOCKED_UNTIL_KEY =
+        'domki_sztabinki_login_blocked_until';
 
     private const MAX_LOGIN_ATTEMPTS = 5;
     private const LOGIN_BLOCK_SECONDS = 900;
@@ -38,8 +55,13 @@ final class Auth
     {
         self::startSession();
 
-        return isset($_SESSION[self::SESSION_KEY])
-            && $_SESSION[self::SESSION_KEY] === true;
+        $userId = $_SESSION[self::USER_ID_KEY] ?? null;
+
+        if (is_int($userId) && $userId > 0) {
+            return self::refreshDatabaseUser($userId);
+        }
+
+        return self::restoreLegacySession();
     }
 
     public static function requireAdmin(): void
@@ -49,54 +71,98 @@ final class Auth
         }
     }
 
-    public static function attempt(string $email, string $password): bool
+    public static function requireAdministrator(): void
     {
+        self::requireAdmin();
+
+        if (self::isAdministrator()) {
+            return;
+        }
+
+        Response::html(
+            View::render(
+                'pages/error',
+                [
+                    'title' => 'Brak uprawnień',
+                    'message' =>
+                        'Ta funkcja jest dostępna wyłącznie '
+                        . 'dla użytkownika z rolą Administrator.',
+                ]
+            ),
+            403
+        );
+
+        exit;
+    }
+
+    public static function attempt(
+        string $email,
+        string $password
+    ): bool {
         self::startSession();
 
         if (self::isLoginBlocked()) {
             return false;
         }
 
-        if (!self::isConfigured()) {
-            return false;
-        }
-
-        $configuredEmail = trim(
-            (string) (
-                Env::get(
-                    'ADMIN_EMAIL',
-                    ''
-                )
-                ?? ''
-            )
-        );
-
-        $emailMatches = hash_equals(
-            strtolower($configuredEmail),
-            strtolower(trim($email))
-        );
-
-        $passwordMatches = self::passwordMatches(
-            $password
+        $normalizedEmail = strtolower(
+            trim($email)
         );
 
         if (
-            !$emailMatches
-            || !$passwordMatches
+            $normalizedEmail === ''
+            || $password === ''
         ) {
             self::recordFailedLogin();
 
             return false;
         }
 
-        self::clearLoginAttempts();
+        if (self::databaseUsersEnabled()) {
+            try {
+                $user = UserRepository::findByEmail(
+                    $normalizedEmail
+                );
+            } catch (Throwable $exception) {
+                error_log(
+                    'Nie udało się sprawdzić użytkownika: '
+                    . $exception->getMessage()
+                );
 
-        session_regenerate_id(true);
+                return false;
+            }
 
-        $_SESSION[self::SESSION_KEY] = true;
-        $_SESSION['admin_email'] = $configuredEmail;
+            if (
+                $user === null
+                || (int) ($user['is_active'] ?? 0) !== 1
+                || !password_verify(
+                    $password,
+                    (string) (
+                        $user['password_hash']
+                        ?? ''
+                    )
+                )
+            ) {
+                self::recordFailedLogin();
 
-        return true;
+                return false;
+            }
+
+            self::clearLoginAttempts();
+            session_regenerate_id(true);
+            self::storeDatabaseUser($user);
+
+            UserRepository::updateLastLogin(
+                (int) $user['id']
+            );
+
+            return true;
+        }
+
+        return self::attemptLegacy(
+            $normalizedEmail,
+            $password
+        );
     }
 
     public static function isLoginBlocked(): bool
@@ -182,17 +248,318 @@ final class Auth
         self::startSession();
 
         $email =
-            $_SESSION['admin_email']
+            $_SESSION[self::USER_EMAIL_KEY]
+            ?? $_SESSION['admin_email']
             ?? '';
 
-        if (is_string($email)) {
-            return $email;
+        return is_string($email)
+            ? $email
+            : '';
+    }
+
+    public static function currentUserId(): ?int
+    {
+        if (!self::check()) {
+            return null;
         }
 
-        return '';
+        $userId =
+            $_SESSION[self::USER_ID_KEY]
+            ?? null;
+
+        return is_int($userId)
+            ? $userId
+            : null;
+    }
+
+    public static function currentUserName(): string
+    {
+        if (!self::check()) {
+            return '';
+        }
+
+        $name =
+            $_SESSION[self::USER_NAME_KEY]
+            ?? '';
+
+        return is_string($name)
+            ? $name
+            : '';
+    }
+
+    public static function currentRole(): string
+    {
+        if (!self::check()) {
+            return '';
+        }
+
+        $role =
+            $_SESSION[self::USER_ROLE_KEY]
+            ?? '';
+
+        return is_string($role)
+            ? $role
+            : '';
+    }
+
+    public static function isAdministrator(): bool
+    {
+        return self::currentRole() === 'ADMIN';
     }
 
     public static function isConfigured(): bool
+    {
+        if (self::databaseUsersEnabled()) {
+            return true;
+        }
+
+        return self::legacyConfigured();
+    }
+
+    public static function passwordMode(): string
+    {
+        if (self::databaseUsersEnabled()) {
+            return 'database';
+        }
+
+        if (self::hasPasswordHash()) {
+            return 'hash';
+        }
+
+        if (self::hasPlainPassword()) {
+            return 'plain';
+        }
+
+        return 'missing';
+    }
+
+    private static function databaseUsersEnabled(): bool
+    {
+        if (!Database::canAttemptConnection()) {
+            return false;
+        }
+
+        try {
+            return UserRepository::tableExists()
+                && UserRepository::countAll() > 0;
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się sprawdzić tabeli użytkowników: '
+                . $exception->getMessage()
+            );
+
+            /*
+             * Przy skonfigurowanej bazie błąd połączenia nie może
+             * uruchomić awaryjnego logowania z .env.
+             */
+            return true;
+        }
+    }
+
+    private static function refreshDatabaseUser(
+        int $userId
+    ): bool {
+        if (!self::databaseUsersEnabled()) {
+            self::clearUserSession();
+
+            return false;
+        }
+
+        try {
+            $user = UserRepository::find($userId);
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się odświeżyć sesji użytkownika: '
+                . $exception->getMessage()
+            );
+
+            self::clearUserSession();
+
+            return false;
+        }
+
+        if (
+            $user === null
+            || (int) ($user['is_active'] ?? 0) !== 1
+        ) {
+            self::clearUserSession();
+
+            return false;
+        }
+
+        self::storeDatabaseUser($user);
+
+        return true;
+    }
+
+    private static function restoreLegacySession(): bool
+    {
+        $legacyLoggedIn =
+            $_SESSION[self::LEGACY_SESSION_KEY]
+            ?? false;
+
+        if ($legacyLoggedIn !== true) {
+            return false;
+        }
+
+        if (self::databaseUsersEnabled()) {
+            $email = trim(
+                (string) (
+                    $_SESSION['admin_email']
+                    ?? Env::get(
+                        'ADMIN_EMAIL',
+                        ''
+                    )
+                    ?? ''
+                )
+            );
+
+            if ($email === '') {
+                self::clearUserSession();
+
+                return false;
+            }
+
+            try {
+                $user = UserRepository::findByEmail(
+                    $email
+                );
+            } catch (Throwable $exception) {
+                error_log(
+                    'Nie udało się przenieść starej sesji: '
+                    . $exception->getMessage()
+                );
+
+                self::clearUserSession();
+
+                return false;
+            }
+
+            if (
+                $user === null
+                || (int) ($user['is_active'] ?? 0) !== 1
+            ) {
+                self::clearUserSession();
+
+                return false;
+            }
+
+            self::storeDatabaseUser($user);
+
+            return true;
+        }
+
+        if (!self::legacyConfigured()) {
+            self::clearUserSession();
+
+            return false;
+        }
+
+        $_SESSION[self::USER_EMAIL_KEY] = trim(
+            (string) (
+                $_SESSION['admin_email']
+                ?? Env::get(
+                    'ADMIN_EMAIL',
+                    ''
+                )
+                ?? ''
+            )
+        );
+
+        $_SESSION[self::USER_NAME_KEY] =
+            'Administrator';
+
+        $_SESSION[self::USER_ROLE_KEY] =
+            'ADMIN';
+
+        return true;
+    }
+
+    /**
+     * @param array<string, mixed> $user
+     */
+    private static function storeDatabaseUser(
+        array $user
+    ): void {
+        $_SESSION[self::LEGACY_SESSION_KEY] = true;
+        $_SESSION[self::USER_ID_KEY] =
+            (int) ($user['id'] ?? 0);
+        $_SESSION[self::USER_EMAIL_KEY] =
+            (string) ($user['email'] ?? '');
+        $_SESSION[self::USER_NAME_KEY] =
+            (string) ($user['name'] ?? '');
+        $_SESSION[self::USER_ROLE_KEY] =
+            (string) ($user['role'] ?? '');
+        $_SESSION['admin_email'] =
+            (string) ($user['email'] ?? '');
+    }
+
+    private static function clearUserSession(): void
+    {
+        unset(
+            $_SESSION[self::LEGACY_SESSION_KEY],
+            $_SESSION[self::USER_ID_KEY],
+            $_SESSION[self::USER_EMAIL_KEY],
+            $_SESSION[self::USER_NAME_KEY],
+            $_SESSION[self::USER_ROLE_KEY],
+            $_SESSION['admin_email']
+        );
+    }
+
+    private static function attemptLegacy(
+        string $email,
+        string $password
+    ): bool {
+        if (!self::legacyConfigured()) {
+            return false;
+        }
+
+        $configuredEmail = trim(
+            (string) (
+                Env::get(
+                    'ADMIN_EMAIL',
+                    ''
+                )
+                ?? ''
+            )
+        );
+
+        $emailMatches = hash_equals(
+            strtolower($configuredEmail),
+            $email
+        );
+
+        $passwordMatches =
+            self::legacyPasswordMatches(
+                $password
+            );
+
+        if (
+            !$emailMatches
+            || !$passwordMatches
+        ) {
+            self::recordFailedLogin();
+
+            return false;
+        }
+
+        self::clearLoginAttempts();
+        session_regenerate_id(true);
+
+        $_SESSION[self::LEGACY_SESSION_KEY] = true;
+        $_SESSION[self::USER_EMAIL_KEY] =
+            $configuredEmail;
+        $_SESSION[self::USER_NAME_KEY] =
+            'Administrator';
+        $_SESSION[self::USER_ROLE_KEY] =
+            'ADMIN';
+        $_SESSION['admin_email'] =
+            $configuredEmail;
+
+        return true;
+    }
+
+    private static function legacyConfigured(): bool
     {
         $email = trim(
             (string) (
@@ -215,20 +582,7 @@ final class Auth
             || self::hasPlainPassword();
     }
 
-    public static function passwordMode(): string
-    {
-        if (self::hasPasswordHash()) {
-            return 'hash';
-        }
-
-        if (self::hasPlainPassword()) {
-            return 'plain';
-        }
-
-        return 'missing';
-    }
-
-    private static function passwordMatches(
+    private static function legacyPasswordMatches(
         string $password
     ): bool {
         $passwordHash = trim(
