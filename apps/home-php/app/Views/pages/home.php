@@ -14,6 +14,9 @@ $cabins = [];
 $cabinImages = [];
 $busyRangesByCabin = [];
 $busyDatesByCabin = [];
+$busyStartCountsByCabin = [];
+$busyEndCountsByCabin = [];
+$busyInteriorCountsByCabin = [];
 $databaseMessage = null;
 
 $form = isset($inquiryForm) && is_array($inquiryForm)
@@ -216,9 +219,99 @@ if (!Database::canAttemptConnection()) {
                 $busyDatesByCabin[$cabinId] = [];
             }
 
+            if (!isset($busyStartCountsByCabin[$cabinId])) {
+                $busyStartCountsByCabin[$cabinId] = [];
+            }
+
+            if (!isset($busyEndCountsByCabin[$cabinId])) {
+                $busyEndCountsByCabin[$cabinId] = [];
+            }
+
+            if (!isset($busyInteriorCountsByCabin[$cabinId])) {
+                $busyInteriorCountsByCabin[$cabinId] = [];
+            }
+
+            if (
+                $startDate >= $availabilityWindowStartString
+                && $startDate < $availabilityWindowEndString
+            ) {
+                $busyStartCountsByCabin[$cabinId][$startDate] =
+                    (int) (
+                        $busyStartCountsByCabin[$cabinId][$startDate]
+                        ?? 0
+                    )
+                    + 1;
+            }
+
+            if (
+                $endDate >= $availabilityWindowStartString
+                && $endDate < $availabilityWindowEndString
+            ) {
+                $busyEndCountsByCabin[$cabinId][$endDate] =
+                    (int) (
+                        $busyEndCountsByCabin[$cabinId][$endDate]
+                        ?? 0
+                    )
+                    + 1;
+            }
+
             while ($rangeCurrentDate < $rangeEndDate) {
-                $busyDatesByCabin[$cabinId][$rangeCurrentDate->format('Y-m-d')] = $status;
-                $rangeCurrentDate = $rangeCurrentDate->modify('+1 day');
+                $rangeDateValue =
+                    $rangeCurrentDate->format('Y-m-d');
+
+                $busyDatesByCabin[$cabinId][$rangeDateValue] =
+                    $status;
+
+                if ($rangeDateValue !== $startDate) {
+                    $busyInteriorCountsByCabin[$cabinId][$rangeDateValue] =
+                        (int) (
+                            $busyInteriorCountsByCabin[$cabinId][$rangeDateValue]
+                            ?? 0
+                        )
+                        + 1;
+                }
+
+                $rangeCurrentDate =
+                    $rangeCurrentDate->modify('+1 day');
+            }
+        }
+
+        /*
+         * Sam dzień przyjazdu kolejnego gościa pozostaje dostępny
+         * jako możliwy dzień wyjazdu poprzedniego pobytu.
+         *
+         * Jeżeli tego samego dnia występuje również wyjazd albo
+         * nakłada się inny pobyt, dzień pozostaje zajęty.
+         */
+        foreach (
+            $busyStartCountsByCabin
+            as $cabinId => $startDates
+        ) {
+            foreach (
+                $startDates
+                as $dateValue => $startCount
+            ) {
+                $endCount =
+                    (int) (
+                        $busyEndCountsByCabin[$cabinId][$dateValue]
+                        ?? 0
+                    );
+
+                $interiorCount =
+                    (int) (
+                        $busyInteriorCountsByCabin[$cabinId][$dateValue]
+                        ?? 0
+                    );
+
+                if (
+                    (int) $startCount === 1
+                    && $endCount === 0
+                    && $interiorCount === 0
+                ) {
+                    unset(
+                        $busyDatesByCabin[$cabinId][$dateValue]
+                    );
+                }
             }
         }
 
@@ -404,43 +497,167 @@ $heroBackground = $heroImagePath !== ''
     ? "linear-gradient(90deg, rgba(250,247,239,0.96) 0%, rgba(250,247,239,0.84) 34%, rgba(250,247,239,0.24) 62%, rgba(250,247,239,0.10) 100%), url('" . htmlspecialchars($heroImagePath, ENT_QUOTES, 'UTF-8') . "')"
     : 'linear-gradient(135deg, #f7f2e8 0%, #e9f1e8 55%, #dce9ef 100%)';
 
-// M13.75 inquiry availability picker
+// M6.15.15 — dostępność formularza zapytania.
+// Korzysta z tego samego wspólnego źródła co sekcja „Sprawdź dostępność”:
+// rezerwacji PMS oraz aktywnych blokad iCal.
 $inquiryAvailabilityReservations = [];
 
-if (isset($reservations) && is_array($reservations)) {
-    foreach ($reservations as $reservation) {
-        if (!is_array($reservation)) {
-            continue;
+if (Database::canAttemptConnection()) {
+    try {
+        $inquiryAvailabilityWindowStart =
+            new DateTimeImmutable(
+                date('Y-m-01')
+            );
+
+        $inquiryAvailabilityWindowEnd =
+            $inquiryAvailabilityWindowStart
+                ->modify('+3 months');
+
+        $inquiryBlockingPeriods =
+            AvailabilityRepository::blockingPeriods(
+                $inquiryAvailabilityWindowStart
+                    ->format('Y-m-d'),
+                $inquiryAvailabilityWindowEnd
+                    ->format('Y-m-d')
+            );
+
+        foreach (
+            $inquiryBlockingPeriods
+            as $period
+        ) {
+            if (!is_array($period)) {
+                continue;
+            }
+
+            $cabinId = (int) (
+                $period['cabin_id']
+                ?? 0
+            );
+
+            $startDate = substr(
+                (string) (
+                    $period['start_date']
+                    ?? ''
+                ),
+                0,
+                10
+            );
+
+            $endDate = substr(
+                (string) (
+                    $period['end_date']
+                    ?? ''
+                ),
+                0,
+                10
+            );
+
+            if (
+                $cabinId < 1
+                || preg_match(
+                    '/^\d{4}-\d{2}-\d{2}$/',
+                    $startDate
+                ) !== 1
+                || preg_match(
+                    '/^\d{4}-\d{2}-\d{2}$/',
+                    $endDate
+                ) !== 1
+                || $endDate <= $startDate
+            ) {
+                continue;
+            }
+
+            if (
+                !isset(
+                    $inquiryAvailabilityReservations[
+                        $cabinId
+                    ]
+                )
+            ) {
+                $inquiryAvailabilityReservations[
+                    $cabinId
+                ] = [];
+            }
+
+            $rangeKey =
+                $startDate
+                . '|'
+                . $endDate;
+
+            $inquiryAvailabilityReservations[
+                $cabinId
+            ][$rangeKey] = [
+                'start' =>
+                    $startDate,
+                'end' =>
+                    $endDate,
+            ];
         }
 
-        $status = (string) ($reservation['status'] ?? '');
+        foreach (
+            $inquiryAvailabilityReservations
+            as $cabinId => $ranges
+        ) {
+            $ranges = array_values(
+                $ranges
+            );
 
-        if ($status === 'CANCELLED' || $status === 'CHECKED_OUT') {
-            continue;
+            usort(
+                $ranges,
+                static function (
+                    array $first,
+                    array $second
+                ): int {
+                    $startComparison = strcmp(
+                        (string) (
+                            $first['start']
+                            ?? ''
+                        ),
+                        (string) (
+                            $second['start']
+                            ?? ''
+                        )
+                    );
+
+                    if (
+                        $startComparison
+                        !== 0
+                    ) {
+                        return $startComparison;
+                    }
+
+                    return strcmp(
+                        (string) (
+                            $first['end']
+                            ?? ''
+                        ),
+                        (string) (
+                            $second['end']
+                            ?? ''
+                        )
+                    );
+                }
+            );
+
+            $inquiryAvailabilityReservations[
+                $cabinId
+            ] = $ranges;
         }
+    } catch (Throwable $exception) {
+        $inquiryAvailabilityReservations = [];
 
-        $cabinId = (int) ($reservation['cabin_id'] ?? $reservation['cabinId'] ?? 0);
-        $startDate = (string) ($reservation['start_date'] ?? $reservation['startDate'] ?? '');
-        $endDate = (string) ($reservation['end_date'] ?? $reservation['endDate'] ?? '');
-
-        if ($cabinId <= 0 || $startDate === '' || $endDate === '') {
-            continue;
-        }
-
-        if (!isset($inquiryAvailabilityReservations[$cabinId])) {
-            $inquiryAvailabilityReservations[$cabinId] = [];
-        }
-
-        $inquiryAvailabilityReservations[$cabinId][] = [
-            'start' => substr($startDate, 0, 10),
-            'end' => substr($endDate, 0, 10),
-        ];
+        error_log(
+            'Nie udało się pobrać dostępności '
+            . 'dla formularza zapytania: '
+            . $exception->getMessage()
+        );
     }
 }
 
 $inquiryAvailabilityJson = json_encode(
     $inquiryAvailabilityReservations,
-    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+    JSON_UNESCAPED_UNICODE
+        | JSON_UNESCAPED_SLASHES
 );
 
 if (!is_string($inquiryAvailabilityJson)) {
@@ -988,6 +1205,12 @@ if (isset($settings) && is_array($settings)) {
         color: #991b1b;
         opacity: 0.8;
     }
+
+    /*
+     * Dzień, w którym zaczyna się kolejna rezerwacja, wygląda jak
+     * zwykły wolny dzień. Przy próbie wybrania go jako przyjazdu
+     * formularz wyświetla informację, że jest dostępny tylko na wyjazd.
+     */
 
     .inquiry-availability-day.is-selected {
         background: var(--public-primary);
@@ -3110,6 +3333,63 @@ if (isset($settings) && is_array($settings)) {
             });
         }
 
+        function isReservationStart(cabinId, dateValue) {
+            const ranges = busyByCabin[String(cabinId)] || [];
+
+            return ranges.some(function (range) {
+                return dateValue === range.start;
+            });
+        }
+
+        function isReservationEnd(cabinId, dateValue) {
+            const ranges = busyByCabin[String(cabinId)] || [];
+
+            return ranges.some(function (range) {
+                return dateValue === range.end;
+            });
+        }
+
+        function isCheckoutOnlyDate(cabinId, dateValue) {
+            return (
+                isReservationStart(
+                    cabinId,
+                    dateValue
+                )
+                && !isReservationEnd(
+                    cabinId,
+                    dateValue
+                )
+            );
+        }
+
+        function canSelectAsCheckout(cabinId, dateValue) {
+            if (
+                !selectedStart
+                || selectedEnd
+                || dateValue <= selectedStart
+                || !isCheckoutOnlyDate(
+                    cabinId,
+                    dateValue
+                )
+            ) {
+                return false;
+            }
+
+            const nights = countNights(
+                selectedStart,
+                dateValue
+            );
+
+            return (
+                nights >= minimumNights
+                && !rangeTouchesBusy(
+                    cabinId,
+                    selectedStart,
+                    dateValue
+                )
+            );
+        }
+
         function rangeTouchesBusy(cabinId, startValue, endValue) {
             const startDate = parseDate(startValue);
             const endDate = parseDate(endValue);
@@ -3189,9 +3469,40 @@ if (isset($settings) && is_array($settings)) {
                         button.classList.add('is-today');
                     }
 
-                    if (isDateBusy(cabinId, dateValue)) {
-                        button.disabled = true;
-                        button.title = 'Termin zajęty';
+                    const dateIsBusy =
+                        isDateBusy(
+                            cabinId,
+                            dateValue
+                        );
+
+                    const checkoutOnlyDate =
+                        isCheckoutOnlyDate(
+                            cabinId,
+                            dateValue
+                        );
+
+                    const checkoutAvailable =
+                        canSelectAsCheckout(
+                            cabinId,
+                            dateValue
+                        );
+
+                    if (dateIsBusy) {
+                        if (checkoutOnlyDate) {
+                            button.disabled = false;
+                            button.title = checkoutAvailable
+                                ? (
+                                    'Możliwy wyjazd tego dnia. '
+                                    + 'Od godziny przyjazdu domek jest zajęty.'
+                                )
+                                : (
+                                    'Ten dzień jest dostępny '
+                                    + 'wyłącznie jako data wyjazdu.'
+                                );
+                        } else {
+                            button.disabled = true;
+                            button.title = 'Termin zajęty';
+                        }
                     }
                 }
 
@@ -3249,6 +3560,29 @@ if (isset($settings) && is_array($settings)) {
         }
 
         function selectDate(cabinId, dateValue) {
+            if (
+                isCheckoutOnlyDate(
+                    cabinId,
+                    dateValue
+                )
+                && (
+                    !selectedStart
+                    || selectedEnd
+                    || dateValue <= selectedStart
+                )
+            ) {
+                showAvailabilityMessage(
+                    'warning',
+                    'Ten dzień jest dostępny wyłącznie jako data wyjazdu. '
+                    + 'Najpierw wybierz wcześniejszą wolną datę przyjazdu.'
+                );
+
+                statusBox.textContent =
+                    'Ten dzień można wybrać tylko jako wyjazd.';
+
+                return;
+            }
+
             if (!selectedStart || selectedEnd || dateValue <= selectedStart) {
                 selectedStart = dateValue;
                 selectedEnd = '';
