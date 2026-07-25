@@ -368,7 +368,12 @@ final class ReservationRepository
             LEFT JOIN cabins
                 ON cabins.id = reservations.cabin_id
             WHERE reservations.end_date = :end_date
-            AND reservations.status = "CHECKED_OUT"
+            AND reservations.status IN (
+                "PENDING",
+                "CONFIRMED",
+                "CHECKED_IN",
+                "CHECKED_OUT"
+            )
             AND NOT EXISTS (
                 SELECT 1
                 FROM invoices
