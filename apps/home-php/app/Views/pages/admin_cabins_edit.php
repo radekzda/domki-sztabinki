@@ -83,6 +83,39 @@ $invoiceSellers =
                         : '';
 
                     $icalExportUrl = '';
+                    $applicationBasePath = '';
+
+                    $requestPath = parse_url(
+                        (string) (
+                            $_SERVER['REQUEST_URI']
+                            ?? '/'
+                        ),
+                        PHP_URL_PATH
+                    );
+
+                    if (
+                        is_string($requestPath)
+                        && $requestPath !== ''
+                    ) {
+                        $editRoute =
+                            '/admin/domki/edytuj';
+
+                        $editRoutePosition = strpos(
+                            $requestPath,
+                            $editRoute
+                        );
+
+                        if ($editRoutePosition !== false) {
+                            $applicationBasePath = rtrim(
+                                substr(
+                                    $requestPath,
+                                    0,
+                                    $editRoutePosition
+                                ),
+                                '/'
+                            );
+                        }
+                    }
 
                     if ($exportToken !== '') {
                         $isHttps = (
@@ -105,6 +138,7 @@ $invoiceSellers =
                                 $scheme
                                 . '://'
                                 . $host
+                                . $applicationBasePath
                                 . '/ical/domek?id='
                                 . rawurlencode(
                                     (string) $id
