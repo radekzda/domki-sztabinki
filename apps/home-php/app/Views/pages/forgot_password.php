@@ -8,6 +8,11 @@ declare(strict_types=1);
  * @var array<string, string> $errors
  * @var bool $requestSent
  */
+
+$loginPath = applicationPath('/logowanie');
+$forgotPasswordPath = applicationPath(
+    '/nie-pamietam-hasla'
+);
 ?>
 <section class="page-section">
     <div class="container container--narrow">
@@ -35,7 +40,11 @@ declare(strict_types=1);
                 <div class="form-actions">
                     <a
                         class="button button--primary"
-                        href="/logowanie"
+                        href="<?= htmlspecialchars(
+                            $loginPath,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
                     >
                         Wróć do logowania
                     </a>
@@ -49,7 +58,11 @@ declare(strict_types=1);
                 <form
                     class="form"
                     method="post"
-                    action="/nie-pamietam-hasla"
+                    action="<?= htmlspecialchars(
+                        $forgotPasswordPath,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
                 >
                     <?= csrfField() ?>
 
@@ -94,7 +107,11 @@ declare(strict_types=1);
 
                         <a
                             class="button button--secondary"
-                            href="/logowanie"
+                            href="<?= htmlspecialchars(
+                            $loginPath,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
                         >
                             Anuluj
                         </a>

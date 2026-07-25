@@ -8,6 +8,14 @@ declare(strict_types=1);
  * @var array<string, string> $errors
  * @var bool $invalidToken
  */
+
+$loginPath = applicationPath('/logowanie');
+$forgotPasswordPath = applicationPath(
+    '/nie-pamietam-hasla'
+);
+$resetPasswordPath = applicationPath(
+    '/odzyskaj-haslo'
+);
 ?>
 <section class="page-section">
     <div class="container container--narrow">
@@ -27,14 +35,22 @@ declare(strict_types=1);
                 <div class="form-actions">
                     <a
                         class="button button--primary"
-                        href="/nie-pamietam-hasla"
+                        href="<?= htmlspecialchars(
+                            $forgotPasswordPath,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
                     >
                         Wyślij nowy link
                     </a>
 
                     <a
                         class="button button--secondary"
-                        href="/logowanie"
+                        href="<?= htmlspecialchars(
+                            $loginPath,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
                     >
                         Wróć do logowania
                     </a>
@@ -48,7 +64,11 @@ declare(strict_types=1);
                 <form
                     class="form"
                     method="post"
-                    action="/odzyskaj-haslo"
+                    action="<?= htmlspecialchars(
+                        $resetPasswordPath,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
                 >
                     <?= csrfField() ?>
 
@@ -132,7 +152,11 @@ declare(strict_types=1);
 
                         <a
                             class="button button--secondary"
-                            href="/logowanie"
+                            href="<?= htmlspecialchars(
+                            $loginPath,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
                         >
                             Anuluj
                         </a>

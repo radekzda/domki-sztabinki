@@ -2,11 +2,82 @@
 
 declare(strict_types=1);
 
+function startApplicationSession(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    if (class_exists('Auth')) {
+        Auth::startSession();
+
+        return;
+    }
+
+    session_start();
+}
+
+function applicationBasePath(): string
+{
+    static $basePath = null;
+
+    if (is_string($basePath)) {
+        return $basePath;
+    }
+
+    $configuredUrl = trim(
+        (string) (
+            Env::get(
+                'APP_URL',
+                ''
+            )
+            ?? ''
+        )
+    );
+
+    $configuredPath = parse_url(
+        $configuredUrl,
+        PHP_URL_PATH
+    );
+
+    if (
+        !is_string($configuredPath)
+        || trim($configuredPath) === ''
+        || trim($configuredPath) === '/'
+    ) {
+        $basePath = '';
+
+        return $basePath;
+    }
+
+    $basePath = '/' . trim(
+        $configuredPath,
+        '/'
+    );
+
+    return $basePath;
+}
+
+function applicationPath(string $path): string
+{
+    $normalizedPath = '/' . ltrim(
+        trim($path),
+        '/'
+    );
+
+    if ($normalizedPath === '/') {
+        return applicationBasePath() !== ''
+            ? applicationBasePath() . '/'
+            : '/';
+    }
+
+    return applicationBasePath()
+        . $normalizedPath;
+}
+
 function csrfToken(): string
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+    startApplicationSession();
 
     if (
         !isset($_SESSION['_csrf_token'])
@@ -26,9 +97,7 @@ function csrfField(): string
 
 function isValidCsrfToken(): bool
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+    startApplicationSession();
 
     $sessionToken = $_SESSION['_csrf_token'] ?? null;
     $postedToken = $_POST['_csrf_token'] ?? null;
