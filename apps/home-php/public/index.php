@@ -194,9 +194,25 @@ $router->get('/ical/domek', function (): void {
             return;
         }
 
+        $excludedSource = strtoupper(
+            trim(
+                (string) (
+                    $cabin['ical_source']
+                    ?? ''
+                )
+            )
+        );
+
+        if ($excludedSource === 'OTHER') {
+            $excludedSource = 'ICAL_OTHER';
+        }
+
         $reservations =
             ReservationRepository::forIcalExport(
-                $id
+                $id,
+                $excludedSource !== ''
+                    ? $excludedSource
+                    : null
             );
 
         $content =

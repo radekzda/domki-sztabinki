@@ -457,17 +457,28 @@ final class ReservationRepository
      * @return array<int, array<string, mixed>>
      */
     public static function forIcalExport(
-        int $cabinId
+        int $cabinId,
+        ?string $excludedSource = null
     ): array {
         $connection = Database::connection();
 
-        $statement = $connection->prepare(
-            'SELECT
+        $excludedSource = strtoupper(
+            trim(
+                (string) $excludedSource
+            )
+        );
+
+        if ($excludedSource === 'OTHER') {
+            $excludedSource = 'ICAL_OTHER';
+        }
+
+        $sql = 'SELECT
                 id,
                 cabin_id,
                 start_date,
                 end_date,
-                status
+                status,
+                source
             FROM reservations
             WHERE cabin_id = :cabin_id
             AND status IN (
@@ -475,13 +486,35 @@ final class ReservationRepository
                 "CONFIRMED",
                 "CHECKED_IN"
             )
-            AND end_date > CURDATE()
-            ORDER BY start_date ASC, id ASC'
+            AND end_date > CURDATE()';
+
+        $parameters = [
+            'cabin_id' => $cabinId,
+        ];
+
+        if ($excludedSource !== '') {
+            $sql .= '
+            AND UPPER(
+                COALESCE(
+                    source,
+                    ""
+                )
+            ) <> :excluded_source';
+
+            $parameters['excluded_source'] =
+                $excludedSource;
+        }
+
+        $sql .= '
+            ORDER BY start_date ASC, id ASC';
+
+        $statement = $connection->prepare(
+            $sql
         );
 
-        $statement->execute([
-            'cabin_id' => $cabinId,
-        ]);
+        $statement->execute(
+            $parameters
+        );
 
         $rows = $statement->fetchAll();
 
