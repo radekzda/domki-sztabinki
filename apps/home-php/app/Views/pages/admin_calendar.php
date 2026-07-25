@@ -2972,13 +2972,26 @@ $summaryCards = [
             });
         }
 
+        function applicationBasePath() {
+            var marker = '/admin/kalendarz';
+            var currentPath = window.location.pathname;
+            var markerIndex = currentPath.indexOf(marker);
+
+            if (markerIndex < 0) {
+                return '';
+            }
+
+            return currentPath.slice(0, markerIndex);
+        }
+
         function openReservation(cabinId, startDate, endDate, month) {
             if (endDate <= startDate) {
                 endDate = nextDay(startDate);
             }
 
+            var basePath = applicationBasePath();
             var returnUrl = '/admin/kalendarz?month=' + month;
-            var url = '/admin/rezerwacje/nowa'
+            var url = basePath + '/admin/rezerwacje/nowa'
                 + '?cabin_id=' + encodeURIComponent(cabinId)
                 + '&start_date=' + encodeURIComponent(startDate)
                 + '&end_date=' + encodeURIComponent(endDate)
