@@ -236,6 +236,134 @@ final class IcalEventRepository
     }
 
     /**
+     * Zwraca co najmniej dwie aktywne rezerwacje tego samego źródła,
+     * które bez przerwy i bez wyjścia poza granice dokładnie pokrywają
+     * okres wydarzenia iCal.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function findReservationsCoveringPeriod(
+        int $cabinId,
+        string $startDate,
+        string $endDate,
+        ?string $source = null
+    ): array {
+        $source = strtoupper(
+            trim(
+                (string) ($source ?? '')
+            )
+        );
+
+        $sql = 'SELECT
+                id,
+                cabin_id,
+                guest_name,
+                start_date,
+                end_date,
+                status,
+                source
+            FROM reservations
+            WHERE cabin_id = :cabin_id
+            AND status IN (
+                "PENDING",
+                "CONFIRMED",
+                "CHECKED_IN"
+            )
+            AND start_date >= :coverage_start_date
+            AND end_date <= :coverage_end_date
+            AND start_date < :overlap_end_date
+            AND end_date > :overlap_start_date';
+
+        $params = [
+            'cabin_id' => $cabinId,
+            'coverage_start_date' => $startDate,
+            'coverage_end_date' => $endDate,
+            'overlap_start_date' => $startDate,
+            'overlap_end_date' => $endDate,
+        ];
+
+        if ($source !== '') {
+            $sql .= ' AND UPPER(source) = :source';
+            $params['source'] = $source;
+        }
+
+        $sql .= '
+            ORDER BY
+                start_date ASC,
+                end_date ASC,
+                id ASC';
+
+        $statement = Database::connection()->prepare(
+            $sql
+        );
+
+        $statement->execute(
+            $params
+        );
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        $cursor = $startDate;
+        $coveringReservations = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $rowStartDate = (string) (
+                $row['start_date']
+                ?? ''
+            );
+
+            $rowEndDate = (string) (
+                $row['end_date']
+                ?? ''
+            );
+
+            if ($rowEndDate <= $cursor) {
+                continue;
+            }
+
+            if ($rowStartDate > $cursor) {
+                return [];
+            }
+
+            if ($rowStartDate < $startDate) {
+                return [];
+            }
+
+            if ($rowEndDate > $endDate) {
+                return [];
+            }
+
+            $coveringReservations[] = $row;
+            $cursor = $rowEndDate;
+
+            if ($cursor === $endDate) {
+                break;
+            }
+
+            if ($cursor > $endDate) {
+                return [];
+            }
+        }
+
+        if (
+            $cursor !== $endDate
+            || count($coveringReservations) < 2
+        ) {
+            return [];
+        }
+
+        return $coveringReservations;
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private static function findReservationById(
@@ -333,6 +461,10 @@ final class IcalEventRepository
      * - istnieje rezerwacja tego samego domku
      *   z dokładnie takim samym terminem.
      *
+     * COVERED_RESERVATIONS
+     * - wydarzenie jest dokładnie pokryte przez co najmniej dwie
+     *   następujące bez przerwy rezerwacje tego samego źródła.
+     *
      * CONFLICT
      * - istnieje inna rezerwacja nachodząca
      *   na termin wydarzenia.
@@ -351,6 +483,7 @@ final class IcalEventRepository
      *     action: string,
      *     existing_ical_event: array<string, mixed>|null,
      *     matched_reservation: array<string, mixed>|null,
+     *     covered_reservations: array<int, array<string, mixed>>,
      *     conflicting_reservation: array<string, mixed>|null
      * }
      */
@@ -464,6 +597,7 @@ final class IcalEventRepository
                             $existingIcalEvent,
                         'matched_reservation' =>
                             $linkedReservation,
+                        'covered_reservations' => [],
                         'conflicting_reservation' =>
                             null,
                     ];
@@ -533,6 +667,7 @@ final class IcalEventRepository
                         $existingIcalEvent,
                     'matched_reservation' =>
                         $matchedReservation,
+                    'covered_reservations' => [],
                     'conflicting_reservation' =>
                         null,
                 ];
@@ -544,7 +679,34 @@ final class IcalEventRepository
                     $existingIcalEvent,
                 'matched_reservation' =>
                     $matchedReservation,
+                'covered_reservations' => [],
                 'conflicting_reservation' =>
+                    null,
+            ];
+        }
+
+        $coveredReservations =
+            self::findReservationsCoveringPeriod(
+                $cabinId,
+                $startDate,
+                $endDate,
+                $reservationSource !== ''
+                    ? $reservationSource
+                    : null
+            );
+
+        if ($coveredReservations !== []) {
+            return [
+                'action' => 'COVERED_RESERVATIONS',
+                'existing_ical_event' =>
+                    $existingIcalEvent,
+                'matched_reservation' =>
+                    null,
+                'covered_reservations' =>
+                    $coveredReservations,
+                'conflicting_reservation' =>
+                    null,
+                'link_candidate_reservation' =>
                     null,
             ];
         }
@@ -563,6 +725,7 @@ final class IcalEventRepository
                     $existingIcalEvent,
                 'matched_reservation' =>
                     null,
+                'covered_reservations' => [],
                 'conflicting_reservation' =>
                     $linkCandidateReservation,
                 'link_candidate_reservation' =>
@@ -584,6 +747,7 @@ final class IcalEventRepository
                     $existingIcalEvent,
                 'matched_reservation' =>
                     null,
+                'covered_reservations' => [],
                 'conflicting_reservation' =>
                     $conflictingReservation,
                 'link_candidate_reservation' =>
@@ -598,6 +762,7 @@ final class IcalEventRepository
                     $existingIcalEvent,
                 'matched_reservation' =>
                     null,
+                'covered_reservations' => [],
                 'conflicting_reservation' =>
                     null,
             ];
@@ -609,6 +774,7 @@ final class IcalEventRepository
                 null,
             'matched_reservation' =>
                 null,
+            'covered_reservations' => [],
             'conflicting_reservation' =>
                 null,
         ];
@@ -899,6 +1065,7 @@ final class IcalEventRepository
      *     ical_event_id: int,
      *     existing_ical_event: array<string, mixed>|null,
      *     matched_reservation: array<string, mixed>|null,
+     *     covered_reservations: array<int, array<string, mixed>>,
      *     conflicting_reservation: array<string, mixed>|null
      * }
      */
@@ -952,6 +1119,11 @@ final class IcalEventRepository
                 $classification[
                     'matched_reservation'
                 ],
+            'covered_reservations' =>
+                $classification[
+                    'covered_reservations'
+                ]
+                ?? [],
             'conflicting_reservation' =>
                 $classification[
                     'conflicting_reservation'

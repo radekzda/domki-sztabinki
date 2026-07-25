@@ -104,6 +104,12 @@ final class IcalSyncService
                     ?? ''
                 );
 
+                if ($action === 'COVERED_RESERVATIONS') {
+                    $counts['MATCH_RESERVATION']++;
+
+                    continue;
+                }
+
                 if (
                     array_key_exists(
                         $action,

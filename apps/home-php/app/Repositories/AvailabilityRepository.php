@@ -113,6 +113,7 @@ final class AvailabilityRepository
         ]);
 
         $periods = [];
+        $reservationCoverageByCabin = [];
         $reservationRows = $reservationStatement->fetchAll();
 
         if (is_array($reservationRows)) {
@@ -121,15 +122,35 @@ final class AvailabilityRepository
                     continue;
                 }
 
+                $cabinId = (int) (
+                    $row['cabin_id']
+                    ?? 0
+                );
+
+                $reservationStartDate = (string) (
+                    $row['start_date']
+                    ?? ''
+                );
+
+                $reservationEndDate = (string) (
+                    $row['end_date']
+                    ?? ''
+                );
+
                 $periods[] = [
                     'kind' => 'RESERVATION',
-                    'cabin_id' => (int) ($row['cabin_id'] ?? 0),
-                    'start_date' => (string) ($row['start_date'] ?? ''),
-                    'end_date' => (string) ($row['end_date'] ?? ''),
+                    'cabin_id' => $cabinId,
+                    'start_date' => $reservationStartDate,
+                    'end_date' => $reservationEndDate,
                     'status' => (string) ($row['status'] ?? ''),
                     'source' => (string) ($row['source'] ?? 'MANUAL'),
                     'reservation_id' => (int) ($row['id'] ?? 0),
                     'ical_event_id' => null,
+                ];
+
+                $reservationCoverageByCabin[$cabinId][] = [
+                    'start_date' => $reservationStartDate,
+                    'end_date' => $reservationEndDate,
                 ];
             }
         }
@@ -181,11 +202,39 @@ final class AvailabilityRepository
                     continue;
                 }
 
+                $cabinId = (int) (
+                    $row['cabin_id']
+                    ?? 0
+                );
+
+                $icalStartDate = (string) (
+                    $row['start_date']
+                    ?? ''
+                );
+
+                $icalEndDate = (string) (
+                    $row['end_date']
+                    ?? ''
+                );
+
+                if (
+                    self::isPeriodFullyCovered(
+                        $icalStartDate,
+                        $icalEndDate,
+                        $reservationCoverageByCabin[
+                            $cabinId
+                        ]
+                        ?? []
+                    )
+                ) {
+                    continue;
+                }
+
                 $periods[] = [
                     'kind' => 'ICAL',
-                    'cabin_id' => (int) ($row['cabin_id'] ?? 0),
-                    'start_date' => (string) ($row['start_date'] ?? ''),
-                    'end_date' => (string) ($row['end_date'] ?? ''),
+                    'cabin_id' => $cabinId,
+                    'start_date' => $icalStartDate,
+                    'end_date' => $icalEndDate,
                     'status' => 'ICAL',
                     'source' => (string) ($row['source'] ?? 'ICAL'),
                     'reservation_id' => null,
@@ -230,6 +279,89 @@ final class AvailabilityRepository
         );
 
         return $periods;
+    }
+
+    /**
+     * @param array<int, array{
+     *     start_date: string,
+     *     end_date: string
+     * }> $reservationPeriods
+     */
+    private static function isPeriodFullyCovered(
+        string $startDate,
+        string $endDate,
+        array $reservationPeriods
+    ): bool {
+        if (
+            $reservationPeriods === []
+            || $endDate <= $startDate
+        ) {
+            return false;
+        }
+
+        usort(
+            $reservationPeriods,
+            static function (
+                array $first,
+                array $second
+            ): int {
+                $startCompare = strcmp(
+                    (string) (
+                        $first['start_date']
+                        ?? ''
+                    ),
+                    (string) (
+                        $second['start_date']
+                        ?? ''
+                    )
+                );
+
+                if ($startCompare !== 0) {
+                    return $startCompare;
+                }
+
+                return strcmp(
+                    (string) (
+                        $first['end_date']
+                        ?? ''
+                    ),
+                    (string) (
+                        $second['end_date']
+                        ?? ''
+                    )
+                );
+            }
+        );
+
+        $cursor = $startDate;
+
+        foreach ($reservationPeriods as $period) {
+            $periodStartDate = (string) (
+                $period['start_date']
+                ?? ''
+            );
+
+            $periodEndDate = (string) (
+                $period['end_date']
+                ?? ''
+            );
+
+            if ($periodEndDate <= $cursor) {
+                continue;
+            }
+
+            if ($periodStartDate > $cursor) {
+                return false;
+            }
+
+            $cursor = $periodEndDate;
+
+            if ($cursor >= $endDate) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function validateRange(

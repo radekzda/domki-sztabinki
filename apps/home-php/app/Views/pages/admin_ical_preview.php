@@ -75,6 +75,8 @@ $actionLabels = [
         'Już zapisane iCal',
     'MATCH_RESERVATION' =>
         'Pasuje do rezerwacji',
+    'COVERED_RESERVATIONS' =>
+        'Pokryte rezerwacjami',
     'CONFLICT' =>
         'Konflikt terminu',
     'NEW_BLOCK' =>
@@ -91,8 +93,8 @@ $actionLabels = [
         display: grid;
         grid-template-columns:
             repeat(
-                4,
-                minmax(0, 1fr)
+                auto-fit,
+                minmax(180px, 1fr)
             );
         gap: 10px;
         margin: 20px 0;
@@ -190,6 +192,22 @@ $actionLabels = [
     .ical-preview-link-candidate .button {
         width: 100%;
         justify-content: center;
+    }
+
+    .ical-preview-covered-list {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .ical-preview-covered-list li {
+        padding: 7px 9px;
+        border: 1px solid #d1fae5;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #065f46;
     }
 
     @media (max-width: 900px) {
@@ -435,6 +453,25 @@ $actionLabels = [
 
                             <div class="ical-preview-card">
                                 <span>
+                                    Pokryte ciągiem rezerwacji
+                                </span>
+
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        (string) (
+                                            $counts[
+                                                'COVERED_RESERVATIONS'
+                                            ]
+                                            ?? 0
+                                        ),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </strong>
+                            </div>
+
+                            <div class="ical-preview-card">
+                                <span>
                                     Nowe blokady
                                 </span>
 
@@ -525,6 +562,23 @@ $actionLabels = [
                                                         'matched_reservation'
                                                     ]
                                                     : null;
+
+                                            $coveredReservations =
+                                                is_array(
+                                                    $row[
+                                                        'covered_reservations'
+                                                    ]
+                                                    ?? null
+                                                )
+                                                    ? array_values(
+                                                        array_filter(
+                                                            $row[
+                                                                'covered_reservations'
+                                                            ],
+                                                            'is_array'
+                                                        )
+                                                    )
+                                                    : [];
 
                                             $conflictingReservation =
                                                 is_array(
@@ -657,6 +711,70 @@ $actionLabels = [
                                                             ENT_QUOTES,
                                                             'UTF-8'
                                                         ) ?>
+
+                                                    <?php elseif (
+                                                        $coveredReservations
+                                                        !== []
+                                                    ): ?>
+                                                        <ul class="ical-preview-covered-list">
+                                                            <?php foreach (
+                                                                $coveredReservations
+                                                                as $coveredReservation
+                                                            ): ?>
+                                                                <li>
+                                                                    Rezerwacja
+                                                                    #<?= htmlspecialchars(
+                                                                        (string) (
+                                                                            $coveredReservation[
+                                                                                'id'
+                                                                            ]
+                                                                            ?? ''
+                                                                        ),
+                                                                        ENT_QUOTES,
+                                                                        'UTF-8'
+                                                                    ) ?>
+
+                                                                    ·
+
+                                                                    <?= htmlspecialchars(
+                                                                        (string) (
+                                                                            $coveredReservation[
+                                                                                'start_date'
+                                                                            ]
+                                                                            ?? ''
+                                                                        ),
+                                                                        ENT_QUOTES,
+                                                                        'UTF-8'
+                                                                    ) ?>
+
+                                                                    –
+
+                                                                    <?= htmlspecialchars(
+                                                                        (string) (
+                                                                            $coveredReservation[
+                                                                                'end_date'
+                                                                            ]
+                                                                            ?? ''
+                                                                        ),
+                                                                        ENT_QUOTES,
+                                                                        'UTF-8'
+                                                                    ) ?>
+
+                                                                    <br>
+
+                                                                    <?= htmlspecialchars(
+                                                                        (string) (
+                                                                            $coveredReservation[
+                                                                                'guest_name'
+                                                                            ]
+                                                                            ?? ''
+                                                                        ),
+                                                                        ENT_QUOTES,
+                                                                        'UTF-8'
+                                                                    ) ?>
+                                                                </li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
 
                                                     <?php elseif (
                                                         $conflictingReservation

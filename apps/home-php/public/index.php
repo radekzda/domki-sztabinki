@@ -1375,6 +1375,7 @@ $router->get('/admin/domki/ical-podglad', function (): void {
         $counts = [
             'EXISTING_ICAL' => 0,
             'MATCH_RESERVATION' => 0,
+            'COVERED_RESERVATIONS' => 0,
             'CONFLICT' => 0,
             'NEW_BLOCK' => 0,
         ];
@@ -1451,6 +1452,11 @@ $router->get('/admin/domki/ical-podglad', function (): void {
                                 'matched_reservation'
                             ]
                             ?? null,
+                        'covered_reservations' =>
+                            $classification[
+                                'covered_reservations'
+                            ]
+                            ?? [],
                         'conflicting_reservation' =>
                             $classification[
                                 'conflicting_reservation'
