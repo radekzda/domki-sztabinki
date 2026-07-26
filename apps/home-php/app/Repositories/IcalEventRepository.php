@@ -284,14 +284,15 @@ final class IcalEventRepository
                 "CONFIRMED",
                 "CHECKED_IN"
             )
-            AND start_date <= :today_date
-            AND end_date > :today_date
+            AND start_date <= :today_start_date
+            AND end_date > :today_end_date
             AND start_date <= :event_start_date
             AND end_date = :event_end_date';
 
         $params = [
             'cabin_id' => $cabinId,
-            'today_date' => $todayDate,
+            'today_start_date' => $todayDate,
+            'today_end_date' => $todayDate,
             'event_start_date' => $startDate,
             'event_end_date' => $endDate,
         ];
