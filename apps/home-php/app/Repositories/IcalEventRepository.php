@@ -236,6 +236,95 @@ final class IcalEventRepository
     }
 
     /**
+     * Zwraca rezerwację tego samego źródła, która według dat
+     * już się rozpoczęła, nadal trwa, obejmuje całe wydarzenie iCal
+     * i ma ten sam dzień wyjazdu.
+     *
+     * Booking może podczas trwającego pobytu przesuwać początek
+     * eksportowanej blokady na bieżący dzień, pozostawiając bez zmian
+     * faktyczną datę przyjazdu zapisaną w rezerwacji.
+     *
+     * Nie korzystamy tu ze statusu CHECKED_IN, ponieważ zameldowanie
+     * jest oznaczane ręcznie i może nastąpić o różnej godzinie.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function findStartedReservationContainingEvent(
+        int $cabinId,
+        string $startDate,
+        string $endDate,
+        ?string $source = null
+    ): ?array {
+        $source = strtoupper(
+            trim(
+                (string) ($source ?? '')
+            )
+        );
+
+        $todayDate = (new DateTimeImmutable(
+            'today'
+        ))->format('Y-m-d');
+
+        if ($startDate > $todayDate) {
+            return null;
+        }
+
+        $sql = 'SELECT
+                id,
+                cabin_id,
+                guest_name,
+                start_date,
+                end_date,
+                status,
+                source
+            FROM reservations
+            WHERE cabin_id = :cabin_id
+            AND status IN (
+                "PENDING",
+                "CONFIRMED",
+                "CHECKED_IN"
+            )
+            AND start_date <= :today_date
+            AND end_date > :today_date
+            AND start_date <= :event_start_date
+            AND end_date = :event_end_date';
+
+        $params = [
+            'cabin_id' => $cabinId,
+            'today_date' => $todayDate,
+            'event_start_date' => $startDate,
+            'event_end_date' => $endDate,
+        ];
+
+        if ($source !== '') {
+            $sql .= ' AND UPPER(source) = :source';
+            $params['source'] = $source;
+        }
+
+        $sql .= '
+            ORDER BY
+                start_date DESC,
+                id ASC
+            LIMIT 1';
+
+        $statement = Database::connection()->prepare(
+            $sql
+        );
+
+        $statement->execute(
+            $params
+        );
+
+        $row = $statement->fetch();
+
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return $row;
+    }
+
+    /**
      * Zwraca co najmniej dwie aktywne rezerwacje tego samego źródła,
      * które bez przerwy i bez wyjścia poza granice dokładnie pokrywają
      * okres wydarzenia iCal.
@@ -458,8 +547,9 @@ final class IcalEventRepository
      * - wydarzenie o tym UID jest już znane.
      *
      * MATCH_RESERVATION
-     * - istnieje rezerwacja tego samego domku
-     *   z dokładnie takim samym terminem.
+     * - istnieje rezerwacja tego samego domku i źródła
+     *   z dokładnie takim samym terminem albo rozpoczęta według dat
+     *   rezerwacja obejmująca skróconą blokadę zwróconą przez Booking.
      *
      * COVERED_RESERVATIONS
      * - wydarzenie jest dokładnie pokryte przez co najmniej dwie
@@ -679,6 +769,86 @@ final class IcalEventRepository
                     $existingIcalEvent,
                 'matched_reservation' =>
                     $matchedReservation,
+                'covered_reservations' => [],
+                'conflicting_reservation' =>
+                    null,
+            ];
+        }
+
+        $startedReservation =
+            self::findStartedReservationContainingEvent(
+                $cabinId,
+                $startDate,
+                $endDate,
+                $reservationSource !== ''
+                    ? $reservationSource
+                    : null
+            );
+
+        if ($startedReservation !== null) {
+            $startedReservationId = (int) (
+                $startedReservation['id']
+                ?? 0
+            );
+
+            $existingMatchedReservationId =
+                $existingIcalEvent !== null
+                && isset(
+                    $existingIcalEvent[
+                        'matched_reservation_id'
+                    ]
+                )
+                && $existingIcalEvent[
+                    'matched_reservation_id'
+                ] !== null
+                    ? (int) $existingIcalEvent[
+                        'matched_reservation_id'
+                    ]
+                    : null;
+
+            $existingStartDate = trim(
+                (string) (
+                    $existingIcalEvent[
+                        'start_date'
+                    ]
+                    ?? ''
+                )
+            );
+
+            $existingEndDate = trim(
+                (string) (
+                    $existingIcalEvent[
+                        'end_date'
+                    ]
+                    ?? ''
+                )
+            );
+
+            if (
+                $existingIcalEvent !== null
+                && $existingMatchedReservationId
+                    === $startedReservationId
+                && $existingStartDate === $startDate
+                && $existingEndDate === $endDate
+            ) {
+                return [
+                    'action' => 'EXISTING_ICAL',
+                    'existing_ical_event' =>
+                        $existingIcalEvent,
+                    'matched_reservation' =>
+                        $startedReservation,
+                    'covered_reservations' => [],
+                    'conflicting_reservation' =>
+                        null,
+                ];
+            }
+
+            return [
+                'action' => 'MATCH_RESERVATION',
+                'existing_ical_event' =>
+                    $existingIcalEvent,
+                'matched_reservation' =>
+                    $startedReservation,
                 'covered_reservations' => [],
                 'conflicting_reservation' =>
                     null,
