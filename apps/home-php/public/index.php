@@ -542,7 +542,7 @@ $router->get('/admin', function (): void {
     $todayArrivals = [];
     $todayDepartures = [];
     $checkedInReservations = [];
-    $newInquiries = [];
+    $activeInquiries = [];
     $upcomingReservations = [];
     $cleaningCabins = [];
     $databaseMessage = null;
@@ -648,13 +648,22 @@ $router->get('/admin', function (): void {
             }
 
             foreach ($inquiries as $inquiry) {
+                $inquiryStatus = (string) (
+                    $inquiry['status']
+                    ?? ''
+                );
+
                 if (
-                    (string) (
-                        $inquiry['status']
-                        ?? ''
-                    ) === 'NEW'
+                    in_array(
+                        $inquiryStatus,
+                        [
+                            'NEW',
+                            'IN_PROGRESS',
+                        ],
+                        true
+                    )
                 ) {
-                    $newInquiries[] = $inquiry;
+                    $activeInquiries[] = $inquiry;
                 }
             }
 
@@ -689,7 +698,7 @@ $router->get('/admin', function (): void {
         'todayArrivals' => $todayArrivals,
         'todayDepartures' => $todayDepartures,
         'checkedInReservations' => $checkedInReservations,
-        'newInquiries' => $newInquiries,
+        'activeInquiries' => $activeInquiries,
         'upcomingReservations' => $upcomingReservations,
         'cleaningCabins' => $cleaningCabins,
         'databaseMessage' => $databaseMessage,

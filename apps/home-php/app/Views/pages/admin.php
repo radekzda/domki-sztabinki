@@ -7,7 +7,7 @@ declare(strict_types=1);
  * @var array<int, array<string, mixed>> $todayArrivals
  * @var array<int, array<string, mixed>> $todayDepartures
  * @var array<int, array<string, mixed>> $checkedInReservations
- * @var array<int, array<string, mixed>> $newInquiries
+ * @var array<int, array<string, mixed>> $activeInquiries
  * @var array<int, array<string, mixed>> $upcomingReservations
  * @var array<int, array<string, mixed>> $cleaningCabins
  * @var string|null $databaseMessage
@@ -83,6 +83,29 @@ $inquiryGuestName = static function (
     return $guestName !== ''
         ? $guestName
         : 'Gość';
+};
+
+$inquiryStatusPresentation = static function (
+    array $inquiry
+): array {
+    $status = (string) (
+        $inquiry['status']
+        ?? 'NEW'
+    );
+
+    return match ($status) {
+        'IN_PROGRESS' => [
+            'label' => 'W trakcie',
+            'class' =>
+                'dashboard-inquiry-status--in-progress',
+        ],
+
+        default => [
+            'label' => 'Nowe',
+            'class' =>
+                'dashboard-inquiry-status--new',
+        ],
+    };
 };
 ?>
 <style>
@@ -337,6 +360,44 @@ $inquiryGuestName = static function (
         text-align: right;
         color: #111827;
         overflow-wrap: anywhere;
+    }
+
+    /*
+     * Status zapytania na dashboardzie
+     */
+    .dashboard-inquiry-row__meta {
+        min-width: 92px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+    }
+
+    .dashboard-inquiry-status {
+        padding: 3px 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 10px;
+        line-height: 1.2;
+        font-weight: 750;
+        font-style: normal;
+        white-space: nowrap;
+    }
+
+    .dashboard-inquiry-status--new {
+        border-color: #93c5fd;
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .dashboard-inquiry-status--in-progress {
+        border-color: #fcd34d;
+        background: #fef3c7;
+        color: #92400e;
     }
 
     /*
@@ -672,11 +733,11 @@ $inquiryGuestName = static function (
                             href="/admin/zapytania"
                         >
                             <strong>
-                                <?= count($newInquiries) ?>
+                                <?= count($activeInquiries) ?>
                             </strong>
 
                             <span>
-                                Nowe zapytania
+                                Zapytania nowe i w trakcie
                             </span>
                         </a>
 
@@ -925,22 +986,27 @@ $inquiryGuestName = static function (
                     <div class="empty-state dashboard-today-section">
                         <div class="dashboard-today-section__header">
                             <strong>
-                                Nowe zapytania
+                                Zapytania nowe i w trakcie
                             </strong>
 
-                            <?php if ($newInquiries === []): ?>
+                            <?php if ($activeInquiries === []): ?>
                                 <p>
-                                    Brak nowych zapytań wymagających obsługi.
+                                    Brak nowych zapytań ani zapytań w trakcie obsługi.
                                 </p>
                             <?php endif; ?>
                         </div>
 
-                        <?php if ($newInquiries !== []): ?>
+                        <?php if ($activeInquiries !== []): ?>
                             <div class="status-list">
                                 <?php foreach (
-                                    $newInquiries
+                                    $activeInquiries
                                     as $inquiry
                                 ): ?>
+                                    <?php $inquiryStatus =
+                                        $inquiryStatusPresentation(
+                                            $inquiry
+                                        ); ?>
+
                                     <a
                                         class="status-row"
                                         href="/admin/zapytania/pokaz?id=<?= (int) (
@@ -958,20 +1024,42 @@ $inquiryGuestName = static function (
                                             ) ?>
                                         </span>
 
-                                        <strong>
-                                            <?= htmlspecialchars(
-                                                formatDateForDisplay(
-                                                    (string) (
-                                                        $inquiry[
-                                                            'date_from'
-                                                        ]
-                                                        ?? ''
-                                                    )
-                                                ),
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </strong>
+                                        <div
+                                            class="dashboard-inquiry-row__meta"
+                                        >
+                                            <strong>
+                                                <?= htmlspecialchars(
+                                                    formatDateForDisplay(
+                                                        (string) (
+                                                            $inquiry[
+                                                                'date_from'
+                                                            ]
+                                                            ?? ''
+                                                        )
+                                                    ),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </strong>
+
+                                            <small
+                                                class="dashboard-inquiry-status <?= htmlspecialchars(
+                                                    (string) $inquiryStatus[
+                                                        'class'
+                                                    ],
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>"
+                                            >
+                                                <?= htmlspecialchars(
+                                                    (string) $inquiryStatus[
+                                                        'label'
+                                                    ],
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </small>
+                                        </div>
                                     </a>
                                 <?php endforeach; ?>
                             </div>
