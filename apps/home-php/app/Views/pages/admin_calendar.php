@@ -485,6 +485,18 @@ $reservationBarClass = static function (array $reservation): string {
     $paid = (float) ($reservation['paid_amount'] ?? 0);
     $remaining = max($total - $paid, 0);
     $status = (string) ($reservation['status'] ?? '');
+    $paymentStatus = strtoupper(
+        trim(
+            (string) (
+                $reservation['payment_status']
+                ?? ''
+            )
+        )
+    );
+
+    if ($paymentStatus === 'PENDING') {
+        return 'calendar-status--pending';
+    }
 
     if ($remaining > 0) {
         return 'calendar-status--remaining';
