@@ -563,6 +563,31 @@ $displayDateTime = static function (mixed $value): string {
                             <strong><?= htmlspecialchars(sourceLabelForDisplay((string) $reservation['source']), ENT_QUOTES, 'UTF-8') ?></strong>
                         </div>
 
+                        <?php if (trim((string) ($reservation['notes'] ?? '')) !== ''): ?>
+                            <div class="status-row">
+                                <span>Notatki</span>
+
+                                <strong
+                                    style="
+                                        max-width: 65%;
+                                        white-space: normal;
+                                        text-align: right;
+                                        overflow-wrap: anywhere;
+                                    "
+                                >
+                                    <?= nl2br(
+                                        htmlspecialchars(
+                                            trim(
+                                                (string) $reservation['notes']
+                                            ),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        )
+                                    ) ?>
+                                </strong>
+                            </div>
+                        <?php endif; ?>
+
 
                     </div>
 
@@ -689,6 +714,81 @@ $displayDateTime = static function (mixed $value): string {
                         </p>
                     </div>
 
+                    <?php
+                    $guestEmailSent =
+                        isset($_GET['email_sent'])
+                        && (string) $_GET['email_sent'] === '1';
+
+                    $guestEmailErrorCode =
+                        isset($_GET['email_error'])
+                            ? trim(
+                                (string) $_GET['email_error']
+                            )
+                            : '';
+
+                    $guestEmailErrorMessage =
+                        match ($guestEmailErrorCode) {
+                            'database' =>
+                                'Brak połączenia z bazą danych.',
+
+                            'not_found' =>
+                                'Nie znaleziono rezerwacji albo zapytania.',
+
+                            'invalid_recipient' =>
+                                'Adres e-mail gościa jest pusty '
+                                . 'lub nieprawidłowy.',
+
+                            'disabled' =>
+                                'Wysyłka e-mail jest wyłączona '
+                                . 'w konfiguracji aplikacji.',
+
+                            'send' =>
+                                'Serwer pocztowy nie potwierdził '
+                                . 'wysłania wiadomości.',
+
+                            default =>
+                                $guestEmailErrorCode !== ''
+                                    ? 'Nie udało się wysłać wiadomości.'
+                                    : null,
+                        };
+                    ?>
+
+                    <?php if ($guestEmailSent): ?>
+                        <div class="empty-state">
+                            <strong>
+                                Wiadomość e-mail została wysłana
+                            </strong>
+
+                            <p>
+                                Odbiorca:
+                                <?= htmlspecialchars(
+                                    trim(
+                                        (string) (
+                                            $reservation['email']
+                                            ?? ''
+                                        )
+                                    ),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </p>
+                        </div>
+                    <?php elseif ($guestEmailErrorMessage !== null): ?>
+                        <div class="empty-state">
+                            <strong>
+                                Nie udało się wysłać wiadomości
+                            </strong>
+
+                            <p>
+                                <?= htmlspecialchars(
+                                    $guestEmailErrorMessage,
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
+
                     <?php if ($reservationMessageTemplates === []): ?>
                         <div class="empty-state">
                             <strong>Brak aktywnych szablonów</strong>
@@ -753,8 +853,57 @@ $displayDateTime = static function (mixed $value): string {
                             </div>
 
                             <div class="form-actions">
+                                <form
+                                    class="js-send-guest-email"
+                                    data-message-target="<?= htmlspecialchars(
+                                        $textareaId,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>"
+                                    method="post"
+                                    action="/admin/wiadomosci/wyslij"
+                                    style="display: inline-flex; margin: 0;"
+                                >
+                                    <?= csrfField() ?>
+
+                                    <input
+                                        type="hidden"
+                                        name="context"
+                                        value="RESERVATION"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        name="record_id"
+                                        value="<?= htmlspecialchars((string) $reservation['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        name="subject"
+                                        value="<?= htmlspecialchars(
+                                            $messageTemplateName,
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>"
+                                    >
+
+                                    <textarea
+                                        class="js-send-guest-email-body"
+                                        name="body"
+                                        hidden
+                                    ></textarea>
+
+                                    <button
+                                        class="button button--primary"
+                                        type="submit"
+                                    >
+                                        Wyślij e-mail
+                                    </button>
+                                </form>
+
                                 <button
-                                    class="button button--primary js-copy-message-template"
+                                    class="button button--secondary js-copy-message-template"
                                     data-copy-target="<?= htmlspecialchars(
                                         $textareaId,
                                         ENT_QUOTES,
@@ -774,16 +923,6 @@ $displayDateTime = static function (mixed $value): string {
                             </div>
                         </div>
                     <?php endforeach; ?>
-
-                    <?php if ($reservation['notes'] !== null && $reservation['notes'] !== ''): ?>
-                        <div class="empty-state">
-                            <strong>Notatki</strong>
-
-                            <p>
-                                <?= nl2br(htmlspecialchars($reservation['notes'], ENT_QUOTES, 'UTF-8')) ?>
-                            </p>
-                        </div>
-                    <?php endif; ?>
 
                     
 
@@ -986,6 +1125,68 @@ document.addEventListener('DOMContentLoaded', function () {
                     textarea.focus();
                     textarea.select();
                 }
+            }
+        );
+    });
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const sendForms = document.querySelectorAll(
+        '.js-send-guest-email'
+    );
+
+    sendForms.forEach(function (sendForm) {
+        sendForm.addEventListener(
+            'submit',
+            function (event) {
+                const targetId = sendForm.getAttribute(
+                    'data-message-target'
+                );
+
+                const bodyField = sendForm.querySelector(
+                    '.js-send-guest-email-body'
+                );
+
+                const messageField = targetId
+                    ? document.getElementById(targetId)
+                    : null;
+
+                if (!messageField || !bodyField) {
+                    event.preventDefault();
+
+                    window.alert(
+                        'Nie udało się odczytać treści wiadomości.'
+                    );
+
+                    return;
+                }
+
+                if (messageField.value.trim() === '') {
+                    event.preventDefault();
+
+                    window.alert(
+                        'Treść wiadomości nie może być pusta.'
+                    );
+
+                    messageField.focus();
+
+                    return;
+                }
+
+                const confirmed = window.confirm(
+                    'Wysłać tę wiadomość e-mail do gościa?'
+                );
+
+                if (!confirmed) {
+                    event.preventDefault();
+
+                    return;
+                }
+
+                bodyField.value = messageField.value;
             }
         );
     });

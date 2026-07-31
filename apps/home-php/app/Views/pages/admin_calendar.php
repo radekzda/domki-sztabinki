@@ -2464,6 +2464,20 @@ $summaryCards = [
         }
     }
 
+
+    .pms-calendar-tooltip__notes {
+        align-items: flex-start !important;
+    }
+
+    .pms-calendar-tooltip__notes b {
+        max-width: 165px !important;
+        overflow: visible !important;
+        white-space: normal !important;
+        text-align: right;
+        text-overflow: clip !important;
+        overflow-wrap: anywhere;
+    }
+
 </style>
 
 <section class="page-section">
@@ -2876,6 +2890,22 @@ $summaryCards = [
                                                                         <em>Źródło</em>
                                                                         <b><?= htmlspecialchars(sourceLabelForDisplay((string) ($barReservation['source'] ?? '')), ENT_QUOTES, 'UTF-8') ?></b>
                                                                     </span>
+
+                                                                    <?php if (trim((string) ($barReservation['notes'] ?? '')) !== ''): ?>
+                                                                        <span class="pms-calendar-tooltip__notes">
+                                                                            <em>Notatki</em>
+
+                                                                            <b><?= nl2br(
+                                                                                htmlspecialchars(
+                                                                                    trim(
+                                                                                        (string) $barReservation['notes']
+                                                                                    ),
+                                                                                    ENT_QUOTES,
+                                                                                    'UTF-8'
+                                                                                )
+                                                                            ) ?></b>
+                                                                        </span>
+                                                                    <?php endif; ?>
                                                                 </span>
                                                                 </a>
                                                             <?php endif; ?>

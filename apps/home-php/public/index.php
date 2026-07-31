@@ -4893,4 +4893,196 @@ $router->get('/admin/system/importy', function (): void {
     ImportAuditController::show();
 });
 
+
+$router->post(
+    '/admin/wiadomosci/wyslij',
+    function (): void {
+        Auth::requireAdmin();
+        requireValidCsrf();
+
+        $context = strtoupper(
+            trim(
+                is_string(
+                    $_POST['context']
+                    ?? null
+                )
+                    ? $_POST['context']
+                    : ''
+            )
+        );
+
+        $recordId = filter_var(
+            $_POST['record_id']
+            ?? null,
+            FILTER_VALIDATE_INT
+        );
+
+        $subject = trim(
+            is_string(
+                $_POST['subject']
+                ?? null
+            )
+                ? $_POST['subject']
+                : ''
+        );
+
+        $body = trim(
+            is_string(
+                $_POST['body']
+                ?? null
+            )
+                ? $_POST['body']
+                : ''
+        );
+
+        $subject = preg_replace(
+            '/[\r\n]+/',
+            ' ',
+            $subject
+        ) ?? '';
+
+        $allowedContexts = [
+            'RESERVATION',
+            'INQUIRY',
+        ];
+
+        if (
+            !in_array(
+                $context,
+                $allowedContexts,
+                true
+            )
+            || !is_int($recordId)
+            || $recordId < 1
+            || $subject === ''
+            || $body === ''
+            || (
+                function_exists('mb_strlen')
+                    ? mb_strlen($subject)
+                    : strlen($subject)
+            ) > 180
+            || (
+                function_exists('mb_strlen')
+                    ? mb_strlen($body)
+                    : strlen($body)
+            ) > 50000
+        ) {
+            Response::html(
+                View::render(
+                    'pages/error',
+                    [
+                        'title' =>
+                            'Nieprawidłowe dane wiadomości',
+
+                        'message' =>
+                            'Nie można wysłać wiadomości, '
+                            . 'ponieważ jej dane są '
+                            . 'nieprawidłowe.',
+                    ]
+                ),
+                400
+            );
+
+            return;
+        }
+
+        $redirectPath =
+            $context === 'RESERVATION'
+                ? '/admin/rezerwacje/pokaz'
+                : '/admin/zapytania/pokaz';
+
+        $redirect = static function (
+            string $result
+        ) use (
+            $redirectPath,
+            $recordId
+        ): void {
+            $query = [
+                'id' => $recordId,
+            ];
+
+            if ($result === 'sent') {
+                $query['email_sent'] = '1';
+            } else {
+                $query['email_error'] = $result;
+            }
+
+            Response::redirect(
+                $redirectPath
+                . '?'
+                . http_build_query($query)
+            );
+        };
+
+        if (!Database::canAttemptConnection()) {
+            $redirect('database');
+
+            return;
+        }
+
+        try {
+            $record =
+                $context === 'RESERVATION'
+                    ? ReservationRepository::find(
+                        $recordId
+                    )
+                    : InquiryRepository::find(
+                        $recordId
+                    );
+
+            if ($record === null) {
+                $redirect('not_found');
+
+                return;
+            }
+
+            $recipient = trim(
+                (string) (
+                    $record['email']
+                    ?? ''
+                )
+            );
+
+            if (
+                filter_var(
+                    $recipient,
+                    FILTER_VALIDATE_EMAIL
+                ) === false
+            ) {
+                $redirect('invalid_recipient');
+
+                return;
+            }
+
+            if (!Mailer::isEnabled()) {
+                $redirect('disabled');
+
+                return;
+            }
+
+            $sent = Mailer::sendSafely(
+                $recipient,
+                $subject,
+                $body
+            );
+
+            $redirect(
+                $sent
+                    ? 'sent'
+                    : 'send'
+            );
+        } catch (Throwable $exception) {
+            error_log(
+                'Wysyłka wiadomości do gościa '
+                . 'nie powiodła się: '
+                . $exception::class
+                . ': '
+                . $exception->getMessage()
+            );
+
+            $redirect('send');
+        }
+    }
+);
+
 $router->dispatch($_SERVER['REQUEST_METHOD'] ?? 'GET', $_SERVER['REQUEST_URI'] ?? '/');
