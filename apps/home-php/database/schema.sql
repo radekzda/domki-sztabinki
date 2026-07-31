@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS invoice_sellers (
 
     bank_account_holder VARCHAR(190) NULL,
     bank_account_number VARCHAR(80) NULL,
+    deposit_bank_account_number VARCHAR(80) NULL,
 
     invoice_series VARCHAR(40) NOT NULL DEFAULT 'FV',
 

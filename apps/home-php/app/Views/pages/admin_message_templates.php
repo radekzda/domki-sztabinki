@@ -458,6 +458,7 @@ $contextLabels = [
                             <code>{{deposit_amount}}</code>
                             <code>{{bank_account_holder}}</code>
                             <code>{{bank_account_number}}</code>
+                            <code>{{konto_zadatków}}</code>
                             <code>{{payment_title}}</code>
                             <code>{{check_in_time}}</code>
                             <code>{{check_out_time}}</code>

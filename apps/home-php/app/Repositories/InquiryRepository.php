@@ -94,6 +94,7 @@ final class InquiryRepository
      *     cabin_name: string|null,
      *     reservation_id: int|null,
      *     linked_cabin_name: string|null,
+     *     deposit_bank_account_number: string|null,
      *     date_from: string,
      *     date_to: string,
      *     guests: int,
@@ -112,6 +113,7 @@ final class InquiryRepository
     public static function find(int $id): ?array
     {
         self::ensureTable();
+        InvoiceSellerRepository::ensureStructure();
 
         $connection = Database::connection();
 
@@ -127,6 +129,7 @@ final class InquiryRepository
                 inquiries.cabin_name,
                 inquiries.reservation_id,
                 cabins.name AS linked_cabin_name,
+                invoice_sellers.deposit_bank_account_number,
                 inquiries.date_from,
                 inquiries.date_to,
                 inquiries.guests,
@@ -142,6 +145,9 @@ final class InquiryRepository
                 inquiries.created_at
             FROM inquiries
             LEFT JOIN cabins ON cabins.id = inquiries.cabin_id
+            LEFT JOIN invoice_sellers
+                ON invoice_sellers.id =
+                    cabins.invoice_seller_id
             WHERE inquiries.id = :id
             LIMIT 1'
         );
@@ -156,7 +162,18 @@ final class InquiryRepository
             return null;
         }
 
-        return self::mapRow($row);
+        $result = self::mapRow($row);
+
+        $result['deposit_bank_account_number'] =
+            isset(
+                $row['deposit_bank_account_number']
+            )
+                ? (string) $row[
+                    'deposit_bank_account_number'
+                ]
+                : null;
+
+        return $result;
     }
 
     /**

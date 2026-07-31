@@ -106,6 +106,10 @@ final class MessageTemplateRenderer
                         ?? ''
                     )
                 ),
+                'konto_zadatków' => self::depositAccount(
+                    $reservation,
+                    $settings
+                ),
                 'payment_title' => $paymentTitle,
                 'check_in_time' => trim(
                     (string) (
@@ -263,6 +267,10 @@ final class MessageTemplateRenderer
                         ?? ''
                     )
                 ),
+                'konto_zadatków' => self::depositAccount(
+                    $inquiry,
+                    $settings
+                ),
                 'payment_title' => '',
                 'check_in_time' => trim(
                     (string) (
@@ -316,6 +324,37 @@ final class MessageTemplateRenderer
         return strtr(
             $template,
             $replacements
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, string> $settings
+     */
+    private static function depositAccount(
+        array $context,
+        array $settings
+    ): string {
+        $sellerAccount = trim(
+            (string) (
+                $context[
+                    'deposit_bank_account_number'
+                ]
+                ?? ''
+            )
+        );
+
+        if ($sellerAccount !== '') {
+            return $sellerAccount;
+        }
+
+        return trim(
+            (string) (
+                $settings[
+                    'bank_account_number'
+                ]
+                ?? ''
+            )
         );
     }
 

@@ -568,6 +568,48 @@ $error = static function (
                             <div
                                 class="form-field form-field--full"
                             >
+                                <label
+                                    for="deposit_bank_account_number"
+                                >
+                                    Konto do zadatków
+                                </label>
+
+                                <input
+                                    id="deposit_bank_account_number"
+                                    name="deposit_bank_account_number"
+                                    type="text"
+                                    maxlength="80"
+                                    value="<?= $value(
+                                        'deposit_bank_account_number'
+                                    ) ?>"
+                                >
+
+                                <span class="invoice-seller-help">
+                                    To konto będzie podstawiane
+                                    w szablonach jako
+                                    {{konto_zadatków}}.
+                                </span>
+
+                                <?php if (
+                                    $error(
+                                        'deposit_bank_account_number'
+                                    ) !== null
+                                ): ?>
+                                    <span class="form-error">
+                                        <?= htmlspecialchars(
+                                            (string) $error(
+                                                'deposit_bank_account_number'
+                                            ),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+
+                            <div
+                                class="form-field form-field--full"
+                            >
                                 <div class="invoice-seller-checkbox">
                                     <input
                                         id="is_active"

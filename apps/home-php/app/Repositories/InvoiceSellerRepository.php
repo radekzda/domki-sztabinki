@@ -35,6 +35,7 @@ final class InvoiceSellerRepository
 
                 bank_account_holder VARCHAR(190) NULL,
                 bank_account_number VARCHAR(80) NULL,
+                deposit_bank_account_number VARCHAR(80) NULL,
 
                 invoice_series VARCHAR(40)
                     NOT NULL DEFAULT "FV",
@@ -57,6 +58,10 @@ final class InvoiceSellerRepository
             ) ENGINE=InnoDB
             DEFAULT CHARSET=utf8mb4
             COLLATE=utf8mb4_unicode_ci'
+        );
+
+        self::ensureDepositBankAccountColumn(
+            $connection
         );
 
         self::ensureCabinSellerColumn(
@@ -90,6 +95,7 @@ final class InvoiceSellerRepository
                 invoice_sellers.phone,
                 invoice_sellers.bank_account_holder,
                 invoice_sellers.bank_account_number,
+                invoice_sellers.deposit_bank_account_number,
                 invoice_sellers.invoice_series,
                 invoice_sellers.is_active,
                 invoice_sellers.created_at,
@@ -121,6 +127,7 @@ final class InvoiceSellerRepository
                 invoice_sellers.phone,
                 invoice_sellers.bank_account_holder,
                 invoice_sellers.bank_account_number,
+                invoice_sellers.deposit_bank_account_number,
                 invoice_sellers.invoice_series,
                 invoice_sellers.is_active,
                 invoice_sellers.created_at,
@@ -174,6 +181,7 @@ final class InvoiceSellerRepository
                 invoice_sellers.phone,
                 invoice_sellers.bank_account_holder,
                 invoice_sellers.bank_account_number,
+                invoice_sellers.deposit_bank_account_number,
                 invoice_sellers.invoice_series,
                 invoice_sellers.is_active,
                 invoice_sellers.created_at,
@@ -197,6 +205,7 @@ final class InvoiceSellerRepository
                 invoice_sellers.phone,
                 invoice_sellers.bank_account_holder,
                 invoice_sellers.bank_account_number,
+                invoice_sellers.deposit_bank_account_number,
                 invoice_sellers.invoice_series,
                 invoice_sellers.is_active,
                 invoice_sellers.created_at,
@@ -238,6 +247,7 @@ final class InvoiceSellerRepository
                 phone,
                 bank_account_holder,
                 bank_account_number,
+                deposit_bank_account_number,
                 invoice_series,
                 is_active
             ) VALUES (
@@ -252,6 +262,7 @@ final class InvoiceSellerRepository
                 :phone,
                 :bank_account_holder,
                 :bank_account_number,
+                :deposit_bank_account_number,
                 :invoice_series,
                 :is_active
             )'
@@ -311,6 +322,8 @@ final class InvoiceSellerRepository
                     :bank_account_holder,
                 bank_account_number =
                     :bank_account_number,
+                deposit_bank_account_number =
+                    :deposit_bank_account_number,
                 invoice_series =
                     :invoice_series,
                 is_active = :is_active
@@ -528,6 +541,14 @@ final class InvoiceSellerRepository
                     ?? null
                 ),
 
+            'deposit_bank_account_number' =>
+                self::nullableText(
+                    $data[
+                        'deposit_bank_account_number'
+                    ]
+                    ?? null
+                ),
+
             'invoice_series' =>
                 $invoiceSeries,
 
@@ -537,6 +558,30 @@ final class InvoiceSellerRepository
                     ?? true
                 ),
         ];
+    }
+
+    private static function ensureDepositBankAccountColumn(
+        PDO $connection
+    ): void {
+        $columnStatement =
+            $connection->query(
+                'SHOW COLUMNS
+                FROM invoice_sellers
+                LIKE "deposit_bank_account_number"'
+            );
+
+        $columnExists =
+            $columnStatement !== false
+            && $columnStatement->fetch() !== false;
+
+        if (!$columnExists) {
+            $connection->exec(
+                'ALTER TABLE invoice_sellers
+                ADD COLUMN deposit_bank_account_number
+                    VARCHAR(80) NULL
+                AFTER bank_account_number'
+            );
+        }
     }
 
     private static function ensureCabinSellerColumn(

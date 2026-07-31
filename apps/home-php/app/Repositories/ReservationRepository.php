@@ -126,6 +126,7 @@ final class ReservationRepository
      *     cabin_id: int,
      *     guest_id: int|null,
      *     cabin_name: string|null,
+     *     deposit_bank_account_number: string|null,
      *     linked_guest_name: string|null,
      *     guest_name: string,
      *     email: string,
@@ -147,6 +148,8 @@ final class ReservationRepository
      */
     public static function find(int $id): ?array
     {
+        InvoiceSellerRepository::ensureStructure();
+
         $connection = Database::connection();
 
         $statement = $connection->prepare(
@@ -155,6 +158,7 @@ final class ReservationRepository
                 reservations.cabin_id,
                 reservations.guest_id,
                 cabins.name AS cabin_name,
+                invoice_sellers.deposit_bank_account_number,
                 CONCAT(guests.first_name, " ", guests.last_name) AS linked_guest_name,
                 reservations.guest_name,
                 reservations.email,
@@ -182,6 +186,9 @@ final class ReservationRepository
                 reservations.created_at
             FROM reservations
             LEFT JOIN cabins ON cabins.id = reservations.cabin_id
+            LEFT JOIN invoice_sellers
+                ON invoice_sellers.id =
+                    cabins.invoice_seller_id
             LEFT JOIN guests ON guests.id = reservations.guest_id
             WHERE reservations.id = :id
             LIMIT 1'
@@ -202,6 +209,14 @@ final class ReservationRepository
             'cabin_id' => (int) ($row['cabin_id'] ?? 0),
             'guest_id' => isset($row['guest_id']) ? (int) $row['guest_id'] : null,
             'cabin_name' => isset($row['cabin_name']) ? (string) $row['cabin_name'] : null,
+            'deposit_bank_account_number' =>
+                isset(
+                    $row['deposit_bank_account_number']
+                )
+                    ? (string) $row[
+                        'deposit_bank_account_number'
+                    ]
+                    : null,
             'linked_guest_name' => isset($row['linked_guest_name']) ? (string) $row['linked_guest_name'] : null,
             'guest_name' => (string) ($row['guest_name'] ?? ''),
             'email' => (string) ($row['email'] ?? ''),

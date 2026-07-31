@@ -388,6 +388,7 @@ final class InvoiceSellerController
             'phone' => '',
             'bank_account_holder' => '',
             'bank_account_number' => '',
+            'deposit_bank_account_number' => '',
             'invoice_series' => 'FV',
             'is_active' => '1',
         ];
@@ -521,6 +522,18 @@ final class InvoiceSellerController
                 'Wpisz prawidłowy adres e-mail.';
         }
 
+        if (
+            strlen(
+                $form['deposit_bank_account_number']
+            ) > 80
+        ) {
+            $errors[
+                'deposit_bank_account_number'
+            ] =
+                'Konto do zadatków może mieć '
+                . 'maksymalnie 80 znaków.';
+        }
+
         if ($form['invoice_series'] === '') {
             $errors['invoice_series'] =
                 'Seria faktur jest wymagana.';
@@ -563,6 +576,8 @@ final class InvoiceSellerController
                 $form['bank_account_holder'],
             'bank_account_number' =>
                 $form['bank_account_number'],
+            'deposit_bank_account_number' =>
+                $form['deposit_bank_account_number'],
             'invoice_series' =>
                 $form['invoice_series'],
             'is_active' =>
