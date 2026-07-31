@@ -316,6 +316,21 @@ $error = static function (
                                     w tym miesiącu
                                 </label>
 
+                                <div
+                                    id="previous_invoice_number_display"
+                                    style="
+                                        margin-bottom: 8px;
+                                        padding: 10px 12px;
+                                        border: 1px solid #dbe3ea;
+                                        border-radius: 8px;
+                                        background: #f8fafc;
+                                        font-size: 15px;
+                                        line-height: 1.3;
+                                        font-weight: 700;
+                                        color: #111827;
+                                    "
+                                ></div>
+
                                 <input
                                     id="previous_sequence_number"
                                     name="previous_sequence_number"
@@ -329,8 +344,8 @@ $error = static function (
                                 >
 
                                 <small>
-                                    Wpisz część liczbową numeru
-                                    poprzedniej faktury.
+                                    Poniżej możesz zmienić część
+                                    liczbową numeru poprzedniej faktury.
                                     Możesz wpisać także wcześniejszy
                                     numer, aby ponownie wykorzystać
                                     numer faktury usuniętej z systemu.
@@ -1612,6 +1627,11 @@ $error = static function (
             'previous_sequence_number'
         );
 
+    const previousInvoiceDisplay =
+        document.getElementById(
+            'previous_invoice_number_display'
+        );
+
     const preview =
         document.getElementById(
             'invoice_number_preview'
@@ -1621,6 +1641,7 @@ $error = static function (
         !seriesInput
         || !issueDateInput
         || !previousNumberInput
+        || !previousInvoiceDisplay
         || !preview
     ) {
         return;
@@ -1656,7 +1677,9 @@ $error = static function (
             series === ''
             || dateParts.length !== 3
         ) {
+            previousInvoiceDisplay.textContent = '';
             preview.textContent = '';
+
             return;
         }
 
@@ -1664,6 +1687,21 @@ $error = static function (
         const month = dateParts[1];
         const nextNumber =
             previousNumber + 1;
+
+        if (previousNumber > 0) {
+            previousInvoiceDisplay.textContent =
+                series
+                + '/'
+                + previousNumber
+                + '/'
+                + month
+                + '/'
+                + year;
+        } else {
+            previousInvoiceDisplay.textContent =
+                'Brak wystawionej faktury '
+                + 'w tym miesiącu';
+        }
 
         preview.textContent =
             'Następna faktura: '

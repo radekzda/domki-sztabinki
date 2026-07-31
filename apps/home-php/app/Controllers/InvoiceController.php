@@ -597,7 +597,7 @@ final class InvoiceController
         );
 
         $previousSequenceNumber =
-            InvoiceRepository::lastSequenceNumber(
+            InvoiceRepository::lastExistingSequenceNumber(
                 (int) (
                     $seller['id']
                     ?? 0

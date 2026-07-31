@@ -359,6 +359,82 @@ final class InvoiceRepository
         return $invoice;
     }
 
+    /**
+     * Zwraca najwyższy numer faktury, która rzeczywiście
+     * istnieje dla sprzedawcy w podanym miesiącu.
+     *
+     * Nie korzysta z licznika invoice_sequences.
+     */
+    public static function lastExistingSequenceNumber(
+        int $sellerId,
+        string $series,
+        string $issueDate
+    ): int {
+        if ($sellerId < 1) {
+            return 0;
+        }
+
+        self::ensureStructure();
+
+        $normalizedSeries =
+            self::normalizeSeries(
+                $series
+            );
+
+        $normalizedDate =
+            self::normalizeDate(
+                $issueDate,
+                'Data wystawienia'
+            );
+
+        $year = (int) substr(
+            $normalizedDate,
+            0,
+            4
+        );
+
+        $month = (int) substr(
+            $normalizedDate,
+            5,
+            2
+        );
+
+        $statement =
+            Database::connection()->prepare(
+                'SELECT COALESCE(
+                    MAX(sequence_number),
+                    0
+                )
+                FROM invoices
+                WHERE seller_id = :seller_id
+                AND series = :series
+                AND sequence_year = :sequence_year
+                AND sequence_month = :sequence_month'
+            );
+
+        $statement->execute([
+            'seller_id' =>
+                $sellerId,
+
+            'series' =>
+                $normalizedSeries,
+
+            'sequence_year' =>
+                $year,
+
+            'sequence_month' =>
+                $month,
+        ]);
+
+        return max(
+            0,
+            (int) (
+                $statement->fetchColumn()
+                ?: 0
+            )
+        );
+    }
+
     public static function lastSequenceNumber(
         int $sellerId,
         string $series,
