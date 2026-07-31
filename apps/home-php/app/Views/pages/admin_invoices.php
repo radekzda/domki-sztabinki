@@ -72,7 +72,7 @@ $paymentLabels = [
 
     .invoices-table {
         width: 100%;
-        min-width: 1050px;
+        min-width: 1220px;
         border-collapse: collapse;
         table-layout: fixed;
     }
@@ -91,6 +91,41 @@ $paymentLabels = [
         text-align: left;
         text-transform: uppercase;
         color: #6b7280;
+    }
+
+    .invoice-sort-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        width: 100%;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-weight: inherit;
+        letter-spacing: inherit;
+        text-align: left;
+        text-transform: inherit;
+        cursor: pointer;
+    }
+
+    .invoice-sort-button:hover,
+    .invoice-sort-button:focus-visible {
+        color: #111827;
+    }
+
+    .invoice-sort-button:focus-visible {
+        outline: 2px solid #15803d;
+        outline-offset: 3px;
+        border-radius: 3px;
+    }
+
+    .invoice-sort-indicator {
+        min-width: 10px;
+        font-size: 10px;
+        line-height: 1;
+        color: #15803d;
     }
 
     .invoices-table td {
@@ -119,6 +154,14 @@ $paymentLabels = [
         margin-bottom: 5px;
         font-size: 14px;
         color: #111827;
+    }
+
+    .invoice-owner {
+        display: block;
+        font-size: 14px;
+        line-height: 1.35;
+        color: #111827;
+        overflow-wrap: anywhere;
     }
 
     .invoice-meta {
@@ -334,31 +377,154 @@ $paymentLabels = [
                             >
                                 <thead>
                                     <tr>
-                                        <th style="width: 16%;">
-                                            Numer
+                                        <th
+                                            style="width: 14%;"
+                                            aria-sort="none"
+                                        >
+                                            <button
+                                                class="invoice-sort-button"
+                                                type="button"
+                                                data-sort-index="0"
+                                                data-sort-type="text"
+                                            >
+                                                Numer
+
+                                                <span
+                                                    class="
+                                                        invoice-sort-indicator
+                                                    "
+                                                    aria-hidden="true"
+                                                ></span>
+                                            </button>
                                         </th>
 
-                                        <th style="width: 12%;">
-                                            Data
+                                        <th
+                                            style="width: 14%;"
+                                            aria-sort="none"
+                                        >
+                                            <button
+                                                class="invoice-sort-button"
+                                                type="button"
+                                                data-sort-index="1"
+                                                data-sort-type="text"
+                                            >
+                                                Właściciel
+
+                                                <span
+                                                    class="
+                                                        invoice-sort-indicator
+                                                    "
+                                                    aria-hidden="true"
+                                                ></span>
+                                            </button>
                                         </th>
 
-                                        <th style="width: 19%;">
-                                            Nabywca
+                                        <th
+                                            style="width: 11%;"
+                                            aria-sort="none"
+                                        >
+                                            <button
+                                                class="invoice-sort-button"
+                                                type="button"
+                                                data-sort-index="2"
+                                                data-sort-type="date"
+                                            >
+                                                Data
+
+                                                <span
+                                                    class="
+                                                        invoice-sort-indicator
+                                                    "
+                                                    aria-hidden="true"
+                                                ></span>
+                                            </button>
                                         </th>
 
-                                        <th style="width: 16%;">
-                                            Rezerwacja
+                                        <th
+                                            style="width: 17%;"
+                                            aria-sort="none"
+                                        >
+                                            <button
+                                                class="invoice-sort-button"
+                                                type="button"
+                                                data-sort-index="3"
+                                                data-sort-type="text"
+                                            >
+                                                Nabywca
+
+                                                <span
+                                                    class="
+                                                        invoice-sort-indicator
+                                                    "
+                                                    aria-hidden="true"
+                                                ></span>
+                                            </button>
                                         </th>
 
-                                        <th style="width: 15%;">
-                                            Status
+                                        <th
+                                            style="width: 14%;"
+                                            aria-sort="none"
+                                        >
+                                            <button
+                                                class="invoice-sort-button"
+                                                type="button"
+                                                data-sort-index="4"
+                                                data-sort-type="text"
+                                            >
+                                                Rezerwacja
+
+                                                <span
+                                                    class="
+                                                        invoice-sort-indicator
+                                                    "
+                                                    aria-hidden="true"
+                                                ></span>
+                                            </button>
                                         </th>
 
-                                        <th style="width: 12%;">
-                                            Brutto
+                                        <th
+                                            style="width: 13%;"
+                                            aria-sort="none"
+                                        >
+                                            <button
+                                                class="invoice-sort-button"
+                                                type="button"
+                                                data-sort-index="5"
+                                                data-sort-type="text"
+                                            >
+                                                Status
+
+                                                <span
+                                                    class="
+                                                        invoice-sort-indicator
+                                                    "
+                                                    aria-hidden="true"
+                                                ></span>
+                                            </button>
                                         </th>
 
-                                        <th style="width: 10%;">
+                                        <th
+                                            style="width: 10%;"
+                                            aria-sort="none"
+                                        >
+                                            <button
+                                                class="invoice-sort-button"
+                                                type="button"
+                                                data-sort-index="6"
+                                                data-sort-type="number"
+                                            >
+                                                Brutto
+
+                                                <span
+                                                    class="
+                                                        invoice-sort-indicator
+                                                    "
+                                                    aria-hidden="true"
+                                                ></span>
+                                            </button>
+                                        </th>
+
+                                        <th style="width: 7%;">
                                             Akcje
                                         </th>
                                     </tr>
@@ -459,6 +625,29 @@ $paymentLabels = [
                                                         'UTF-8'
                                                     ) ?>
                                                 </div>
+                                            </td>
+
+                                            <td>
+                                                <strong
+                                                    class="invoice-owner"
+                                                >
+                                                    <?= htmlspecialchars(
+                                                        trim(
+                                                            (string) (
+                                                                $invoice[
+                                                                    'seller_name'
+                                                                ]
+                                                                ?? ''
+                                                            )
+                                                        ) !== ''
+                                                            ? (string) $invoice[
+                                                                'seller_name'
+                                                            ]
+                                                            : '—',
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
+                                                </strong>
                                             </td>
 
                                             <td>
@@ -711,3 +900,214 @@ $paymentLabels = [
         </div>
     </div>
 </section>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const table = document.querySelector(
+        '.invoices-table'
+    );
+
+    if (!table) {
+        return;
+    }
+
+    const tbody = table.querySelector('tbody');
+    const buttons = table.querySelectorAll(
+        '.invoice-sort-button'
+    );
+
+    if (!tbody || buttons.length === 0) {
+        return;
+    }
+
+    const collator = new Intl.Collator(
+        'pl',
+        {
+            numeric: true,
+            sensitivity: 'base',
+        }
+    );
+
+    const textValue = function (cell) {
+        return cell
+            ? cell.textContent.trim()
+            : '';
+    };
+
+    const dateValue = function (cell) {
+        if (!cell) {
+            return 0;
+        }
+
+        const primary = cell.querySelector('strong');
+        const value = primary
+            ? primary.textContent.trim()
+            : cell.textContent.trim();
+
+        const match = value.match(
+            /^(\d{2})\.(\d{2})\.(\d{4})$/
+        );
+
+        if (!match) {
+            return 0;
+        }
+
+        return Date.UTC(
+            Number(match[3]),
+            Number(match[2]) - 1,
+            Number(match[1])
+        );
+    };
+
+    const numberValue = function (cell) {
+        if (!cell) {
+            return 0;
+        }
+
+        const primary = cell.querySelector('strong');
+        const value = primary
+            ? primary.textContent
+            : cell.textContent;
+
+        const normalized = value
+            .replace(/\s+/g, '')
+            .replace(',', '.')
+            .replace(/[^0-9.-]/g, '');
+
+        const parsed = Number.parseFloat(normalized);
+
+        return Number.isFinite(parsed)
+            ? parsed
+            : 0;
+    };
+
+    const cellValue = function (
+        row,
+        index,
+        type
+    ) {
+        const cell = row.cells[index];
+
+        if (type === 'date') {
+            return dateValue(cell);
+        }
+
+        if (type === 'number') {
+            return numberValue(cell);
+        }
+
+        return textValue(cell);
+    };
+
+    buttons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            const index = Number.parseInt(
+                button.dataset.sortIndex || '',
+                10
+            );
+
+            const type =
+                button.dataset.sortType || 'text';
+
+            if (!Number.isInteger(index)) {
+                return;
+            }
+
+            const currentDirection =
+                button.dataset.sortDirection || '';
+
+            const direction =
+                currentDirection === 'asc'
+                    ? 'desc'
+                    : 'asc';
+
+            buttons.forEach(function (otherButton) {
+                otherButton.dataset.sortDirection = '';
+
+                const indicator =
+                    otherButton.querySelector(
+                        '.invoice-sort-indicator'
+                    );
+
+                if (indicator) {
+                    indicator.textContent = '';
+                }
+
+                const header = otherButton.closest('th');
+
+                if (header) {
+                    header.setAttribute(
+                        'aria-sort',
+                        'none'
+                    );
+                }
+            });
+
+            button.dataset.sortDirection = direction;
+
+            const indicator = button.querySelector(
+                '.invoice-sort-indicator'
+            );
+
+            if (indicator) {
+                indicator.textContent =
+                    direction === 'asc'
+                        ? '▲'
+                        : '▼';
+            }
+
+            const header = button.closest('th');
+
+            if (header) {
+                header.setAttribute(
+                    'aria-sort',
+                    direction === 'asc'
+                        ? 'ascending'
+                        : 'descending'
+                );
+            }
+
+            const rows = Array.from(
+                tbody.querySelectorAll('tr')
+            );
+
+            rows.sort(function (rowA, rowB) {
+                const valueA = cellValue(
+                    rowA,
+                    index,
+                    type
+                );
+
+                const valueB = cellValue(
+                    rowB,
+                    index,
+                    type
+                );
+
+                let result = 0;
+
+                if (
+                    type === 'date'
+                    || type === 'number'
+                ) {
+                    result = valueA - valueB;
+                } else {
+                    result = collator.compare(
+                        String(valueA),
+                        String(valueB)
+                    );
+                }
+
+                return direction === 'asc'
+                    ? result
+                    : -result;
+            });
+
+            rows.forEach(function (row) {
+                tbody.appendChild(row);
+            });
+        });
+    });
+});
+</script>
