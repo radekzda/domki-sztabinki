@@ -205,16 +205,46 @@ final class MessageTemplateRenderer
 
         $totalPrice = $nights * $nightPrice;
 
+        $adults = max(
+            0,
+            (int) ($inquiry['adults'] ?? 0)
+        );
+
+        $children = max(
+            0,
+            (int) ($inquiry['children'] ?? 0)
+        );
+
         $guests = max(
             1,
-            (int) ($inquiry['guests'] ?? 1)
+            (int) (
+                $inquiry['guests']
+                ?? ($adults + $children)
+            )
         );
+
+        $greeting = $firstName !== ''
+            ? 'Dzień dobry ' . $firstName . ','
+            : 'Dzień dobry,';
 
         return self::replaceVariables(
             $template,
             [
+                'greeting' => $greeting,
+                'inquiry_id' => (string) (
+                    (int) ($inquiry['id'] ?? 0)
+                ),
                 'guest_name' => $guestName,
                 'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => trim(
+                    (string) ($inquiry['email'] ?? '')
+                ),
+                'phone' => trim(
+                    (string) ($inquiry['phone'] ?? '')
+                ),
+                'adults' => (string) $adults,
+                'children' => (string) $children,
                 'cabin_name' => trim(
                     (string) (
                         $inquiry['linked_cabin_name']

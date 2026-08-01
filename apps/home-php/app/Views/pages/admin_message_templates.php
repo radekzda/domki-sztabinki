@@ -441,14 +441,20 @@ $contextLabels = [
                         <p>
                             W treści możesz pozostawiać zmienne zapisane
                             w podwójnych nawiasach klamrowych.
-                            System w kolejnym etapie będzie automatycznie
-                            podstawiał dane konkretnego gościa,
-                            zapytania lub rezerwacji.
+                            System automatycznie podstawia dane
+                            konkretnego gościa, zapytania lub rezerwacji.
                         </p>
 
                         <p class="template-variable-list">
+                            <code>{{greeting}}</code>
+                            <code>{{inquiry_id}}</code>
                             <code>{{guest_name}}</code>
                             <code>{{first_name}}</code>
+                            <code>{{last_name}}</code>
+                            <code>{{email}}</code>
+                            <code>{{phone}}</code>
+                            <code>{{adults}}</code>
+                            <code>{{children}}</code>
                             <code>{{cabin_name}}</code>
                             <code>{{start_date}}</code>
                             <code>{{end_date}}</code>

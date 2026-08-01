@@ -73,6 +73,122 @@ final class ReservationHistoryRepository
         return $history;
     }
 
+    /**
+     * @param array<int, int> $reservationIds
+     *
+     * @return array<int, array{
+     *     id: int,
+     *     reservation_id: int,
+     *     event_type: string,
+     *     title: string,
+     *     details: string|null,
+     *     old_value: string|null,
+     *     new_value: string|null,
+     *     amount: string|null,
+     *     created_at: string|null
+     * }>
+     */
+    public static function latestEmailSentForReservations(
+        array $reservationIds
+    ): array {
+        self::ensureTable();
+
+        $normalizedIds = [];
+
+        foreach ($reservationIds as $reservationId) {
+            $reservationId = (int) $reservationId;
+
+            if ($reservationId > 0) {
+                $normalizedIds[$reservationId] =
+                    $reservationId;
+            }
+        }
+
+        if ($normalizedIds === []) {
+            return [];
+        }
+
+        $parameters = [
+            'event_type' => 'EMAIL_SENT',
+        ];
+
+        $placeholders = [];
+
+        foreach (
+            array_values($normalizedIds)
+            as $index => $reservationId
+        ) {
+            $parameterName =
+                'reservation_id_' . $index;
+
+            $placeholders[] =
+                ':' . $parameterName;
+
+            $parameters[$parameterName] =
+                $reservationId;
+        }
+
+        $connection = Database::connection();
+
+        $statement = $connection->prepare(
+            'SELECT
+                id,
+                reservation_id,
+                event_type,
+                title,
+                details,
+                old_value,
+                new_value,
+                amount,
+                created_at
+            FROM reservation_history
+            WHERE event_type = :event_type
+            AND reservation_id IN ('
+                . implode(', ', $placeholders)
+                . ')
+            ORDER BY
+                created_at DESC,
+                id DESC'
+        );
+
+        $statement->execute($parameters);
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        $latestByReservation = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $reservationId = (int) (
+                $row['reservation_id']
+                ?? 0
+            );
+
+            if (
+                $reservationId < 1
+                || isset(
+                    $latestByReservation[
+                        $reservationId
+                    ]
+                )
+            ) {
+                continue;
+            }
+
+            $latestByReservation[$reservationId] =
+                self::mapRow($row);
+        }
+
+        return $latestByReservation;
+    }
+
     public static function add(
         int $reservationId,
         string $eventType,

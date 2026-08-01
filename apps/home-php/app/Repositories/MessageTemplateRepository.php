@@ -18,6 +18,33 @@ final class MessageTemplateRepository
     {
         return [
             [
+                'name' => 'Automatyczne potwierdzenie otrzymania zapytania',
+                'template_key' => 'INQUIRY_RECEIVED_CONFIRMATION',
+                'template_context' => 'INQUIRY',
+                'content' => <<<'TEXT'
+{{greeting}}
+
+dziękujemy za przesłanie zapytania.
+Otrzymaliśmy je poprawnie i odpowiemy po sprawdzeniu dostępności oraz ceny pobytu.
+
+SZCZEGÓŁY ZAPYTANIA
+Numer zapytania: #{{inquiry_id}}
+Domek: {{cabin_name}}
+Przyjazd: {{start_date}}
+Wyjazd: {{end_date}}
+Dorośli: {{adults}}
+Dzieci: {{children}}
+
+To jest automatyczne potwierdzenie otrzymania zapytania.
+Samo wysłanie zapytania nie oznacza jeszcze potwierdzenia rezerwacji.
+
+Pozdrawiamy serdecznie
+{{property_name}}
+TEXT,
+                'is_active' => true,
+                'sort_order' => 5,
+            ],
+            [
                 'name' => 'Odpowiedź na dostępne zapytanie',
                 'template_key' => 'INQUIRY_AVAILABILITY',
                 'template_context' => 'INQUIRY',
@@ -126,16 +153,32 @@ TEXT,
 
         $connection = Database::connection();
 
-        $countStatement = $connection->query(
-            'SELECT COUNT(*) FROM message_templates'
+        $keyStatement = $connection->query(
+            'SELECT template_key
+            FROM message_templates
+            WHERE template_key IS NOT NULL'
         );
 
-        $templateCount = $countStatement !== false
-            ? (int) $countStatement->fetchColumn()
-            : 0;
+        if ($keyStatement === false) {
+            throw new RuntimeException(
+                'Nie udało się pobrać kluczy szablonów.'
+            );
+        }
 
-        if ($templateCount > 0) {
-            return;
+        $existingKeys = [];
+
+        while (
+            ($templateKey =
+                $keyStatement->fetchColumn())
+            !== false
+        ) {
+            $templateKey = trim(
+                (string) $templateKey
+            );
+
+            if ($templateKey !== '') {
+                $existingKeys[$templateKey] = true;
+            }
         }
 
         $statement = $connection->prepare(
@@ -157,9 +200,25 @@ TEXT,
         );
 
         foreach (self::defaultTemplates() as $template) {
+            $templateKey = trim(
+                (string) (
+                    $template['template_key']
+                    ?? ''
+                )
+            );
+
+            if (
+                $templateKey !== ''
+                && isset($existingKeys[$templateKey])
+            ) {
+                continue;
+            }
+
             $statement->execute([
                 'name' => $template['name'],
-                'template_key' => $template['template_key'],
+                'template_key' => $templateKey !== ''
+                    ? $templateKey
+                    : null,
                 'template_context' => $template['template_context'],
                 'content' => $template['content'],
                 'is_active' => $template['is_active']
@@ -167,6 +226,10 @@ TEXT,
                     : 0,
                 'sort_order' => $template['sort_order'],
             ]);
+
+            if ($templateKey !== '') {
+                $existingKeys[$templateKey] = true;
+            }
         }
     }
 

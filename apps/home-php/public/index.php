@@ -685,6 +685,58 @@ $router->get('/admin', function (): void {
                     );
                 }
             );
+
+            $upcomingReservationIds = [];
+
+            foreach (
+                $upcomingReservations
+                as $upcomingReservation
+            ) {
+                $reservationId = (int) (
+                    $upcomingReservation['id']
+                    ?? 0
+                );
+
+                if ($reservationId > 0) {
+                    $upcomingReservationIds[] =
+                        $reservationId;
+                }
+            }
+
+            $latestEmailHistory =
+                ReservationHistoryRepository::
+                    latestEmailSentForReservations(
+                        $upcomingReservationIds
+                    );
+
+            foreach (
+                $upcomingReservations
+                as &$upcomingReservation
+            ) {
+                $reservationId = (int) (
+                    $upcomingReservation['id']
+                    ?? 0
+                );
+
+                $emailHistoryEntry =
+                    $latestEmailHistory[
+                        $reservationId
+                    ]
+                    ?? null;
+
+                $upcomingReservation[
+                    'last_email_sent_at'
+                ] = is_array($emailHistoryEntry)
+                    ? (
+                        $emailHistoryEntry[
+                            'created_at'
+                        ]
+                        ?? null
+                    )
+                    : null;
+            }
+
+            unset($upcomingReservation);
         } catch (Throwable $exception) {
             $databaseMessage = 'Nie udało się pobrać danych dashboardu: '
                 . AppErrorHandler::safeMessage(
@@ -5065,6 +5117,31 @@ $router->post(
                 $subject,
                 $body
             );
+
+            if (
+                $sent
+                && $context === 'RESERVATION'
+            ) {
+                try {
+                    ReservationHistoryRepository::add(
+                        $recordId,
+                        'EMAIL_SENT',
+                        'Wysłano e-mail do gościa',
+                        'Odbiorca: '
+                            . $recipient
+                            . ' · Temat: '
+                            . $subject
+                    );
+                } catch (Throwable $historyException) {
+                    error_log(
+                        'E-mail został wysłany, ale nie udało się '
+                        . 'zapisać historii rezerwacji: '
+                        . $historyException::class
+                        . ': '
+                        . $historyException->getMessage()
+                    );
+                }
+            }
 
             $redirect(
                 $sent

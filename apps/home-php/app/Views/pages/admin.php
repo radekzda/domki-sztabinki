@@ -29,6 +29,24 @@ $reservationGuestName = static function (
         : 'Gość';
 };
 
+$dashboardDateTime = static function (
+    mixed $value
+): string {
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return '';
+    }
+
+    try {
+        return (
+            new DateTimeImmutable($value)
+        )->format('d.m.Y H:i');
+    } catch (Throwable $exception) {
+        return $value;
+    }
+};
+
 $reservationCabinName = static function (
     array $reservation
 ): string {
@@ -360,6 +378,19 @@ $inquiryStatusPresentation = static function (
         text-align: right;
         color: #111827;
         overflow-wrap: anywhere;
+    }
+
+    .dashboard-email-status {
+        display: block;
+        margin-top: 3px;
+        font-size: 11px;
+        line-height: 1.35;
+        font-weight: 600;
+        color: #15803d;
+    }
+
+    .dashboard-email-status--missing {
+        color: #b45309;
     }
 
     /*
@@ -1089,6 +1120,17 @@ $inquiryStatusPresentation = static function (
                                     $upcomingReservations
                                     as $reservation
                                 ): ?>
+                                    <?php
+                                    $lastEmailSentAt = trim(
+                                        (string) (
+                                            $reservation[
+                                                'last_email_sent_at'
+                                            ]
+                                            ?? ''
+                                        )
+                                    );
+                                    ?>
+
                                     <a
                                         class="status-row"
                                         href="/admin/rezerwacje/pokaz?id=<?= (int) (
@@ -1129,6 +1171,29 @@ $inquiryStatusPresentation = static function (
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
+
+                                            <?php if (
+                                                $lastEmailSentAt !== ''
+                                            ): ?>
+                                                <small
+                                                    class="dashboard-email-status"
+                                                >
+                                                    E-mail wysłany:
+                                                    <?= htmlspecialchars(
+                                                        $dashboardDateTime(
+                                                            $lastEmailSentAt
+                                                        ),
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
+                                                </small>
+                                            <?php else: ?>
+                                                <small
+                                                    class="dashboard-email-status dashboard-email-status--missing"
+                                                >
+                                                    E-mail nie został wysłany
+                                                </small>
+                                            <?php endif; ?>
                                         </strong>
                                     </a>
                                 <?php endforeach; ?>

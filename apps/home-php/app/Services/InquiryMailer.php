@@ -124,35 +124,94 @@ final class InquiryMailer
         }
 
         $firstName = trim($form['first_name'] ?? '');
+        $lastName = trim($form['last_name'] ?? '');
 
-        $greeting = $firstName !== ''
-            ? 'Dzień dobry ' . $firstName . ','
-            : 'Dzień dobry,';
+        $adults = max(
+            0,
+            (int) ($form['adults'] ?? 0)
+        );
+
+        $children = max(
+            0,
+            (int) ($form['children'] ?? 0)
+        );
 
         $cabinName = self::cabinName($selectedCabin);
 
         $subject = 'Potwierdzenie otrzymania zapytania - ' . $propertyName;
 
-        $bodyLines = [
-            $greeting,
-            '',
-            'dziękujemy za przesłanie zapytania.',
-            'Otrzymaliśmy je poprawnie i odpowiemy po sprawdzeniu dostępności oraz ceny pobytu.',
-            '',
-            'SZCZEGÓŁY ZAPYTANIA',
-            'Numer zapytania: #' . $inquiryId,
-            'Domek: ' . $cabinName,
-            'Przyjazd: ' . self::valueOrDash($form['date_from'] ?? ''),
-            'Wyjazd: ' . self::valueOrDash($form['date_to'] ?? ''),
-            'Dorośli: ' . self::valueOrDash($form['adults'] ?? ''),
-            'Dzieci: ' . self::valueOrDash($form['children'] ?? ''),
-            '',
-            'To jest automatyczne potwierdzenie otrzymania zapytania.',
-            'Samo wysłanie zapytania nie oznacza jeszcze potwierdzenia rezerwacji.',
-            '',
-            'Pozdrawiamy serdecznie',
-            $propertyName,
-        ];
+        $templateContent =
+            self::defaultGuestConfirmationTemplate();
+
+        try {
+            MessageTemplateRepository::ensureDefaultTemplates();
+
+            $messageTemplate =
+                MessageTemplateRepository::findByKey(
+                    'INQUIRY_RECEIVED_CONFIRMATION'
+                );
+
+            if (
+                is_array($messageTemplate)
+                && !(
+                    $messageTemplate['is_active']
+                    ?? false
+                )
+            ) {
+                return false;
+            }
+
+            $storedContent = is_array($messageTemplate)
+                ? trim(
+                    (string) (
+                        $messageTemplate['content']
+                        ?? ''
+                    )
+                )
+                : '';
+
+            if ($storedContent !== '') {
+                $templateContent = $storedContent;
+            }
+        } catch (Throwable $exception) {
+            error_log(
+                'Nie udało się pobrać szablonu '
+                . 'potwierdzenia zapytania: '
+                . $exception::class
+                . ': '
+                . $exception->getMessage()
+            );
+        }
+
+        $body = MessageTemplateRenderer::forInquiry(
+            $templateContent,
+            [
+                'id' => $inquiryId,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'full_name' => trim(
+                    $firstName . ' ' . $lastName
+                ),
+                'email' => $guestEmail,
+                'phone' => trim(
+                    $form['phone'] ?? ''
+                ),
+                'date_from' => trim(
+                    $form['date_from'] ?? ''
+                ),
+                'date_to' => trim(
+                    $form['date_to'] ?? ''
+                ),
+                'adults' => $adults,
+                'children' => $children,
+                'guests' => max(
+                    1,
+                    $adults + $children
+                ),
+                'cabin_name' => $cabinName,
+            ],
+            $settings
+        );
 
         $contactEmail = trim(
             (string) ($settings['contact_email'] ?? '')
@@ -168,9 +227,33 @@ final class InquiryMailer
         return Mailer::sendSafely(
             $guestEmail,
             $subject,
-            implode("\n", $bodyLines),
+            $body,
             $replyTo
         );
+    }
+
+    private static function defaultGuestConfirmationTemplate(): string
+    {
+        return <<<'TEXT'
+{{greeting}}
+
+dziękujemy za przesłanie zapytania.
+Otrzymaliśmy je poprawnie i odpowiemy po sprawdzeniu dostępności oraz ceny pobytu.
+
+SZCZEGÓŁY ZAPYTANIA
+Numer zapytania: #{{inquiry_id}}
+Domek: {{cabin_name}}
+Przyjazd: {{start_date}}
+Wyjazd: {{end_date}}
+Dorośli: {{adults}}
+Dzieci: {{children}}
+
+To jest automatyczne potwierdzenie otrzymania zapytania.
+Samo wysłanie zapytania nie oznacza jeszcze potwierdzenia rezerwacji.
+
+Pozdrawiamy serdecznie
+{{property_name}}
+TEXT;
     }
 
     /**
