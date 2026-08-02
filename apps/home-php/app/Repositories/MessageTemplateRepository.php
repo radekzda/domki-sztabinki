@@ -223,6 +223,35 @@ TEXT,
             }
         }
 
+        $deletedKeyStatement =
+            $connection->query(
+                'SELECT template_key
+                FROM message_template_deleted_keys'
+            );
+
+        if ($deletedKeyStatement === false) {
+            throw new RuntimeException(
+                'Nie udało się pobrać usuniętych '
+                . 'kluczy szablonów.'
+            );
+        }
+
+        $deletedKeys = [];
+
+        while (
+            ($deletedKey =
+                $deletedKeyStatement->fetchColumn())
+            !== false
+        ) {
+            $deletedKey = trim(
+                (string) $deletedKey
+            );
+
+            if ($deletedKey !== '') {
+                $deletedKeys[$deletedKey] = true;
+            }
+        }
+
         $statement = $connection->prepare(
             'INSERT INTO message_templates (
                 name,
@@ -261,7 +290,10 @@ TEXT,
 
             if (
                 $templateKey !== ''
-                && isset($existingKeys[$templateKey])
+                && (
+                    isset($existingKeys[$templateKey])
+                    || isset($deletedKeys[$templateKey])
+                )
             ) {
                 continue;
             }
@@ -901,16 +933,87 @@ TEXT,
 
         $connection = Database::connection();
 
-        $statement = $connection->prepare(
-            'DELETE FROM message_templates
-            WHERE id = :id'
-        );
+        $connection->beginTransaction();
 
-        $statement->execute([
-            'id' => $id,
-        ]);
+        try {
+            $findStatement =
+                $connection->prepare(
+                    'SELECT template_key
+                    FROM message_templates
+                    WHERE id = :id
+                    LIMIT 1
+                    FOR UPDATE'
+                );
 
-        return $statement->rowCount() > 0;
+            $findStatement->execute([
+                'id' => $id,
+            ]);
+
+            $row = $findStatement->fetch();
+
+            if (!is_array($row)) {
+                $connection->rollBack();
+
+                return false;
+            }
+
+            $templateKey = trim(
+                (string) (
+                    $row['template_key']
+                    ?? ''
+                )
+            );
+
+            if ($templateKey !== '') {
+                $deletedKeyStatement =
+                    $connection->prepare(
+                        'INSERT INTO
+                            message_template_deleted_keys (
+                                template_key
+                            )
+                        VALUES (
+                            :template_key
+                        )
+                        ON DUPLICATE KEY UPDATE
+                            deleted_at =
+                                CURRENT_TIMESTAMP'
+                    );
+
+                $deletedKeyStatement->execute([
+                    'template_key' =>
+                        $templateKey,
+                ]);
+            }
+
+            $deleteStatement =
+                $connection->prepare(
+                    'DELETE FROM message_templates
+                    WHERE id = :id'
+                );
+
+            $deleteStatement->execute([
+                'id' => $id,
+            ]);
+
+            $deleted =
+                $deleteStatement->rowCount() > 0;
+
+            if (!$deleted) {
+                $connection->rollBack();
+
+                return false;
+            }
+
+            $connection->commit();
+
+            return true;
+        } catch (Throwable $exception) {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+
+            throw $exception;
+        }
     }
 
     public static function ensureTable(): void
@@ -944,6 +1047,18 @@ TEXT,
             ) ENGINE=InnoDB
             DEFAULT CHARSET=utf8mb4
             COLLATE=utf8mb4_unicode_ci'
+        );
+
+        $connection->exec(
+            'CREATE TABLE IF NOT EXISTS
+                message_template_deleted_keys (
+                    template_key VARCHAR(100) NOT NULL,
+                    deleted_at TIMESTAMP NOT NULL
+                        DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (template_key)
+                ) ENGINE=InnoDB
+                DEFAULT CHARSET=utf8mb4
+                COLLATE=utf8mb4_unicode_ci'
         );
 
         self::ensureColumn(

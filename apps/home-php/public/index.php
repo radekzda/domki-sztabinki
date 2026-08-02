@@ -4653,9 +4653,18 @@ $router->post('/admin/szablony/usun', function (): void {
             return;
         }
 
-        MessageTemplateRepository::delete(
-            $id
-        );
+        $deleted =
+            MessageTemplateRepository::delete(
+                $id
+            );
+
+        if (!$deleted) {
+            Response::redirect(
+                '/admin/szablony?error=not_found'
+            );
+
+            return;
+        }
 
         Response::redirect(
             '/admin/szablony?deleted=1'
