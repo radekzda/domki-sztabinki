@@ -10,6 +10,8 @@ declare(strict_types=1);
  * @var array<int, array<string, mixed>> $activeInquiries
  * @var array<int, array<string, mixed>> $upcomingReservations
  * @var array<int, array<string, mixed>> $cleaningCabins
+ * @var array<int, array<string, mixed>> $arrivalEmailStatuses
+ * @var array<int, array<string, mixed>> $departureEmailStatuses
  * @var string|null $databaseMessage
  */
 
@@ -391,6 +393,35 @@ $inquiryStatusPresentation = static function (
 
     .dashboard-email-status--missing {
         color: #b45309;
+    }
+
+    .dashboard-email-status--sent {
+        color: #15803d;
+    }
+
+    .dashboard-email-status--manual {
+        color: #1d4ed8;
+    }
+
+    .dashboard-email-status--pending {
+        color: #b45309;
+    }
+
+    .dashboard-email-status--failed {
+        color: #b91c1c;
+    }
+
+    .dashboard-email-status--disabled {
+        color: #6b7280;
+    }
+
+    .dashboard-email-status__details {
+        display: block;
+        margin-top: 2px;
+        color: #64748b;
+        font-size: 10px;
+        line-height: 1.3;
+        font-weight: 500;
     }
 
     /*
@@ -897,6 +928,45 @@ $inquiryStatusPresentation = static function (
                                             ?? ''
                                         )
                                     );
+
+                                    $departureEmailStatus =
+                                        $departureEmailStatuses[
+                                            $reservationId
+                                        ]
+                                        ?? [
+                                            'label' =>
+                                                'Brak statusu',
+                                            'class' =>
+                                                'dashboard-email-status--disabled',
+                                            'details' => null,
+                                        ];
+
+                                    $departureEmailLabel = trim(
+                                        (string) (
+                                            $departureEmailStatus[
+                                                'label'
+                                            ]
+                                            ?? 'Brak statusu'
+                                        )
+                                    );
+
+                                    $departureEmailClass = trim(
+                                        (string) (
+                                            $departureEmailStatus[
+                                                'class'
+                                            ]
+                                            ?? 'dashboard-email-status--disabled'
+                                        )
+                                    );
+
+                                    $departureEmailDetails = trim(
+                                        (string) (
+                                            $departureEmailStatus[
+                                                'details'
+                                            ]
+                                            ?? ''
+                                        )
+                                    );
                                     ?>
 
                                     <div
@@ -924,6 +994,37 @@ $inquiryStatusPresentation = static function (
                                                     ENT_QUOTES,
                                                     'UTF-8'
                                                 ) ?>
+
+                                                <small
+                                                    class="dashboard-email-status <?= htmlspecialchars(
+                                                        $departureEmailClass,
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>"
+                                                >
+                                                    <?= htmlspecialchars(
+                                                        $departureEmailLabel,
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>
+
+                                                    <?php if (
+                                                        $departureEmailDetails
+                                                        !== ''
+                                                    ): ?>
+                                                        <span
+                                                            class="dashboard-email-status__details"
+                                                        >
+                                                            <?= htmlspecialchars(
+                                                                $dashboardDateTime(
+                                                                    $departureEmailDetails
+                                                                ),
+                                                                ENT_QUOTES,
+                                                                'UTF-8'
+                                                            ) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </small>
                                             </strong>
                                         </a>
 
@@ -1121,10 +1222,45 @@ $inquiryStatusPresentation = static function (
                                     as $reservation
                                 ): ?>
                                     <?php
-                                    $lastEmailSentAt = trim(
+                                    $reservationId = (int) (
+                                        $reservation['id']
+                                        ?? 0
+                                    );
+
+                                    $arrivalEmailStatus =
+                                        $arrivalEmailStatuses[
+                                            $reservationId
+                                        ]
+                                        ?? [
+                                            'label' =>
+                                                'Brak statusu',
+                                            'class' =>
+                                                'dashboard-email-status--disabled',
+                                            'details' => null,
+                                        ];
+
+                                    $arrivalEmailLabel = trim(
                                         (string) (
-                                            $reservation[
-                                                'last_email_sent_at'
+                                            $arrivalEmailStatus[
+                                                'label'
+                                            ]
+                                            ?? 'Brak statusu'
+                                        )
+                                    );
+
+                                    $arrivalEmailClass = trim(
+                                        (string) (
+                                            $arrivalEmailStatus[
+                                                'class'
+                                            ]
+                                            ?? 'dashboard-email-status--disabled'
+                                        )
+                                    );
+
+                                    $arrivalEmailDetails = trim(
+                                        (string) (
+                                            $arrivalEmailStatus[
+                                                'details'
                                             ]
                                             ?? ''
                                         )
@@ -1172,28 +1308,34 @@ $inquiryStatusPresentation = static function (
                                                 'UTF-8'
                                             ) ?>
 
-                                            <?php if (
-                                                $lastEmailSentAt !== ''
-                                            ): ?>
-                                                <small
-                                                    class="dashboard-email-status"
-                                                >
-                                                    E-mail wysłany:
-                                                    <?= htmlspecialchars(
-                                                        $dashboardDateTime(
-                                                            $lastEmailSentAt
-                                                        ),
-                                                        ENT_QUOTES,
-                                                        'UTF-8'
-                                                    ) ?>
-                                                </small>
-                                            <?php else: ?>
-                                                <small
-                                                    class="dashboard-email-status dashboard-email-status--missing"
-                                                >
-                                                    E-mail nie został wysłany
-                                                </small>
-                                            <?php endif; ?>
+                                            <small
+                                                class="dashboard-email-status <?= htmlspecialchars(
+                                                    $arrivalEmailClass,
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>"
+                                            >
+                                                <?= htmlspecialchars(
+                                                    $arrivalEmailLabel,
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+
+                                                <?php if (
+                                                    $arrivalEmailDetails
+                                                    !== ''
+                                                ): ?>
+                                                    <span
+                                                        class="dashboard-email-status__details"
+                                                    >
+                                                        <?= htmlspecialchars(
+                                                            $arrivalEmailDetails,
+                                                            ENT_QUOTES,
+                                                            'UTF-8'
+                                                        ) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </small>
                                         </strong>
                                     </a>
                                 <?php endforeach; ?>

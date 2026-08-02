@@ -20,6 +20,15 @@ final class AutomaticMessageDeliveryRepository
 
         $connection = Database::connection();
 
+        if (
+            self::wasSentForTemplateAndReservation(
+                $templateId,
+                $reservationId
+            )
+        ) {
+            return null;
+        }
+
         $statement = $connection->prepare(
             'SELECT
                 id,
@@ -75,6 +84,7 @@ final class AutomaticMessageDeliveryRepository
                 'UPDATE automatic_message_deliveries
                 SET
                     status = "PROCESSING",
+                    delivery_source = "AUTOMATIC",
                     recipient = NULL,
                     subject = NULL,
                     error_message = NULL,
@@ -97,12 +107,14 @@ final class AutomaticMessageDeliveryRepository
                 reservation_id,
                 scheduled_for,
                 status,
+                delivery_source,
                 started_at
             ) VALUES (
                 :template_id,
                 :reservation_id,
                 :scheduled_for,
                 "PROCESSING",
+                "AUTOMATIC",
                 :started_at
             )'
         );
@@ -117,6 +129,88 @@ final class AutomaticMessageDeliveryRepository
         return (int) $connection->lastInsertId();
     }
 
+    public static function wasSentForTemplateAndReservation(
+        int $templateId,
+        int $reservationId
+    ): bool {
+        self::ensureStructure();
+
+        if ($templateId < 1 || $reservationId < 1) {
+            return false;
+        }
+
+        $statement = Database::connection()->prepare(
+            'SELECT 1
+            FROM automatic_message_deliveries
+            WHERE template_id = :template_id
+            AND reservation_id = :reservation_id
+            AND status = "SENT"
+            LIMIT 1'
+        );
+
+        $statement->execute([
+            'template_id' => $templateId,
+            'reservation_id' => $reservationId,
+        ]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    public static function recordManualSent(
+        int $templateId,
+        int $reservationId,
+        string $recipient,
+        string $subject,
+        DateTimeImmutable $sentAt
+    ): void {
+        self::ensureStructure();
+
+        if ($templateId < 1 || $reservationId < 1) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowe dane ręcznej wysyłki.'
+            );
+        }
+
+        $statement = Database::connection()->prepare(
+            'INSERT INTO automatic_message_deliveries (
+                template_id,
+                reservation_id,
+                scheduled_for,
+                status,
+                delivery_source,
+                recipient,
+                subject,
+                error_message,
+                started_at,
+                sent_at
+            ) VALUES (
+                :template_id,
+                :reservation_id,
+                :scheduled_for,
+                "SENT",
+                "MANUAL",
+                :recipient,
+                :subject,
+                NULL,
+                :started_at,
+                :sent_at
+            )'
+        );
+
+        $formattedDate =
+            $sentAt->format('Y-m-d H:i:s');
+
+        $statement->execute([
+            'template_id' => $templateId,
+            'reservation_id' => $reservationId,
+            'scheduled_for' => $formattedDate,
+            'recipient' => $recipient,
+            'subject' => $subject,
+            'started_at' => $formattedDate,
+            'sent_at' => $formattedDate,
+        ]);
+    }
+
     public static function markSent(
         int $id,
         string $recipient,
@@ -129,6 +223,7 @@ final class AutomaticMessageDeliveryRepository
             'UPDATE automatic_message_deliveries
             SET
                 status = "SENT",
+                delivery_source = "AUTOMATIC",
                 recipient = :recipient,
                 subject = :subject,
                 error_message = NULL,
@@ -168,6 +263,119 @@ final class AutomaticMessageDeliveryRepository
         ]);
     }
 
+    /**
+     * @param array<int, int> $reservationIds
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function latestForTemplateAndReservations(
+        int $templateId,
+        array $reservationIds
+    ): array {
+        self::ensureStructure();
+
+        if ($templateId < 1) {
+            return [];
+        }
+
+        $normalizedIds = [];
+
+        foreach ($reservationIds as $reservationId) {
+            $reservationId = (int) $reservationId;
+
+            if ($reservationId > 0) {
+                $normalizedIds[$reservationId] =
+                    $reservationId;
+            }
+        }
+
+        if ($normalizedIds === []) {
+            return [];
+        }
+
+        $parameters = [
+            'template_id' => $templateId,
+        ];
+
+        $placeholders = [];
+
+        foreach (
+            array_values($normalizedIds)
+            as $index => $reservationId
+        ) {
+            $parameterName =
+                'reservation_id_' . $index;
+
+            $placeholders[] =
+                ':' . $parameterName;
+
+            $parameters[$parameterName] =
+                $reservationId;
+        }
+
+        $statement = Database::connection()->prepare(
+            'SELECT
+                id,
+                template_id,
+                reservation_id,
+                scheduled_for,
+                status,
+                delivery_source,
+                recipient,
+                subject,
+                error_message,
+                started_at,
+                sent_at,
+                created_at,
+                updated_at
+            FROM automatic_message_deliveries
+            WHERE template_id = :template_id
+            AND reservation_id IN ('
+                . implode(', ', $placeholders)
+                . ')
+            ORDER BY
+                reservation_id ASC,
+                COALESCE(
+                    sent_at,
+                    updated_at,
+                    created_at
+                ) DESC,
+                id DESC'
+        );
+
+        $statement->execute($parameters);
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        $latest = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $reservationId = (int) (
+                $row['reservation_id']
+                ?? 0
+            );
+
+            if (
+                $reservationId < 1
+                || isset($latest[$reservationId])
+            ) {
+                continue;
+            }
+
+            $latest[$reservationId] = $row;
+        }
+
+        return $latest;
+    }
+
     public static function ensureStructure(): void
     {
         if (self::$structureEnsured) {
@@ -183,6 +391,7 @@ final class AutomaticMessageDeliveryRepository
                 reservation_id INT UNSIGNED NOT NULL,
                 scheduled_for DATETIME NOT NULL,
                 status VARCHAR(20) NOT NULL DEFAULT "PROCESSING",
+                delivery_source VARCHAR(20) NOT NULL DEFAULT "AUTOMATIC",
                 recipient VARCHAR(190) NULL,
                 subject VARCHAR(255) NULL,
                 error_message TEXT NULL,
@@ -211,6 +420,35 @@ final class AutomaticMessageDeliveryRepository
             COLLATE=utf8mb4_unicode_ci'
         );
 
+        self::ensureDeliverySourceColumn();
+
         self::$structureEnsured = true;
+    }
+
+    private static function ensureDeliverySourceColumn(): void
+    {
+        $connection = Database::connection();
+
+        $statement = $connection->query(
+            'SELECT COUNT(*)
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = "automatic_message_deliveries"
+            AND COLUMN_NAME = "delivery_source"'
+        );
+
+        if (
+            $statement !== false
+            && (int) $statement->fetchColumn() > 0
+        ) {
+            return;
+        }
+
+        $connection->exec(
+            'ALTER TABLE automatic_message_deliveries
+            ADD COLUMN delivery_source VARCHAR(20)
+            NOT NULL DEFAULT "AUTOMATIC"
+            AFTER status'
+        );
     }
 }

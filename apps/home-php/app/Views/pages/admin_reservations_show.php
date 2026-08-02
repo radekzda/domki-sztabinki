@@ -880,6 +880,12 @@ $displayDateTime = static function (mixed $value): string {
 
                                     <input
                                         type="hidden"
+                                        name="template_id"
+                                        value="<?= $messageTemplateId ?>"
+                                    >
+
+                                    <input
+                                        type="hidden"
                                         name="subject"
                                         value="<?= htmlspecialchars(
                                             $messageTemplateName,

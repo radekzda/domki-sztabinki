@@ -49,6 +49,7 @@ require dirname(__DIR__) . '/app/Repositories/GuestRepository.php';
 require dirname(__DIR__) . '/app/Repositories/InquiryRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SettingsRepository.php';
 require dirname(__DIR__) . '/app/Repositories/MessageTemplateRepository.php';
+require dirname(__DIR__) . '/app/Repositories/AutomaticMessageDeliveryRepository.php';
 require dirname(__DIR__) . '/app/Repositories/SiteImageRepository.php';
 require dirname(__DIR__) . '/app/Controllers/MediaController.php';
 require dirname(__DIR__) . '/app/Controllers/GuestImportController.php';
@@ -545,6 +546,8 @@ $router->get('/admin', function (): void {
     $activeInquiries = [];
     $upcomingReservations = [];
     $cleaningCabins = [];
+    $arrivalEmailStatuses = [];
+    $departureEmailStatuses = [];
     $databaseMessage = null;
 
     if (!Database::canAttemptConnection()) {
@@ -703,40 +706,622 @@ $router->get('/admin', function (): void {
                 }
             }
 
-            $latestEmailHistory =
-                ReservationHistoryRepository::
-                    latestEmailSentForReservations(
-                        $upcomingReservationIds
-                    );
+            $arrivalTemplate = null;
+
+            foreach (
+                MessageTemplateRepository::
+                    automaticReservationTemplates()
+                as $automaticTemplate
+            ) {
+                $reference = strtoupper(
+                    trim(
+                        (string) (
+                            $automaticTemplate[
+                                'automation_reference'
+                            ]
+                            ?? ''
+                        )
+                    )
+                );
+
+                if ($reference === 'ARRIVAL') {
+                    $arrivalTemplate =
+                        $automaticTemplate;
+
+                    break;
+                }
+            }
+
+            $latestArrivalDeliveries = [];
+
+            if (
+                is_array($arrivalTemplate)
+                && $upcomingReservationIds !== []
+            ) {
+                $latestArrivalDeliveries =
+                    AutomaticMessageDeliveryRepository::
+                        latestForTemplateAndReservations(
+                            (int) (
+                                $arrivalTemplate['id']
+                                ?? 0
+                            ),
+                            $upcomingReservationIds
+                        );
+            }
+
+            $arrivalNow =
+                new DateTimeImmutable('now');
 
             foreach (
                 $upcomingReservations
-                as &$upcomingReservation
+                as $upcomingReservation
             ) {
                 $reservationId = (int) (
                     $upcomingReservation['id']
                     ?? 0
                 );
 
-                $emailHistoryEntry =
-                    $latestEmailHistory[
-                        $reservationId
-                    ]
-                    ?? null;
+                if ($reservationId < 1) {
+                    continue;
+                }
 
-                $upcomingReservation[
-                    'last_email_sent_at'
-                ] = is_array($emailHistoryEntry)
-                    ? (
-                        $emailHistoryEntry[
-                            'created_at'
-                        ]
-                        ?? null
+                $email = trim(
+                    (string) (
+                        $upcomingReservation['email']
+                        ?? ''
                     )
-                    : null;
+                );
+
+                $statusData = [
+                    'label' =>
+                        'Automatyzacja wyłączona',
+                    'class' =>
+                        'dashboard-email-status--disabled',
+                    'details' => null,
+                ];
+
+                if (
+                    filter_var(
+                        $email,
+                        FILTER_VALIDATE_EMAIL
+                    ) === false
+                ) {
+                    $statusData = [
+                        'label' =>
+                            'Brak adresu e-mail',
+                        'class' =>
+                            'dashboard-email-status--disabled',
+                        'details' => null,
+                    ];
+                } elseif (
+                    is_array($arrivalTemplate)
+                ) {
+                    $delivery =
+                        $latestArrivalDeliveries[
+                            $reservationId
+                        ]
+                        ?? null;
+
+                    $templateName = trim(
+                        (string) (
+                            $arrivalTemplate['name']
+                            ?? 'Wiadomość'
+                        )
+                    );
+
+                    if (is_array($delivery)) {
+                        $deliveryStatus = strtoupper(
+                            trim(
+                                (string) (
+                                    $delivery['status']
+                                    ?? ''
+                                )
+                            )
+                        );
+
+                        $deliverySource = strtoupper(
+                            trim(
+                                (string) (
+                                    $delivery[
+                                        'delivery_source'
+                                    ]
+                                    ?? 'AUTOMATIC'
+                                )
+                            )
+                        );
+
+                        $sentAt = trim(
+                            (string) (
+                                $delivery['sent_at']
+                                ?? ''
+                            )
+                        );
+
+                        if ($deliveryStatus === 'SENT') {
+                            $manual =
+                                $deliverySource === 'MANUAL';
+
+                            $formattedSentAt = '';
+
+                            if ($sentAt !== '') {
+                                try {
+                                    $formattedSentAt = (
+                                        new DateTimeImmutable(
+                                            $sentAt
+                                        )
+                                    )->format(
+                                        'd.m.Y H:i'
+                                    );
+                                } catch (
+                                    Throwable $exception
+                                ) {
+                                    $formattedSentAt =
+                                        $sentAt;
+                                }
+                            }
+
+                            $statusData = [
+                                'label' => $manual
+                                    ? 'Wysłany ręcznie'
+                                    : 'Wysłany automatycznie',
+                                'class' => $manual
+                                    ? 'dashboard-email-status--manual'
+                                    : 'dashboard-email-status--sent',
+                                'details' => trim(
+                                    $templateName
+                                    . (
+                                        $formattedSentAt !== ''
+                                            ? ' · '
+                                                . $formattedSentAt
+                                            : ''
+                                    )
+                                ),
+                            ];
+                        } elseif (
+                            $deliveryStatus === 'FAILED'
+                        ) {
+                            $statusData = [
+                                'label' =>
+                                    'Błąd wysyłki',
+                                'class' =>
+                                    'dashboard-email-status--failed',
+                                'details' => trim(
+                                    (string) (
+                                        $delivery[
+                                            'error_message'
+                                        ]
+                                        ?? $templateName
+                                    )
+                                ),
+                            ];
+                        } else {
+                            $updatedAt = trim(
+                                (string) (
+                                    $delivery['updated_at']
+                                    ?? $delivery['started_at']
+                                    ?? ''
+                                )
+                            );
+
+                            $processingIsFresh = false;
+
+                            if ($updatedAt !== '') {
+                                try {
+                                    $processingIsFresh =
+                                        new DateTimeImmutable(
+                                            $updatedAt
+                                        )
+                                        > (
+                                            new DateTimeImmutable(
+                                                'now'
+                                            )
+                                        )->modify(
+                                            '-30 minutes'
+                                        );
+                                } catch (
+                                    Throwable $exception
+                                ) {
+                                    $processingIsFresh = false;
+                                }
+                            }
+
+                            $statusData = [
+                                'label' => $processingIsFresh
+                                    ? 'Wysyłanie w toku'
+                                    : 'Oczekuje na ponowienie wysyłki',
+                                'class' =>
+                                    'dashboard-email-status--pending',
+                                'details' =>
+                                    $templateName,
+                            ];
+                        }
+                    } else {
+                        $startDate = substr(
+                            (string) (
+                                $upcomingReservation[
+                                    'start_date'
+                                ]
+                                ?? ''
+                            ),
+                            0,
+                            10
+                        );
+
+                        $sendTime = substr(
+                            (string) (
+                                $arrivalTemplate[
+                                    'automation_send_time'
+                                ]
+                                ?? '10:00'
+                            ),
+                            0,
+                            5
+                        );
+
+                        $offsetDays = (int) (
+                            $arrivalTemplate[
+                                'automation_offset_days'
+                            ]
+                            ?? 0
+                        );
+
+                        try {
+                            $scheduledFor = (
+                                new DateTimeImmutable(
+                                    $startDate
+                                    . ' '
+                                    . $sendTime
+                                    . ':00'
+                                )
+                            )->modify(
+                                sprintf(
+                                    '%+d days',
+                                    $offsetDays
+                                )
+                            );
+
+                            $isScheduled =
+                                $scheduledFor > $arrivalNow;
+
+                            $statusData = [
+                                'label' => $isScheduled
+                                    ? 'Zaplanowany'
+                                    : 'Oczekuje na wysłanie',
+                                'class' =>
+                                    'dashboard-email-status--pending',
+                                'details' =>
+                                    $templateName
+                                    . ' · '
+                                    . $scheduledFor->format(
+                                        'd.m.Y H:i'
+                                    ),
+                            ];
+                        } catch (
+                            Throwable $exception
+                        ) {
+                            $statusData = [
+                                'label' =>
+                                    'Nieprawidłowy termin',
+                                'class' =>
+                                    'dashboard-email-status--failed',
+                                'details' =>
+                                    $templateName,
+                            ];
+                        }
+                    }
+                }
+
+                $arrivalEmailStatuses[
+                    $reservationId
+                ] = $statusData;
             }
 
-            unset($upcomingReservation);
+            $departureTemplates = [];
+
+            foreach (
+                MessageTemplateRepository::
+                    automaticReservationTemplates()
+                as $automaticTemplate
+            ) {
+                $reference = strtoupper(
+                    trim(
+                        (string) (
+                            $automaticTemplate[
+                                'automation_reference'
+                            ]
+                            ?? ''
+                        )
+                    )
+                );
+
+                if ($reference === 'DEPARTURE') {
+                    $departureTemplates[] =
+                        $automaticTemplate;
+                }
+            }
+
+            $departureTemplate =
+                $departureTemplates[0]
+                ?? null;
+
+            $departureReservationIds = [];
+
+            foreach (
+                $todayDepartures
+                as $departureReservation
+            ) {
+                $reservationId = (int) (
+                    $departureReservation['id']
+                    ?? 0
+                );
+
+                if ($reservationId > 0) {
+                    $departureReservationIds[] =
+                        $reservationId;
+                }
+            }
+
+            $latestDepartureDeliveries = [];
+
+            if (
+                is_array($departureTemplate)
+                && $departureReservationIds !== []
+            ) {
+                $latestDepartureDeliveries =
+                    AutomaticMessageDeliveryRepository::
+                        latestForTemplateAndReservations(
+                            (int) (
+                                $departureTemplate['id']
+                                ?? 0
+                            ),
+                            $departureReservationIds
+                        );
+            }
+
+            $now = new DateTimeImmutable('now');
+
+            foreach (
+                $todayDepartures
+                as $departureReservation
+            ) {
+                $reservationId = (int) (
+                    $departureReservation['id']
+                    ?? 0
+                );
+
+                if ($reservationId < 1) {
+                    continue;
+                }
+
+                $email = trim(
+                    (string) (
+                        $departureReservation['email']
+                        ?? ''
+                    )
+                );
+
+                $statusData = [
+                    'label' =>
+                        'Automatyzacja wyłączona',
+                    'class' =>
+                        'dashboard-email-status--disabled',
+                    'details' => null,
+                ];
+
+                if (
+                    filter_var(
+                        $email,
+                        FILTER_VALIDATE_EMAIL
+                    ) === false
+                ) {
+                    $statusData = [
+                        'label' =>
+                            'Brak adresu e-mail',
+                        'class' =>
+                            'dashboard-email-status--disabled',
+                        'details' => null,
+                    ];
+                } elseif (
+                    is_array($departureTemplate)
+                ) {
+                    $delivery =
+                        $latestDepartureDeliveries[
+                            $reservationId
+                        ]
+                        ?? null;
+
+                    $templateName = trim(
+                        (string) (
+                            $departureTemplate['name']
+                            ?? 'Wiadomość'
+                        )
+                    );
+
+                    if (is_array($delivery)) {
+                        $deliveryStatus = strtoupper(
+                            trim(
+                                (string) (
+                                    $delivery['status']
+                                    ?? ''
+                                )
+                            )
+                        );
+
+                        $deliverySource = strtoupper(
+                            trim(
+                                (string) (
+                                    $delivery[
+                                        'delivery_source'
+                                    ]
+                                    ?? 'AUTOMATIC'
+                                )
+                            )
+                        );
+
+                        $sentAt = trim(
+                            (string) (
+                                $delivery['sent_at']
+                                ?? ''
+                            )
+                        );
+
+                        if ($deliveryStatus === 'SENT') {
+                            $manual =
+                                $deliverySource === 'MANUAL';
+
+                            $statusData = [
+                                'label' => $manual
+                                    ? 'Wysłany ręcznie'
+                                    : 'Wysłany automatycznie',
+                                'class' => $manual
+                                    ? 'dashboard-email-status--manual'
+                                    : 'dashboard-email-status--sent',
+                                'details' => trim(
+                                    $templateName
+                                    . (
+                                        $sentAt !== ''
+                                            ? ' · '
+                                                . $sentAt
+                                            : ''
+                                    )
+                                ),
+                            ];
+                        } elseif (
+                            $deliveryStatus === 'FAILED'
+                        ) {
+                            $statusData = [
+                                'label' =>
+                                    'Błąd wysyłki',
+                                'class' =>
+                                    'dashboard-email-status--failed',
+                                'details' => trim(
+                                    (string) (
+                                        $delivery[
+                                            'error_message'
+                                        ]
+                                        ?? $templateName
+                                    )
+                                ),
+                            ];
+                        } else {
+                            $updatedAt = trim(
+                                (string) (
+                                    $delivery['updated_at']
+                                    ?? $delivery['started_at']
+                                    ?? ''
+                                )
+                            );
+
+                            $processingIsFresh = false;
+
+                            if ($updatedAt !== '') {
+                                try {
+                                    $processingIsFresh =
+                                        new DateTimeImmutable(
+                                            $updatedAt
+                                        )
+                                        > (
+                                            new DateTimeImmutable(
+                                                'now'
+                                            )
+                                        )->modify(
+                                            '-30 minutes'
+                                        );
+                                } catch (
+                                    Throwable $exception
+                                ) {
+                                    $processingIsFresh = false;
+                                }
+                            }
+
+                            $statusData = [
+                                'label' => $processingIsFresh
+                                    ? 'Wysyłanie w toku'
+                                    : 'Oczekuje na ponowienie wysyłki',
+                                'class' =>
+                                    'dashboard-email-status--pending',
+                                'details' =>
+                                    $templateName,
+                            ];
+                        }
+                    } else {
+                        $endDate = substr(
+                            (string) (
+                                $departureReservation[
+                                    'end_date'
+                                ]
+                                ?? ''
+                            ),
+                            0,
+                            10
+                        );
+
+                        $sendTime = substr(
+                            (string) (
+                                $departureTemplate[
+                                    'automation_send_time'
+                                ]
+                                ?? '10:00'
+                            ),
+                            0,
+                            5
+                        );
+
+                        $offsetDays = (int) (
+                            $departureTemplate[
+                                'automation_offset_days'
+                            ]
+                            ?? 0
+                        );
+
+                        try {
+                            $scheduledFor = (
+                                new DateTimeImmutable(
+                                    $endDate
+                                    . ' '
+                                    . $sendTime
+                                    . ':00'
+                                )
+                            )->modify(
+                                sprintf(
+                                    '%+d days',
+                                    $offsetDays
+                                )
+                            );
+
+                            $isScheduled =
+                                $scheduledFor > $now;
+
+                            $statusData = [
+                                'label' => $isScheduled
+                                    ? 'Zaplanowany'
+                                    : 'Oczekuje na wysłanie',
+                                'class' =>
+                                    'dashboard-email-status--pending',
+                                'details' =>
+                                    $templateName
+                                    . ' · '
+                                    . $scheduledFor->format(
+                                        'd.m.Y H:i'
+                                    ),
+                            ];
+                        } catch (Throwable $exception) {
+                            $statusData = [
+                                'label' =>
+                                    'Nieprawidłowy termin',
+                                'class' =>
+                                    'dashboard-email-status--failed',
+                                'details' =>
+                                    $templateName,
+                            ];
+                        }
+                    }
+                }
+
+                $departureEmailStatuses[
+                    $reservationId
+                ] = $statusData;
+            }
         } catch (Throwable $exception) {
             $databaseMessage = 'Nie udało się pobrać danych dashboardu: '
                 . AppErrorHandler::safeMessage(
@@ -753,6 +1338,10 @@ $router->get('/admin', function (): void {
         'activeInquiries' => $activeInquiries,
         'upcomingReservations' => $upcomingReservations,
         'cleaningCabins' => $cleaningCabins,
+        'arrivalEmailStatuses' =>
+            $arrivalEmailStatuses,
+        'departureEmailStatuses' =>
+            $departureEmailStatuses,
         'databaseMessage' => $databaseMessage,
     ]));
 });
@@ -5146,6 +5735,12 @@ $router->post(
             FILTER_VALIDATE_INT
         );
 
+        $templateId = filter_var(
+            $_POST['template_id']
+            ?? null,
+            FILTER_VALIDATE_INT
+        );
+
         $subject = trim(
             is_string(
                 $_POST['subject']
@@ -5265,6 +5860,42 @@ $router->post(
                 return;
             }
 
+            $messageTemplate = null;
+
+            if ($context === 'RESERVATION') {
+                if (
+                    !is_int($templateId)
+                    || $templateId < 1
+                ) {
+                    $redirect('template');
+
+                    return;
+                }
+
+                $messageTemplate =
+                    MessageTemplateRepository::find(
+                        $templateId
+                    );
+
+                if (
+                    $messageTemplate === null
+                    || strtoupper(
+                        trim(
+                            (string) (
+                                $messageTemplate[
+                                    'template_context'
+                                ]
+                                ?? ''
+                            )
+                        )
+                    ) !== 'RESERVATION'
+                ) {
+                    $redirect('template');
+
+                    return;
+                }
+            }
+
             $recipient = trim(
                 (string) (
                     $record['email']
@@ -5299,12 +5930,38 @@ $router->post(
                 $sent
                 && $context === 'RESERVATION'
             ) {
+                $sentAt = new DateTimeImmutable('now');
+
+                try {
+                    AutomaticMessageDeliveryRepository::
+                        recordManualSent(
+                            (int) $templateId,
+                            $recordId,
+                            $recipient,
+                            $subject,
+                            $sentAt
+                        );
+                } catch (Throwable $deliveryException) {
+                    error_log(
+                        'E-mail został wysłany, ale nie udało się '
+                        . 'zapisać ręcznej wysyłki: '
+                        . $deliveryException::class
+                        . ': '
+                        . $deliveryException->getMessage()
+                    );
+                }
+
                 try {
                     ReservationHistoryRepository::add(
                         $recordId,
                         'EMAIL_SENT',
-                        'Wysłano e-mail do gościa',
-                        'Odbiorca: '
+                        'Ręcznie wysłano e-mail do gościa',
+                        'Szablon: '
+                            . (string) (
+                                $messageTemplate['name']
+                                ?? ''
+                            )
+                            . ' · Odbiorca: '
                             . $recipient
                             . ' · Temat: '
                             . $subject
