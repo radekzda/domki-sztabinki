@@ -16,6 +16,64 @@ $contextLabels = [
     'RESERVATION' => 'Rezerwacje',
     'GENERAL' => 'Ogólne',
 ];
+
+$automationReferenceLabels = [
+    'ARRIVAL' => 'przyjazdu',
+    'DEPARTURE' => 'wyjazdu',
+];
+
+$automationScheduleLabel = static function (
+    array $template
+) use ($automationReferenceLabels): string {
+    if (empty($template['automation_enabled'])) {
+        return 'Automatyczna wysyłka wyłączona';
+    }
+
+    $reference = strtoupper(
+        trim(
+            (string) (
+                $template['automation_reference']
+                ?? 'ARRIVAL'
+            )
+        )
+    );
+
+    $offset = (int) (
+        $template['automation_offset_days']
+        ?? 0
+    );
+
+    $time = substr(
+        (string) (
+            $template['automation_send_time']
+            ?? '10:00'
+        ),
+        0,
+        5
+    );
+
+    $referenceLabel = $automationReferenceLabels[
+        $reference
+    ] ?? 'zdarzenia';
+
+    if ($offset < 0) {
+        $when = abs($offset)
+            . ' dni przed '
+            . $referenceLabel;
+    } elseif ($offset > 0) {
+        $when = $offset
+            . ' dni po '
+            . $referenceLabel;
+    } else {
+        $when = 'w dniu '
+            . $referenceLabel;
+    }
+
+    return 'Automatycznie: '
+        . $when
+        . ' o '
+        . $time;
+};
 ?>
 <style>
     .templates-panel {
@@ -205,7 +263,7 @@ $contextLabels = [
         justify-content: flex-end;
     }
 
-    .template-status-field > label:last-child {
+    .template-status-options > label {
         min-height: 42px;
         margin: 0 !important;
         padding: 10px 12px;
@@ -220,11 +278,57 @@ $contextLabels = [
         cursor: pointer;
     }
 
+    .template-status-options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
     .template-status-field input[type="checkbox"] {
         width: 18px;
         height: 18px;
         margin: 0;
         accent-color: #15803d;
+    }
+
+    .template-automation-fields {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px 16px;
+        padding: 16px;
+        border: 1px solid #cbd5e1;
+        border-radius: 11px;
+        background: #f8fafc;
+    }
+
+    .template-automation-fields[hidden] {
+        display: none !important;
+    }
+
+    .template-automation-fields__title,
+    .template-automation-fields__note,
+    .template-automation-subject {
+        grid-column: 1 / -1;
+    }
+
+    .template-automation-fields__title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .template-automation-fields__note {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #64748b;
+    }
+
+    .template-automation-summary {
+        color: #0369a1 !important;
+        font-weight: 700;
     }
 
     .template-create-form .form-actions,
@@ -332,6 +436,17 @@ $contextLabels = [
         .template-create-form .form-grid,
         .template-edit-form .form-grid {
             grid-template-columns: 1fr;
+        }
+
+        .template-status-options,
+        .template-automation-fields {
+            grid-template-columns: 1fr;
+        }
+
+        .template-automation-fields__title,
+        .template-automation-fields__note,
+        .template-automation-subject {
+            grid-column: 1;
         }
     }
 
@@ -546,15 +661,127 @@ $contextLabels = [
                                             Status
                                         </label>
 
-                                        <label>
+                                        <div class="template-status-options">
+                                            <label>
+                                                <input
+                                                    name="is_active"
+                                                    type="checkbox"
+                                                    value="1"
+                                                    checked
+                                                >
+                                                Szablon aktywny
+                                            </label>
+
+                                            <label>
+                                                <input
+                                                    data-automation-toggle
+                                                    name="automation_enabled"
+                                                    type="checkbox"
+                                                    value="1"
+                                                >
+                                                Wyślij automatycznie
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="template-automation-fields"
+                                        data-automation-fields
+                                        hidden
+                                    >
+                                        <p class="template-automation-fields__title">
+                                            Harmonogram automatycznej wysyłki
+                                        </p>
+
+                                        <div class="form-field template-automation-subject">
+                                            <label for="new-template-automation-subject">
+                                                Temat e-maila
+                                            </label>
+
                                             <input
-                                                name="is_active"
-                                                type="checkbox"
-                                                value="1"
-                                                checked
+                                                id="new-template-automation-subject"
+                                                name="automation_subject"
+                                                type="text"
+                                                maxlength="255"
+                                                value=""
                                             >
-                                            Szablon aktywny
-                                        </label>
+                                        </div>
+
+                                        <div class="form-field">
+                                            <label for="new-template-automation-reference">
+                                                Termin względem
+                                            </label>
+
+                                            <select
+                                                id="new-template-automation-reference"
+                                                name="automation_reference"
+                                            >
+                                                <option value="ARRIVAL">
+                                                    Przyjazdu
+                                                </option>
+                                                <option value="DEPARTURE">
+                                                    Wyjazdu
+                                                </option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form-field">
+                                            <label for="new-template-automation-timing">
+                                                Kiedy
+                                            </label>
+
+                                            <select
+                                                id="new-template-automation-timing"
+                                                name="automation_timing"
+                                                data-automation-timing
+                                            >
+                                                <option value="BEFORE">
+                                                    Przed terminem
+                                                </option>
+                                                <option value="ON_DAY" selected>
+                                                    W dniu terminu
+                                                </option>
+                                                <option value="AFTER">
+                                                    Po terminie
+                                                </option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form-field">
+                                            <label for="new-template-automation-days">
+                                                Liczba dni
+                                            </label>
+
+                                            <input
+                                                id="new-template-automation-days"
+                                                data-automation-days
+                                                name="automation_days"
+                                                type="number"
+                                                min="0"
+                                                max="365"
+                                                value="0"
+                                            >
+                                        </div>
+
+                                        <div class="form-field">
+                                            <label for="new-template-automation-time">
+                                                Godzina wysyłki
+                                            </label>
+
+                                            <input
+                                                id="new-template-automation-time"
+                                                name="automation_send_time"
+                                                type="time"
+                                                value="10:00"
+                                            >
+                                        </div>
+
+                                        <p class="template-automation-fields__note">
+                                            Automatyczna wysyłka jest dostępna dla
+                                            szablonów rezerwacji. Anulowane rezerwacje
+                                            oraz rezerwacje bez prawidłowego e-maila
+                                            zostaną pominięte.
+                                        </p>
                                     </div>
 
                                     <div class="form-field form-field--full">
@@ -639,6 +866,52 @@ $contextLabels = [
                             $isActive = !empty(
                                 $template['is_active']
                             );
+
+                            $automationEnabled = !empty(
+                                $template['automation_enabled']
+                            );
+
+                            $automationReference = strtoupper(
+                                trim(
+                                    (string) (
+                                        $template['automation_reference']
+                                        ?? 'ARRIVAL'
+                                    )
+                                )
+                            );
+
+                            $automationOffsetDays = (int) (
+                                $template['automation_offset_days']
+                                ?? 0
+                            );
+
+                            $automationTiming = $automationOffsetDays < 0
+                                ? 'BEFORE'
+                                : (
+                                    $automationOffsetDays > 0
+                                        ? 'AFTER'
+                                        : 'ON_DAY'
+                                );
+
+                            $automationDays = abs(
+                                $automationOffsetDays
+                            );
+
+                            $automationSendTime = substr(
+                                (string) (
+                                    $template['automation_send_time']
+                                    ?? '10:00'
+                                ),
+                                0,
+                                5
+                            );
+
+                            $automationSubject = trim(
+                                (string) (
+                                    $template['automation_subject']
+                                    ?? ''
+                                )
+                            );
                             ?>
 
                             <div class="empty-state template-card">
@@ -670,6 +943,16 @@ $contextLabels = [
                                             <?= $isActive
                                                 ? 'Aktywny'
                                                 : 'Nieaktywny' ?>
+                                        </p>
+
+                                        <p class="template-automation-summary">
+                                            <?= htmlspecialchars(
+                                                $automationScheduleLabel(
+                                                    $template
+                                                ),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
                                         </p>
 
                                         <?php if ($templateKey !== ''): ?>
@@ -783,22 +1066,181 @@ $contextLabels = [
                                             >
                                         </div>
 
-                                        <div class="form-field">
+                                        <div class="form-field template-status-field">
                                             <label>
                                                 Status
                                             </label>
 
-                                            <label>
-                                                <input
-                                                    name="is_active"
-                                                    type="checkbox"
-                                                    value="1"
-                                                    <?= $isActive
-                                                        ? 'checked'
-                                                        : '' ?>
+                                            <div class="template-status-options">
+                                                <label>
+                                                    <input
+                                                        name="is_active"
+                                                        type="checkbox"
+                                                        value="1"
+                                                        <?= $isActive
+                                                            ? 'checked'
+                                                            : '' ?>
+                                                    >
+                                                    Szablon aktywny
+                                                </label>
+
+                                                <label>
+                                                    <input
+                                                        data-automation-toggle
+                                                        name="automation_enabled"
+                                                        type="checkbox"
+                                                        value="1"
+                                                        <?= $automationEnabled
+                                                            ? 'checked'
+                                                            : '' ?>
+                                                    >
+                                                    Wyślij automatycznie
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            class="template-automation-fields"
+                                            data-automation-fields
+                                            <?= $automationEnabled
+                                                ? ''
+                                                : 'hidden' ?>
+                                        >
+                                            <p class="template-automation-fields__title">
+                                                Harmonogram automatycznej wysyłki
+                                            </p>
+
+                                            <div class="form-field template-automation-subject">
+                                                <label
+                                                    for="template-automation-subject-<?= $templateId ?>"
                                                 >
-                                                Szablon aktywny
-                                            </label>
+                                                    Temat e-maila
+                                                </label>
+
+                                                <input
+                                                    id="template-automation-subject-<?= $templateId ?>"
+                                                    name="automation_subject"
+                                                    type="text"
+                                                    maxlength="255"
+                                                    value="<?= htmlspecialchars(
+                                                        $automationSubject,
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>"
+                                                >
+                                            </div>
+
+                                            <div class="form-field">
+                                                <label
+                                                    for="template-automation-reference-<?= $templateId ?>"
+                                                >
+                                                    Termin względem
+                                                </label>
+
+                                                <select
+                                                    id="template-automation-reference-<?= $templateId ?>"
+                                                    name="automation_reference"
+                                                >
+                                                    <option
+                                                        value="ARRIVAL"
+                                                        <?= $automationReference === 'ARRIVAL'
+                                                            ? 'selected'
+                                                            : '' ?>
+                                                    >
+                                                        Przyjazdu
+                                                    </option>
+                                                    <option
+                                                        value="DEPARTURE"
+                                                        <?= $automationReference === 'DEPARTURE'
+                                                            ? 'selected'
+                                                            : '' ?>
+                                                    >
+                                                        Wyjazdu
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <div class="form-field">
+                                                <label
+                                                    for="template-automation-timing-<?= $templateId ?>"
+                                                >
+                                                    Kiedy
+                                                </label>
+
+                                                <select
+                                                    id="template-automation-timing-<?= $templateId ?>"
+                                                    name="automation_timing"
+                                                    data-automation-timing
+                                                >
+                                                    <option
+                                                        value="BEFORE"
+                                                        <?= $automationTiming === 'BEFORE'
+                                                            ? 'selected'
+                                                            : '' ?>
+                                                    >
+                                                        Przed terminem
+                                                    </option>
+                                                    <option
+                                                        value="ON_DAY"
+                                                        <?= $automationTiming === 'ON_DAY'
+                                                            ? 'selected'
+                                                            : '' ?>
+                                                    >
+                                                        W dniu terminu
+                                                    </option>
+                                                    <option
+                                                        value="AFTER"
+                                                        <?= $automationTiming === 'AFTER'
+                                                            ? 'selected'
+                                                            : '' ?>
+                                                    >
+                                                        Po terminie
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <div class="form-field">
+                                                <label
+                                                    for="template-automation-days-<?= $templateId ?>"
+                                                >
+                                                    Liczba dni
+                                                </label>
+
+                                                <input
+                                                    id="template-automation-days-<?= $templateId ?>"
+                                                    data-automation-days
+                                                    name="automation_days"
+                                                    type="number"
+                                                    min="0"
+                                                    max="365"
+                                                    value="<?= $automationDays ?>"
+                                                >
+                                            </div>
+
+                                            <div class="form-field">
+                                                <label
+                                                    for="template-automation-time-<?= $templateId ?>"
+                                                >
+                                                    Godzina wysyłki
+                                                </label>
+
+                                                <input
+                                                    id="template-automation-time-<?= $templateId ?>"
+                                                    name="automation_send_time"
+                                                    type="time"
+                                                    value="<?= htmlspecialchars(
+                                                        $automationSendTime,
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ) ?>"
+                                                >
+                                            </div>
+
+                                            <p class="template-automation-fields__note">
+                                                Automatyczna wysyłka jest dostępna dla
+                                                szablonów rezerwacji. Wiadomość zostanie
+                                                wysłana tylko raz dla danego terminu.
+                                            </p>
                                         </div>
 
                                         <div class="form-field form-field--full">
@@ -863,3 +1305,89 @@ $contextLabels = [
         </div>
     </div>
 </section>
+
+<script>
+(function () {
+    const forms = document.querySelectorAll(
+        '.template-create-form, .template-edit-form'
+    );
+
+    forms.forEach(function (form) {
+        const context = form.querySelector(
+            '[name="template_context"]'
+        );
+        const toggle = form.querySelector(
+            '[data-automation-toggle]'
+        );
+        const fields = form.querySelector(
+            '[data-automation-fields]'
+        );
+        const timing = form.querySelector(
+            '[data-automation-timing]'
+        );
+        const days = form.querySelector(
+            '[data-automation-days]'
+        );
+
+        if (!context || !toggle || !fields) {
+            return;
+        }
+
+        function updateDays() {
+            if (!timing || !days) {
+                return;
+            }
+
+            const onDay = timing.value === 'ON_DAY';
+
+            days.disabled = onDay || fields.hidden;
+
+            if (onDay) {
+                days.value = '0';
+            }
+        }
+
+        function updateAutomation() {
+            const reservationContext =
+                context.value === 'RESERVATION';
+
+            toggle.disabled = !reservationContext;
+
+            if (!reservationContext) {
+                toggle.checked = false;
+            }
+
+            fields.hidden =
+                !reservationContext
+                || !toggle.checked;
+
+            fields.querySelectorAll(
+                'input, select'
+            ).forEach(function (field) {
+                field.disabled = fields.hidden;
+            });
+
+            updateDays();
+        }
+
+        context.addEventListener(
+            'change',
+            updateAutomation
+        );
+
+        toggle.addEventListener(
+            'change',
+            updateAutomation
+        );
+
+        if (timing) {
+            timing.addEventListener(
+                'change',
+                updateDays
+            );
+        }
+
+        updateAutomation();
+    });
+})();
+</script>

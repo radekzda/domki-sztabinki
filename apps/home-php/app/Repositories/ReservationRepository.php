@@ -356,6 +356,95 @@ final class ReservationRepository
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * Rezerwacje przypadające na dzień odniesienia
+     * automatycznej wiadomości.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function automaticMessageCandidates(
+        string $reference,
+        string $referenceDate,
+        int $offsetDays
+    ): array {
+        $reference = strtoupper(trim($reference));
+
+        if (!in_array($reference, ['ARRIVAL', 'DEPARTURE'], true)) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowy punkt odniesienia automatycznej wiadomości.'
+            );
+        }
+
+        $dateObject = DateTimeImmutable::createFromFormat(
+            '!Y-m-d',
+            $referenceDate
+        );
+
+        if (
+            $dateObject === false
+            || $dateObject->format('Y-m-d') !== $referenceDate
+        ) {
+            throw new InvalidArgumentException(
+                'Nieprawidłowa data automatycznej wiadomości.'
+            );
+        }
+
+        $dateColumn = $reference === 'ARRIVAL'
+            ? 'start_date'
+            : 'end_date';
+
+        $statement = Database::connection()->prepare(
+            'SELECT id
+            FROM reservations
+            WHERE ' . $dateColumn . ' = :reference_date
+            AND status IN (
+                "CONFIRMED",
+                "CHECKED_IN",
+                "CHECKED_OUT"
+            )
+            ORDER BY id ASC'
+        );
+
+        $statement->execute([
+            'reference_date' => $referenceDate,
+        ]);
+
+        $rows = $statement->fetchAll();
+
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        $reservations = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $reservation = self::find(
+                (int) ($row['id'] ?? 0)
+            );
+
+            if ($reservation === null) {
+                continue;
+            }
+
+            if (
+                $reference === 'DEPARTURE'
+                && $offsetDays > 0
+                && (string) ($reservation['status'] ?? '')
+                    !== 'CHECKED_OUT'
+            ) {
+                continue;
+            }
+
+            $reservations[] = $reservation;
+        }
+
+        return $reservations;
+    }
+
     public static function departuresWithoutInvoiceForDate(
         string $date
     ): array {

@@ -4203,7 +4203,7 @@ $router->get('/admin/szablony', function (): void {
         : '';
 
     if ($error === 'validation') {
-        $errorMessage = 'Uzupełnij poprawnie nazwę, zastosowanie, kolejność i treść szablonu.';
+        $errorMessage = 'Uzupełnij poprawnie nazwę, zastosowanie, kolejność, treść i ustawienia automatycznej wysyłki szablonu.';
     } elseif ($error === 'not_found') {
         $errorMessage = 'Nie znaleziono wskazanego szablonu.';
     } elseif ($error === 'database') {
@@ -4268,6 +4268,84 @@ $router->post('/admin/szablony/dodaj', function (): void {
         (string) ($_POST['sort_order'] ?? '0')
     );
 
+    $automationEnabled =
+        $templateContext === 'RESERVATION'
+        && isset($_POST['automation_enabled']);
+
+    $automationSubject = trim(
+        (string) ($_POST['automation_subject'] ?? '')
+    );
+
+    $automationReference = strtoupper(
+        trim(
+            (string) (
+                $_POST['automation_reference']
+                ?? 'ARRIVAL'
+            )
+        )
+    );
+
+    $automationTiming = strtoupper(
+        trim(
+            (string) (
+                $_POST['automation_timing']
+                ?? 'ON_DAY'
+            )
+        )
+    );
+
+    $automationDaysRaw = trim(
+        (string) ($_POST['automation_days'] ?? '0')
+    );
+
+    $automationSendTime = trim(
+        (string) ($_POST['automation_send_time'] ?? '10:00')
+    );
+
+    $automationOffsetDays = 0;
+    $automationIsValid = true;
+
+    if ($automationEnabled) {
+        $automationIsValid =
+            $automationSubject !== ''
+            && (
+                function_exists('mb_strlen')
+                    ? mb_strlen($automationSubject)
+                    : strlen($automationSubject)
+            ) <= 255
+            && in_array(
+                $automationReference,
+                ['ARRIVAL', 'DEPARTURE'],
+                true
+            )
+            && in_array(
+                $automationTiming,
+                ['BEFORE', 'ON_DAY', 'AFTER'],
+                true
+            )
+            && preg_match(
+                '/^\d{1,3}$/',
+                $automationDaysRaw
+            ) === 1
+            && (int) $automationDaysRaw <= 365
+            && preg_match(
+                '/^([01]\d|2[0-3]):[0-5]\d$/',
+                $automationSendTime
+            ) === 1;
+
+        $automationDays = (int) $automationDaysRaw;
+
+        $automationOffsetDays = match ($automationTiming) {
+            'BEFORE' => -$automationDays,
+            'AFTER' => $automationDays,
+            default => 0,
+        };
+    } else {
+        $automationSubject = '';
+        $automationReference = 'ARRIVAL';
+        $automationSendTime = '10:00';
+    }
+
     $allowedContexts = [
         'INQUIRY',
         'RESERVATION',
@@ -4291,6 +4369,7 @@ $router->post('/admin/szablony/dodaj', function (): void {
             '/^\d{1,4}$/',
             $sortOrderRaw
         ) !== 1
+        || !$automationIsValid
     ) {
         Response::redirect(
             '/admin/szablony?error=validation'
@@ -4309,6 +4388,11 @@ $router->post('/admin/szablony/dodaj', function (): void {
                 $_POST['is_active']
             ),
             'sort_order' => (int) $sortOrderRaw,
+            'automation_enabled' => $automationEnabled,
+            'automation_subject' => $automationSubject,
+            'automation_reference' => $automationReference,
+            'automation_offset_days' => $automationOffsetDays,
+            'automation_send_time' => $automationSendTime,
         ]);
 
         Response::redirect(
@@ -4372,6 +4456,84 @@ $router->post('/admin/szablony/edytuj', function (): void {
         (string) ($_POST['sort_order'] ?? '0')
     );
 
+    $automationEnabled =
+        $templateContext === 'RESERVATION'
+        && isset($_POST['automation_enabled']);
+
+    $automationSubject = trim(
+        (string) ($_POST['automation_subject'] ?? '')
+    );
+
+    $automationReference = strtoupper(
+        trim(
+            (string) (
+                $_POST['automation_reference']
+                ?? 'ARRIVAL'
+            )
+        )
+    );
+
+    $automationTiming = strtoupper(
+        trim(
+            (string) (
+                $_POST['automation_timing']
+                ?? 'ON_DAY'
+            )
+        )
+    );
+
+    $automationDaysRaw = trim(
+        (string) ($_POST['automation_days'] ?? '0')
+    );
+
+    $automationSendTime = trim(
+        (string) ($_POST['automation_send_time'] ?? '10:00')
+    );
+
+    $automationOffsetDays = 0;
+    $automationIsValid = true;
+
+    if ($automationEnabled) {
+        $automationIsValid =
+            $automationSubject !== ''
+            && (
+                function_exists('mb_strlen')
+                    ? mb_strlen($automationSubject)
+                    : strlen($automationSubject)
+            ) <= 255
+            && in_array(
+                $automationReference,
+                ['ARRIVAL', 'DEPARTURE'],
+                true
+            )
+            && in_array(
+                $automationTiming,
+                ['BEFORE', 'ON_DAY', 'AFTER'],
+                true
+            )
+            && preg_match(
+                '/^\d{1,3}$/',
+                $automationDaysRaw
+            ) === 1
+            && (int) $automationDaysRaw <= 365
+            && preg_match(
+                '/^([01]\d|2[0-3]):[0-5]\d$/',
+                $automationSendTime
+            ) === 1;
+
+        $automationDays = (int) $automationDaysRaw;
+
+        $automationOffsetDays = match ($automationTiming) {
+            'BEFORE' => -$automationDays,
+            'AFTER' => $automationDays,
+            default => 0,
+        };
+    } else {
+        $automationSubject = '';
+        $automationReference = 'ARRIVAL';
+        $automationSendTime = '10:00';
+    }
+
     $allowedContexts = [
         'INQUIRY',
         'RESERVATION',
@@ -4395,6 +4557,7 @@ $router->post('/admin/szablony/edytuj', function (): void {
             '/^\d{1,4}$/',
             $sortOrderRaw
         ) !== 1
+        || !$automationIsValid
     ) {
         Response::redirect(
             '/admin/szablony?error=validation'
@@ -4429,6 +4592,11 @@ $router->post('/admin/szablony/edytuj', function (): void {
                     $_POST['is_active']
                 ),
                 'sort_order' => (int) $sortOrderRaw,
+                'automation_enabled' => $automationEnabled,
+                'automation_subject' => $automationSubject,
+                'automation_reference' => $automationReference,
+                'automation_offset_days' => $automationOffsetDays,
+                'automation_send_time' => $automationSendTime,
             ]
         );
 
